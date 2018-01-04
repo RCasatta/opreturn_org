@@ -22,8 +22,13 @@ fn main() {
 fn print_map_by_value(map : &HashMap<String,u32>) {
     let mut count_vec: Vec<(&String, &u32)> = map.iter().collect();
     count_vec.sort_by(|a, b| b.1.cmp(a.1));
+    let mut i = 0;
     for (a,b) in count_vec {
         println!("{} {}", a, b);
+        if i>99 {
+            break;
+        }
+        i=i+1;
     }
 }
 
