@@ -24,7 +24,7 @@ fn print_map_by_value(map : &HashMap<String,u32>) {
     count_vec.sort_by(|a, b| b.1.cmp(a.1));
     let mut i = 0;
     for (a,b) in count_vec {
-        println!("{} {}", a, b);
+        println!("2 {} {}", a, b);
         if i>99 {
             break;
         }
@@ -36,9 +36,8 @@ fn print_map_by_key(map : &HashMap<String,u32>) {
     let mut map_keys : Vec<_> = map.keys().collect();
     map_keys.sort();
     for el in map_keys {
-        println!("{} {}", el, map.get(el).unwrap());
+        println!("1 {} {}", el, map.get(el).unwrap());
     }
-    println!("---");
 }
 
 fn parse(el : &str, counters : &mut HashMap<String,u32>, counters_per_proto : &mut HashMap<String,u32>) {
