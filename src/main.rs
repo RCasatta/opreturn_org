@@ -13,13 +13,11 @@ fn main() {
     for el in buffer.lines() {
         parse(el, &mut counters);
     }
-    for el in &counters {
-        println!("{:?}",el);
-    }
+
     let mut counters_keys : Vec<_> = counters.keys().collect();
     counters_keys.sort();
     for el in counters_keys {
-        println!("{} {:?}",el,counters.get(el));
+        println!("{} {}",el,counters.get(el).unwrap());
     }
 }
 
@@ -28,11 +26,11 @@ fn parse(el : &str, counters : &mut HashMap<String,u32>) {
     let timestamp = x.next();
     let value = x.next();
     if let (Some(timestamp),Some(value)) = (timestamp,value) {
-        println!("{} {}", timestamp, value);
+        //println!("{} {}", timestamp, value);
         let timestamp = timestamp.parse::<i64>().unwrap();
         let date = Utc.timestamp(timestamp,0);
         let key = format!("{}{:02}",date.year(),date.month());
-        println!("{}", key);
+        //println!("{}", key);
         let counter = counters.entry(key).or_insert(1);
         *counter += 1;
     }
