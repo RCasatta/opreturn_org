@@ -5,3 +5,4 @@ authors = ["Riccardo Casatta <riccardo@casatta.it>"]
 
 [dependencies]
 chrono = "0.4"
+time = "0.1"
