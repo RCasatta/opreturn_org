@@ -6,3 +6,5 @@ authors = ["Riccardo Casatta <riccardo@casatta.it>"]
 [dependencies]
 chrono = "0.4"
 time = "0.1"
+handlebars = "0.29.1"
+serde_json = "1.0.9"

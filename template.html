@@ -1,0 +1,111 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>Line Chart</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.bundle.min.js"></script>
+    <style>
+    canvas{
+        -moz-user-select: none;
+        -webkit-user-select: none;
+        -ms-user-select: none;
+    }
+    </style>
+</head>
+
+<body>
+    {{name}}
+    <div style="width:75%;">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <script>
+
+        var config = {
+            type: 'line',
+            data: {
+                labels: {{months}},
+                datasets: [{
+                    label: "My First dataset",
+                    data: {{tx_per_month}},
+                    fill: false,
+                }]
+            },
+            options: {
+                responsive: true,
+                title:{
+                    display:true,
+                    text:'Chart.js Line Chart'
+                },
+                tooltips: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                hover: {
+                    mode: 'nearest',
+                    intersect: true
+                },
+                scales: {
+                    xAxes: [{
+                        display: true,
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Month'
+                        }
+                    }],
+                    yAxes: [{
+                        display: true,
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Value'
+                        }
+                    }]
+                }
+            }
+        };
+
+        function handleFileData(fileData) {
+            if (!fileData) {
+                console.log("error!");
+                return;
+            }
+            // Use the file data
+            console.log(fileData);
+        }
+
+        window.onload = function() {
+            var ctx = document.getElementById("canvas").getContext("2d");
+
+            // Do the request
+            doGET("./aggregated_data.txt", handleFileData);
+            window.myLine = new Chart(ctx, config);
+        };
+
+        function doGET(path, callback) {
+          console.log("doGet");
+
+          var xhr = new XMLHttpRequest();
+          xhr.onreadystatechange = function() {
+                if (xhr.readyState == 4) {
+                    // The request is done; did it work?
+                    if (xhr.status == 200) {
+                        // ***Yes, use `xhr.responseText` here***
+                        callback(xhr.responseText);
+                    } else {
+                        // ***No, tell the callback the call failed***
+                        callback(null);
+                }
+            };
+          }
+            xhr.open("GET", path);
+            xhr.send();
+
+        }
+
+
+
+
+    </script>
+</body>
+
+</html>

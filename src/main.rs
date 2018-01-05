@@ -1,13 +1,21 @@
 extern crate chrono;
 extern crate time;
+extern crate handlebars;
+#[macro_use]
+extern crate serde_json;
 
+use handlebars::Handlebars;
 use std::io::{self, Read};
 use chrono::{Utc, TimeZone, Datelike, DateTime};
 use std::collections::HashMap;
 use time::Duration;
-
+use std::fs::File;
 
 fn main() {
+
+    let mut f = File::open("template.html").expect("template not found");
+    let mut contents = String::new();
+    f.read_to_string(&mut contents).expect("something went wrong reading the template file: 'template.html'");
 
     let mut buffer = String::new();
     io::stdin().read_to_string(&mut buffer).unwrap();
@@ -18,9 +26,17 @@ fn main() {
     for el in buffer.lines() {
         parse(el, &mut counters, &mut counters_per_proto, &mut counters_per_proto_last, from);
     }
-    print_map_by_key(&counters);
+    let (months, tx_per_month) = print_map_by_key(&counters);
     print_map_by_value(&counters_per_proto, '2');
     print_map_by_value(&counters_per_proto_last, '3');
+
+    let reg = Handlebars::new();
+    // render without register
+    println!(
+        "{}",
+        reg.template_render(&contents, &json!({"months": months, "tx_per_month":tx_per_month}))
+            .unwrap()
+    );
 }
 
 
@@ -29,7 +45,7 @@ fn print_map_by_value(map : &HashMap<String,u32>, c : char) {
     count_vec.sort_by(|a, b| b.1.cmp(a.1));
     let mut i = 0;
     for (a,b) in count_vec {
-        println!("{} {} {}",c , a, b);
+        //println!("{} {} {}",c , a, b);
         if i>49 {
             break;
         }
@@ -37,12 +53,19 @@ fn print_map_by_value(map : &HashMap<String,u32>, c : char) {
     }
 }
 
-fn print_map_by_key(map : &HashMap<String,u32>) {
+fn print_map_by_key(map : &HashMap<String,u32>) -> (String,String){
     let mut map_keys : Vec<_> = map.keys().collect();
     map_keys.sort();
+    let mut months : Vec<String> = vec!();
+    let mut tx_per_month : Vec<u32> = vec!();
     for el in map_keys {
-        println!("1 {} {}", el, map.get(el).unwrap());
+        let tx_this_month = map.get(el).unwrap();
+        //println!("1 {} {}", el, tx_this_month);
+        months.push(el.to_owned());
+        tx_per_month.push(tx_this_month.clone());
     }
+    (str::replace(&format!("{:?}",months),"\"","'"),format!("{:?}",tx_per_month))
+
 }
 
 fn parse(el : &str,
