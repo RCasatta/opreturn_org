@@ -27,33 +27,44 @@ fn main() {
         parse(el, &mut counters, &mut counters_per_proto, &mut counters_per_proto_last, from);
     }
     let (months, tx_per_month) = print_map_by_key(&counters);
-    print_map_by_value(&counters_per_proto, '2');
-    print_map_by_value(&counters_per_proto_last, '3');
+    let (proto, proto_count) = print_map_by_value(&counters_per_proto);
+    let (proto_last, proto_last_count) = print_map_by_value(&counters_per_proto_last);
 
     let reg = Handlebars::new();
-    // render without register
+
     println!(
         "{}",
-        reg.template_render(&contents, &json!({"months": months, "tx_per_month":tx_per_month}))
-            .unwrap()
+        reg.template_render(&contents, &json!({
+        "months": months,
+        "tx_per_month":tx_per_month,
+        "proto":proto,
+        "proto_count":proto_count,
+        "proto_last":proto_last,
+        "proto_last_count":proto_last_count,
+        })).unwrap()
     );
 }
 
 
-fn print_map_by_value(map : &HashMap<String,u32>, c : char) {
+fn print_map_by_value(map : &HashMap<String,u32>) -> (String,String) {
     let mut count_vec: Vec<(&String, &u32)> = map.iter().collect();
     count_vec.sort_by(|a, b| b.1.cmp(a.1));
+    let mut name : Vec<String> = vec!();
+    let mut value : Vec<u32> = vec!();
     let mut i = 0;
     for (a,b) in count_vec {
-        //println!("{} {} {}",c , a, b);
-        if i>49 {
+        if i>9 {
             break;
         }
         i=i+1;
+        name.push(a.to_owned());
+        value.push(b.clone());
     }
+
+    (str::replace(&format!("{:?}",name),"\"","'") , format!("{:?}", value) )
 }
 
-fn print_map_by_key(map : &HashMap<String,u32>) -> (String,String){
+fn print_map_by_key(map : &HashMap<String,u32>) -> (String,String) {
     let mut map_keys : Vec<_> = map.keys().collect();
     map_keys.sort();
     let mut months : Vec<String> = vec!();

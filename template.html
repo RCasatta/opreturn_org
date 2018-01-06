@@ -2,8 +2,9 @@
 <html>
 
 <head>
-    <title>Line Chart</title>
+    <title>OP_RETURN stats</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.bundle.min.js"></script>
+    <script src="aWapBE.js"></script>
     <style>
     canvas{
         -moz-user-select: none;
@@ -14,29 +15,37 @@
 </head>
 
 <body>
-    {{name}}
-    <div style="width:75%;">
-        <canvas id="canvas"></canvas>
+
+    <div style="width:90%;">
+        <canvas id="total"></canvas>
     </div>
+    <br><br>
+
+    <div style="width:90%;">
+        <canvas id="proto"></canvas>
+    </div>
+    <br><br>
+
+    <div style="width:90%;">
+        <canvas id="proto_last"></canvas>
+    </div>
+    <br><br>
 
     <script>
 
-        var config = {
+        var config_total = {
             type: 'line',
             data: {
                 labels: {{months}},
                 datasets: [{
-                    label: "My First dataset",
+                    label: "Transactions with OP_RETURN per month",
                     data: {{tx_per_month}},
-                    fill: false,
+                    fill: true,
+                    backgroundColor: 'rgba(54, 162, 235,0.5)',
                 }]
             },
             options: {
                 responsive: true,
-                title:{
-                    display:true,
-                    text:'Chart.js Line Chart'
-                },
                 tooltips: {
                     mode: 'index',
                     intersect: false,
@@ -50,57 +59,75 @@
                         display: true,
                         scaleLabel: {
                             display: true,
-                            labelString: 'Month'
+                            labelString: 'Months'
                         }
                     }],
                     yAxes: [{
                         display: true,
                         scaleLabel: {
                             display: true,
-                            labelString: 'Value'
+                            labelString: 'Transactions'
                         }
                     }]
                 }
             }
         };
 
-        function handleFileData(fileData) {
-            if (!fileData) {
-                console.log("error!");
-                return;
+        var config_proto = {
+            type: 'pie',
+            data: {
+                datasets: [{
+                    data: {{ proto_count }},
+                    backgroundColor: palette('tol-rainbow', 10).map(function(hex) {
+                                        return '#' + hex;
+                                      }),
+                    label: 'Dataset 1'
+                }],
+                labels: {{ proto }}
+            },
+
+            options: {
+                responsive: true,
+                legend: {
+                    position: 'right'
+                }
             }
-            // Use the file data
-            console.log(fileData);
-        }
-
-        window.onload = function() {
-            var ctx = document.getElementById("canvas").getContext("2d");
-
-            // Do the request
-            doGET("./aggregated_data.txt", handleFileData);
-            window.myLine = new Chart(ctx, config);
         };
 
-        function doGET(path, callback) {
-          console.log("doGet");
 
-          var xhr = new XMLHttpRequest();
-          xhr.onreadystatechange = function() {
-                if (xhr.readyState == 4) {
-                    // The request is done; did it work?
-                    if (xhr.status == 200) {
-                        // ***Yes, use `xhr.responseText` here***
-                        callback(xhr.responseText);
-                    } else {
-                        // ***No, tell the callback the call failed***
-                        callback(null);
+        var config_proto_last = {
+            type: 'pie',
+            data: {
+                datasets: [{
+                    data: {{ proto_last_count }},
+                    backgroundColor: palette('tol-rainbow', 10).map(function(hex) {
+                                        return '#' + hex;
+                                      }),
+                    label: 'Dataset 1'
+                }],
+                labels: {{ proto_last }}
+            },
+
+            options: {
+                responsive: true,
+                legend: {
+                    position: 'right'
                 }
-            };
-          }
-            xhr.open("GET", path);
-            xhr.send();
+            }
+        };
 
-        }
+
+        window.onload = function() {
+            var ctx = document.getElementById("total").getContext("2d");
+            window.totalChart = new Chart(ctx, config_total);
+
+            var ctx2 = document.getElementById("proto").getContext("2d");
+            window.protoChart = new Chart(ctx2, config_proto);
+
+            var ctx3 = document.getElementById("proto_last").getContext("2d");
+            window.protoChart = new Chart(ctx3, config_proto_last);
+        };
+
 
 
 
