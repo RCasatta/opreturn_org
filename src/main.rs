@@ -23,9 +23,7 @@ fn main() {
     let mut counters_per_proto : HashMap<String,u32> = HashMap::new();
     let mut counters_per_proto_last : HashMap<String,u32> = HashMap::new();
     let from = Utc::now() - Duration::days(30); // 1 month ago
-    println!("Start");
     loop {
-        println!("loop");
         match io::stdin().read_line(&mut buffer) {
             Ok(n) => {
                 if n == 0 {
