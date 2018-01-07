@@ -18,14 +18,26 @@ fn main() {
     f.read_to_string(&mut contents).expect("something went wrong reading the template file: 'template.html'");
 
     let mut buffer = String::new();
-    io::stdin().read_to_string(&mut buffer).unwrap();
+
     let mut counters : HashMap<String,u32> = HashMap::new();
     let mut counters_per_proto : HashMap<String,u32> = HashMap::new();
     let mut counters_per_proto_last : HashMap<String,u32> = HashMap::new();
     let from = Utc::now() - Duration::days(30); // 1 month ago
-    for el in buffer.lines() {
-        parse(el, &mut counters, &mut counters_per_proto, &mut counters_per_proto_last, from);
+    println!("Start");
+    loop {
+        println!("loop");
+        match io::stdin().read_line(&mut buffer) {
+            Ok(n) => {
+                if n == 0 {
+                    break;
+                }
+
+                parse(&buffer, &mut counters, &mut counters_per_proto, &mut counters_per_proto_last, from);
+            }
+            Err(error) => panic!("error: {}", error),
+        }
     }
+
     let (months, tx_per_month) = print_map_by_key(&counters);
     let (proto, proto_count) = print_map_by_value(&counters_per_proto);
     let (proto_last, proto_last_count) = print_map_by_value(&counters_per_proto_last);
