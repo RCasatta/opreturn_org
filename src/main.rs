@@ -46,7 +46,7 @@ fn main() {
     let (months, tx_per_month) = print_map_by_key(&counters);
     let (proto, proto_count) = print_map_by_value(&counters_per_proto);
     let (proto_last, proto_last_count) = print_map_by_value(&counters_per_proto_last);
-    let (a, b) = print_map_by_value(&counters_per_template);
+    let (_a, _b) = print_map_by_value(&counters_per_template);
 
     let reg = Handlebars::new();
 
@@ -62,7 +62,7 @@ fn main() {
         })).unwrap()
     ).unwrap();
     let mut result_html : File = File::create("result.html").expect("error opening result.html");
-    result_html.write_all(buffer.as_bytes());
+    let _r = result_html.write_all(buffer.as_bytes());
 }
 
 
