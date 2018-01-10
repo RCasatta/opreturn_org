@@ -115,10 +115,8 @@ fn parse_script(script : &bitcoin::blockdata::script::Script) -> String {
         } else {
             buffer.push_str("<DATA>");
         }
-
         buffer.push_str(" ");
     }
-    println!("{}",buffer);
     buffer
 }
 
