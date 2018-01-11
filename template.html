@@ -17,7 +17,7 @@
 <body>
 
     <div style="width:90%;">
-        <canvas id="tx_per_month"></canvas>
+        <canvas id="txo_per_month"></canvas>
     </div>
     <br><br>
 
@@ -53,13 +53,13 @@
 
     <script>
 
-        var config_tx_per_month = {
+        var config_txo_per_month = {
             type: 'line',
             data: {
-                labels: {{ tx_per_month_labels }},
+                labels: {{ txo_per_month_labels }},
                 datasets: [{
-                    label: "Transactions per month",
-                    data: {{ tx_per_month_data }},
+                    label: "Transactions Outputs per month",
+                    data: {{ txo_per_month_data }},
                     fill: true,
                     backgroundColor: 'rgba(54, 162, 235,0.5)',
                 }]
@@ -86,7 +86,7 @@
                         display: true,
                         scaleLabel: {
                             display: true,
-                            labelString: 'Transactions'
+                            labelString: 'TXO'
                         }
                     }]
                 }
@@ -98,7 +98,7 @@
             data: {
                 labels: {{ op_ret_per_month_labels }},
                 datasets: [{
-                    label: "Transactions with OP_RETURN per month",
+                    label: "OP_RETURNs per month",
                     data: {{ op_ret_per_month_data }},
                     fill: true,
                     backgroundColor: 'rgba(54, 162, 235,0.5)',
@@ -126,7 +126,7 @@
                         display: true,
                         scaleLabel: {
                             display: true,
-                            labelString: 'Transactions'
+                            labelString: 'OP_RETURN'
                         }
                     }]
                 }
@@ -139,7 +139,7 @@
             data: {
                 labels: {{ segwit_per_month_labels }},
                 datasets: [{
-                    label: "Transactions per month",
+                    label: "SegWit outputs per month",
                     data: {{ segwit_per_month_data }},
                     fill: true,
                     backgroundColor: 'rgba(54, 162, 235,0.5)',
@@ -242,7 +242,7 @@
             options: {
                 title:{
                     display:true,
-                    text:'Transaction per Script template'
+                    text:'Transacrions Outputs per Script template'
                 },
                 responsive: true,
                 legend: {
@@ -267,7 +267,7 @@
             options: {
                 title:{
                     display:true,
-                    text:'Transaction per Script template in the last 30 days'
+                    text:'Transaction Outputs per Script template in the last 30 days'
                 },
                 responsive: true,
                 legend: {
@@ -280,8 +280,8 @@
 
         window.onload = function() {
 
-            var ctx_tx_per_month = document.getElementById("tx_per_month").getContext("2d");
-            window.tx_per_month = new Chart(ctx_tx_per_month, config_tx_per_month);
+            var ctx_txo_per_month = document.getElementById("txo_per_month").getContext("2d");
+            window.txo_per_month = new Chart(ctx_txo_per_month, config_txo_per_month);
 
             var ctx_op_ret_per_month = document.getElementById("op_ret_per_month").getContext("2d");
             window.op_ret_per_month = new Chart(ctx_op_ret_per_month, config_op_ret_per_month);

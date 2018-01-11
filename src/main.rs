@@ -38,7 +38,7 @@ struct Maps {
     op_ret_per_month : HashMap<String,u32>,
     op_ret_per_proto : HashMap<String,u32>,
     op_ret_per_proto_last_month : HashMap<String,u32>,
-    tx_per_month : HashMap<String,u32>,
+    txo_per_month : HashMap<String,u32>,
     segwit_per_month : HashMap<String,u32>,
     tx_per_template : HashMap<String,u32>,
     tx_per_template_last_month : HashMap<String,u32>,
@@ -55,7 +55,7 @@ impl Maps {
             op_ret_per_month : HashMap::new(),
             op_ret_per_proto : HashMap::new(),
             op_ret_per_proto_last_month : HashMap::new(),
-            tx_per_month : HashMap::new(),
+            txo_per_month : HashMap::new(),
             segwit_per_month : HashMap::new(),
             tx_per_template : HashMap::new(),
             tx_per_template_last_month : HashMap::new(),
@@ -121,9 +121,9 @@ fn run() -> Result<()> {
             let current_ym = format!("{}{:02}", now.year(), now.month());
             maps.op_ret_per_month.remove(&current_ym);
             maps.segwit_per_month.remove(&current_ym);
-            maps.tx_per_month.remove(&current_ym);
+            maps.txo_per_month.remove(&current_ym);
 
-            let tx_per_month : Serie = print_map_by_key(&maps.tx_per_month);
+            let txo_per_month : Serie = print_map_by_key(&maps.txo_per_month);
             let op_ret_per_month : Serie = print_map_by_key(&maps.op_ret_per_month);
             let segwit_per_month : Serie = print_map_by_key(&maps.segwit_per_month);
 
@@ -146,8 +146,8 @@ fn run() -> Result<()> {
                      "tx_per_template_data":tx_per_template.data,
                      "tx_per_template_last_month_labels":tx_per_template_last_month.labels,
                      "tx_per_template_last_month_data":tx_per_template_last_month.data,
-                     "tx_per_month_labels":tx_per_month.labels,
-                     "tx_per_month_data":tx_per_month.data,
+                     "txo_per_month_labels":txo_per_month.labels,
+                     "txo_per_month_data":txo_per_month.data,
                      "segwit_per_month_labels":segwit_per_month.labels,
                      "segwit_per_month_data":segwit_per_month.data,
                      });
@@ -309,7 +309,7 @@ fn update(parsed : Parsed, maps :  &mut Maps) {
         *maps.tx_per_template_last_month.entry(parsed.script.clone()).or_insert(0)+=1;
     }
 
-    *maps.tx_per_month.entry(parsed.ym).or_insert(0)+=1;
+    *maps.txo_per_month.entry(parsed.ym).or_insert(0)+=1;
     *maps.tx_per_template.entry(parsed.script).or_insert(0)+=1;
 
 }
