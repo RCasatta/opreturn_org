@@ -45,7 +45,7 @@ fn run() -> Result<()> {
     let mut handles = vec!();
     let (parsed_sender, parsed_receiver) = channel();
     for i in 0..num {
-        let (sender, receiver) = channel();
+        let (sender, receiver) = sync_channel(1000);
         let cloned_parsed_sender = parsed_sender.clone();
 
         let handle = thread::Builder::new()
