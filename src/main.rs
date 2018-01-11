@@ -56,7 +56,7 @@ fn run() -> Result<()> {
                 let received = receiver.recv().unwrap();
                 match received {
                     Some(value) => {
-                        println!("{:?} {:?}", name, value);
+                        //println!("{:?} {:?}", name, value);
                         if let Some(parsed) = parse_row(value) {
                             let _r = cloned_parsed_sender.send(Some(parsed));
                         };
@@ -249,10 +249,10 @@ fn update(parsed : Parsed,
     *counters_per_template.entry(parsed.script).or_insert(0)+=1;
 
     if let Some(proto) = parsed.proto {
-        *counters_per_proto.entry(proto.to_owned()).or_insert(0)+=1;
         if parsed.date>from {
-            *counters_per_proto_last.entry(proto.to_owned()).or_insert(0) += 1;
+            *counters_per_proto_last.entry(proto.clone()).or_insert(0) += 1;
         }
+        *counters_per_proto.entry(proto).or_insert(0)+=1;
     }
 }
 
