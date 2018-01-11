@@ -1,10 +1,14 @@
+#[macro_use]
+extern crate error_chain;
+#[macro_use]
+extern crate serde_json;
+
 extern crate bitcoin;
 extern crate chrono;
 extern crate time;
 extern crate handlebars;
-#[macro_use]
-extern crate serde_json;
 extern crate rustc_serialize;
+extern crate num_cpus;
 
 use handlebars::Handlebars;
 use std::io::{self, Read};
@@ -16,43 +20,84 @@ use bitcoin::blockdata::script::Script;
 use std::fmt::Write as FmtWrite;
 use std::io::Write as IoWrite;
 use rustc_serialize::hex::FromHex;
+use std::sync::mpsc::channel;
+use std::thread;
 
-fn main() {
+error_chain! {}
+
+fn run() -> Result<()> {
     let mut f = File::open("template.html").expect("template not found");
     let mut contents = String::new();
     f.read_to_string(&mut contents).expect("something went wrong reading the template file: 'template.html'");
 
-    let mut buffer = String::new();
+
 
     let mut counters : HashMap<String,u32> = HashMap::new();
     let mut counters_per_proto : HashMap<String,u32> = HashMap::new();
     let mut counters_per_proto_last : HashMap<String,u32> = HashMap::new();
     let mut counters_per_template : HashMap<String,u32> = HashMap::new();
     let from = Utc::now() - Duration::days(30); // 1 month ago
-    loop {
-        match io::stdin().read_line(&mut buffer) {
-            Ok(n) => {
-                if n == 0 {
-                    break;
-                }
 
-                parse(&buffer, &mut counters, &mut counters_per_proto, &mut counters_per_proto_last, &mut counters_per_template, from);
-                buffer.clear();
+    let num = num_cpus::get_physical();
+    println!("num_cpus {}",num);
+
+    let mut senders = vec!();
+    let mut handles = vec!();
+    let (parsed_sender, parsed_receiver) = channel();
+    for i in 0..num {
+        let (sender, receiver) = channel();
+        let cloned_parsed_sender = parsed_sender.clone();
+
+        let handle = thread::Builder::new()
+            .name(format!("t{}",i).into())
+            .spawn(move|| {
+            let handle = thread::current();
+            let name = handle.name();
+            loop {
+                let received = receiver.recv().unwrap();
+                match received {
+                    Some(value) => {
+                        println!("{:?} {:?}", name, value);
+                        if let Some(parsed) = parse_row(value) {
+                            cloned_parsed_sender.send(Some(parsed));
+                        };
+
+                    },
+                    None => {
+                        cloned_parsed_sender.send(None);
+                        break
+                    },
+                }
             }
-            Err(error) => panic!("error: {}", error),
-        }
+        }).unwrap();
+        handles.push(handle);
+        senders.push(sender);
     }
 
-    let (months, tx_per_month) = print_map_by_key(&counters);
-    let (proto, proto_count) = print_map_by_value(&counters_per_proto);
-    let (proto_last, proto_last_count) = print_map_by_value(&counters_per_proto_last);
-    let (_a, _b) = print_map_by_value(&counters_per_template);
+    let updater_handle = thread::Builder::new()
+        .name("r".into())
+        .spawn(move|| {
+            let mut none_count=0;
+            loop {
+                match parsed_receiver.recv().unwrap() {
+                    Some(result) => update(result,  &mut counters, &mut counters_per_proto, &mut counters_per_proto_last, &mut counters_per_template, from),
+                    None => none_count += 1,
+                };
+                if none_count>=num {
+                    break
+                }
+            }
 
-    let reg = Handlebars::new();
+            let (months, tx_per_month) = print_map_by_key(&counters);
+            let (proto, proto_count) = print_map_by_value(&counters_per_proto);
+            let (proto_last, proto_last_count) = print_map_by_value(&counters_per_proto_last);
+            let (_a, _b) = print_map_by_value(&counters_per_template);
 
-    let mut buffer = String::new();
-    write!(&mut buffer, "{}",
-        reg.template_render(&contents, &json!({
+            let reg = Handlebars::new();
+
+            let mut buffer = String::new();
+            write!(&mut buffer, "{}",
+                   reg.template_render(&contents, &json!({
         "months": months,
         "tx_per_month":tx_per_month,
         "proto":proto,
@@ -60,9 +105,39 @@ fn main() {
         "proto_last":proto_last,
         "proto_last_count":proto_last_count,
         })).unwrap()
-    ).unwrap();
-    let mut result_html : File = File::create("result.html").expect("error opening result.html");
-    let _r = result_html.write_all(buffer.as_bytes());
+            ).unwrap();
+            let mut result_html : File = File::create("result.html").expect("error opening result.html");
+            let _r = result_html.write_all(buffer.as_bytes());
+
+
+        }).unwrap();
+
+    let mut i = 0;
+    loop {
+        let mut buffer = String::new();
+        match io::stdin().read_line(&mut buffer) {
+            Ok(n) => {
+                if n == 0 {
+                    break;
+                }
+
+                senders[i].send(Some(buffer)).unwrap();
+                i=(i+1)%num;
+
+            }
+            Err(error) => panic!("error: {}", error),
+        }
+    }
+    for sender in senders {
+        sender.send(None);
+    }
+    for handle in handles {
+        handle.join();
+    }
+
+    updater_handle.join();
+
+    Ok(())
 }
 
 
@@ -120,38 +195,64 @@ fn parse_script(script : &bitcoin::blockdata::script::Script) -> String {
     buffer
 }
 
-fn parse(el : &str,
-         counters : &mut HashMap<String,u32>,
-         counters_per_proto : &mut HashMap<String,u32>,
-         counters_per_proto_last : &mut HashMap<String,u32>,
-         counters_per_template : &mut HashMap<String,u32>,
-         from : DateTime<Utc>
-        ) {
+struct Parsed {
+    date : chrono::DateTime<chrono::Utc>,
+    ym : String,
+    script : String,
+    proto: Option<String>
+
+
+}
+
+fn parse_row(el : String) -> Option<Parsed> {
     let mut x = el.split_whitespace();
     let timestamp = x.next();
     let value = x.next();
     if let (Some(timestamp),Some(value)) = (timestamp,value) {
         //println!("{} {}", timestamp, value);
         let timestamp = timestamp.parse::<i64>().expect("found non parsable timestamp");
-        let date = Utc.timestamp(timestamp,0);
-        let key = format!("{}{:02}",date.year(),date.month());
+        let date = Utc.timestamp(timestamp, 0);
+
+        let ym = format!("{}{:02}", date.year(), date.month());
         let script = Script::from(value.from_hex().unwrap());
         let script = parse_script(&script);
-        //println!("{:?} {:?}", value, script);
-        let counter = counters.entry(key).or_insert(0);
-        *counter += 1;
+        let proto = if value.len()>9 {
+            Some(String::from(&value[4..10]))
+        } else {
+            None
+        };
 
-        let counter = counters_per_template.entry(script).or_insert(0);
-        *counter += 1;
-
-        if value.len()>9 {
-            let proto=&value[4..10];
-            let counter_per_proto = counters_per_proto.entry(proto.to_owned()).or_insert(0);
-            *counter_per_proto += 1;
-            if date>from {
-                *counters_per_proto_last.entry(proto.to_owned()).or_insert(0) += 1;
+        Some(
+            Parsed {
+                date,
+                ym,
+                script,
+                proto,
             }
-        }
+        )
+    } else {
+        None
     }
 
 }
+
+fn update(parsed : Parsed,
+         counters : &mut HashMap<String,u32>,
+         counters_per_proto : &mut HashMap<String,u32>,
+         counters_per_proto_last : &mut HashMap<String,u32>,
+         counters_per_template : &mut HashMap<String,u32>,
+         from : DateTime<Utc>
+        ) {
+    *counters.entry(parsed.ym).or_insert(0)+=1;
+
+    *counters_per_template.entry(parsed.script).or_insert(0)+=1;
+
+    if let Some(proto) = parsed.proto {
+        *counters_per_proto.entry(proto.to_owned()).or_insert(0)+=1;
+        if parsed.date>from {
+            *counters_per_proto_last.entry(proto.to_owned()).or_insert(0) += 1;
+        }
+    }
+}
+
+quick_main!(run);
