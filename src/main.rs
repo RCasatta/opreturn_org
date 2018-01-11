@@ -21,6 +21,7 @@ use std::fmt::Write as FmtWrite;
 use std::io::Write as IoWrite;
 use rustc_serialize::hex::FromHex;
 use std::sync::mpsc::channel;
+use std::sync::mpsc::sync_channel;
 use std::thread;
 
 error_chain! {}
@@ -59,12 +60,12 @@ fn run() -> Result<()> {
                     Some(value) => {
                         println!("{:?} {:?}", name, value);
                         if let Some(parsed) = parse_row(value) {
-                            cloned_parsed_sender.send(Some(parsed));
+                            let _r = cloned_parsed_sender.send(Some(parsed));
                         };
 
                     },
                     None => {
-                        cloned_parsed_sender.send(None);
+                        let _r = cloned_parsed_sender.send(None);
                         break
                     },
                 }
@@ -129,13 +130,13 @@ fn run() -> Result<()> {
         }
     }
     for sender in senders {
-        sender.send(None);
+        let _r = sender.send(None);
     }
     for handle in handles {
-        handle.join();
+        let _j = handle.join();
     }
 
-    updater_handle.join();
+    let _j = updater_handle.join();
 
     Ok(())
 }
