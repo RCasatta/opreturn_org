@@ -31,8 +31,6 @@ fn run() -> Result<()> {
     let mut contents = String::new();
     f.read_to_string(&mut contents).expect("something went wrong reading the template file: 'template.html'");
 
-
-
     let mut counters : HashMap<String,u32> = HashMap::new();
     let mut counters_per_proto : HashMap<String,u32> = HashMap::new();
     let mut counters_per_proto_last : HashMap<String,u32> = HashMap::new();
@@ -217,11 +215,13 @@ fn parse_row(el : String) -> Option<Parsed> {
         let ym = format!("{}{:02}", date.year(), date.month());
         let script = Script::from(value.from_hex().unwrap());
         let script = parse_script(&script);
-        let proto = if value.len()>9 {
+
+        let proto = if value.starts_with("6a") && value.len() > 9 {
             Some(String::from(&value[4..10]))
         } else {
             None
         };
+
 
         Some(
             Parsed {
