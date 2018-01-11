@@ -17,29 +17,39 @@
 <body>
 
     <div style="width:90%;">
-        <canvas id="total"></canvas>
+        <canvas id="tx_per_month"></canvas>
     </div>
     <br><br>
 
     <div style="width:90%;">
-        <canvas id="proto"></canvas>
+        <canvas id="op_ret_per_month"></canvas>
     </div>
     <br><br>
 
     <div style="width:90%;">
-        <canvas id="proto_last"></canvas>
+        <canvas id="op_ret_per_proto"></canvas>
+    </div>
+    <br><br>
+
+    <div style="width:90%;">
+        <canvas id="op_ret_per_proto_last_month"></canvas>
+    </div>
+    <br><br>
+
+    <div style="width:90%;">
+        <canvas id="tx_per_template"></canvas>
     </div>
     <br><br>
 
     <script>
 
-        var config_total = {
+        var config_tx_per_month = {
             type: 'line',
             data: {
-                labels: {{months}},
+                labels: {{ tx_per_month_labels }},
                 datasets: [{
-                    label: "Transactions with OP_RETURN per month",
-                    data: {{tx_per_month}},
+                    label: "Transactions per month",
+                    data: {{ tx_per_month_data }},
                     fill: true,
                     backgroundColor: 'rgba(54, 162, 235,0.5)',
                 }]
@@ -73,24 +83,64 @@
             }
         };
 
-        var config_proto = {
+        var config_op_ret_per_month = {
+            type: 'line',
+            data: {
+                labels: {{ op_ret_per_month_labels }},
+                datasets: [{
+                    label: "Transactions with OP_RETURN per month",
+                    data: {{ op_ret_per_month_data }},
+                    fill: true,
+                    backgroundColor: 'rgba(54, 162, 235,0.5)',
+                }]
+            },
+            options: {
+                responsive: true,
+                tooltips: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                hover: {
+                    mode: 'nearest',
+                    intersect: true
+                },
+                scales: {
+                    xAxes: [{
+                        display: true,
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Months'
+                        }
+                    }],
+                    yAxes: [{
+                        display: true,
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Transactions'
+                        }
+                    }]
+                }
+            }
+        };
+
+        var config_op_ret_per_proto = {
             type: 'pie',
 
             data: {
                 datasets: [{
-                    data: {{ proto_count }},
+                    data: {{ op_ret_per_proto_data }},
                     backgroundColor: palette('tol-rainbow', 10).map(function(hex) {
                                         return '#' + hex;
                                       }),
                     label: 'Dataset 1'
                 }],
-                labels: {{ proto }}
+                labels: {{ op_ret_per_proto_labels }}
             },
 
             options: {
                 title:{
                     display:true,
-                    text:'Chart.js Line Chart'
+                    text:'OP_RETURN protocols'
                 },
                 responsive: true,
                 legend: {
@@ -100,23 +150,48 @@
         };
 
 
-        var config_proto_last = {
+        var config_op_ret_per_proto_last_month = {
             type: 'pie',
             data: {
                 datasets: [{
-                    data: {{ proto_last_count }},
+                    data: {{ op_ret_per_proto_last_month_data }},
                     backgroundColor: palette('tol-rainbow', 10).map(function(hex) {
                                         return '#' + hex;
                                       }),
                     label: 'Dataset 1'
                 }],
-                labels: {{ proto_last }}
+                labels: {{ op_ret_per_proto_last_month_labels }}
             },
 
             options: {
                 title:{
                     display:true,
-                    text:'Chart.js Line Chart'
+                    text:'OP_RETURN protocols in the last 30 days'
+                },
+                responsive: true,
+                legend: {
+                    position: 'right'
+                }
+            }
+        };
+
+        var config_tx_per_template = {
+            type: 'pie',
+            data: {
+                datasets: [{
+                    data: {{ tx_per_template_data }},
+                    backgroundColor: palette('tol-rainbow', 10).map(function(hex) {
+                                        return '#' + hex;
+                                      }),
+                    label: 'Dataset 1'
+                }],
+                labels: {{ tx_per_template_labels }}
+            },
+
+            options: {
+                title:{
+                    display:true,
+                    text:'Transaction per Script template'
                 },
                 responsive: true,
                 legend: {
@@ -127,14 +202,21 @@
 
 
         window.onload = function() {
-            var ctx = document.getElementById("total").getContext("2d");
-            window.totalChart = new Chart(ctx, config_total);
 
-            var ctx2 = document.getElementById("proto").getContext("2d");
-            window.protoChart = new Chart(ctx2, config_proto);
+            var ctx_tx_per_month = document.getElementById("tx_per_month").getContext("2d");
+            window.tx_per_month = new Chart(ctx_tx_per_month, config_tx_per_month);
 
-            var ctx3 = document.getElementById("proto_last").getContext("2d");
-            window.protoChart = new Chart(ctx3, config_proto_last);
+            var ctx_op_ret_per_month = document.getElementById("op_ret_per_month").getContext("2d");
+            window.op_ret_per_month = new Chart(ctx_op_ret_per_month, config_op_ret_per_month);
+
+            var ctx_op_ret_per_proto = document.getElementById("op_ret_per_proto").getContext("2d");
+            window.op_ret_per_proto = new Chart(ctx_op_ret_per_proto, config_op_ret_per_proto);
+
+            var ctx_op_ret_per_proto_last_month = document.getElementById("op_ret_per_proto_last_month").getContext("2d");
+            window.protoChart = new Chart(ctx_op_ret_per_proto_last_month, config_op_ret_per_proto_last_month);
+
+            var ctx_tx_per_template = document.getElementById("tx_per_template").getContext("2d");
+            window.protoChart = new Chart(ctx_tx_per_template, config_tx_per_template);
         };
 
 

@@ -26,38 +26,67 @@ use std::thread;
 
 error_chain! {}
 
+struct Parsed {
+    ym : String,
+    script : String,
+    is_last_month : bool,
+    is_segwit : bool,
+    op_ret_proto: Option<String>
+}
+
+struct Maps {
+    op_ret_per_month : HashMap<String,u32>,
+    op_ret_per_proto : HashMap<String,u32>,
+    op_ret_per_proto_last_month : HashMap<String,u32>,
+    tx_per_month : HashMap<String,u32>,
+    segwit_per_month : HashMap<String,u32>,
+    tx_per_template : HashMap<String,u32>,
+    tx_per_template_last_month : HashMap<String,u32>,
+}
+
+struct Serie {
+    labels: String,
+    data: String,
+}
+
+impl Maps {
+    fn new() -> Maps {
+        Maps {
+            op_ret_per_month : HashMap::new(),
+            op_ret_per_proto : HashMap::new(),
+            op_ret_per_proto_last_month : HashMap::new(),
+            tx_per_month : HashMap::new(),
+            segwit_per_month : HashMap::new(),
+            tx_per_template : HashMap::new(),
+            tx_per_template_last_month : HashMap::new(),
+        }
+    }
+}
+
 fn run() -> Result<()> {
     let mut f = File::open("template.html").expect("template not found");
     let mut contents = String::new();
     f.read_to_string(&mut contents).expect("something went wrong reading the template file: 'template.html'");
 
-    let mut counters : HashMap<String,u32> = HashMap::new();
-    let mut counters_per_proto : HashMap<String,u32> = HashMap::new();
-    let mut counters_per_proto_last : HashMap<String,u32> = HashMap::new();
-    let mut counters_per_template : HashMap<String,u32> = HashMap::new();
+    let mut maps = Maps::new();
     let from = Utc::now() - Duration::days(30); // 1 month ago
 
     let num = num_cpus::get_physical();
-    println!("num_cpus {}",num);
+    eprintln!("num_cpus {}",num);
 
     let mut senders = vec!();
     let mut handles = vec!();
     let (parsed_sender, parsed_receiver) = channel();
-    for i in 0..num {
+    for _i in 0..num {
         let (sender, receiver) = sync_channel(1000);
         let cloned_parsed_sender = parsed_sender.clone();
 
-        let handle = thread::Builder::new()
-            .name(format!("t{}",i).into())
-            .spawn(move|| {
-            let handle = thread::current();
-            let name = handle.name();
+        let handle = thread::spawn(move|| {
             loop {
                 let received = receiver.recv().unwrap();
                 match received {
                     Some(value) => {
-                        //println!("{:?} {:?}", name, value);
-                        if let Some(parsed) = parse_row(value) {
+                        if let Some(parsed) = parse_row(value, from) {
                             let _r = cloned_parsed_sender.send(Some(parsed));
                         };
 
@@ -68,7 +97,7 @@ fn run() -> Result<()> {
                     },
                 }
             }
-        }).unwrap();
+        });
         handles.push(handle);
         senders.push(sender);
     }
@@ -79,7 +108,7 @@ fn run() -> Result<()> {
             let mut none_count=0;
             loop {
                 match parsed_receiver.recv().unwrap() {
-                    Some(result) => update(result,  &mut counters, &mut counters_per_proto, &mut counters_per_proto_last, &mut counters_per_template, from),
+                    Some(result) => update(result, &mut maps),
                     None => none_count += 1,
                 };
                 if none_count>=num {
@@ -87,25 +116,32 @@ fn run() -> Result<()> {
                 }
             }
 
-            let (months, tx_per_month) = print_map_by_key(&counters);
-            let (proto, proto_count) = print_map_by_value(&counters_per_proto);
-            let (proto_last, proto_last_count) = print_map_by_value(&counters_per_proto_last);
-            let (_a, _b) = print_map_by_value(&counters_per_template);
+            let tx_per_month : Serie = print_map_by_key(&maps.tx_per_month);
+            let op_ret_per_month : Serie = print_map_by_key(&maps.op_ret_per_month);
+
+            let op_ret_per_proto : Serie  = print_map_by_value(&maps.op_ret_per_proto);
+            let op_ret_per_proto_last_month : Serie  = print_map_by_value(&maps.op_ret_per_proto_last_month);
+            let tx_per_template = print_map_by_value(&maps.tx_per_template);
 
             let reg = Handlebars::new();
 
             let mut buffer = String::new();
+            let json = json!({
+                     "op_ret_per_month_labels":op_ret_per_month.labels,
+                     "op_ret_per_month_data":op_ret_per_month.data,
+                     "op_ret_per_proto_labels":op_ret_per_proto.labels,
+                     "op_ret_per_proto_data":op_ret_per_proto.data,
+                     "op_ret_per_proto_last_month_labels":op_ret_per_proto_last_month.labels,
+                     "op_ret_per_proto_last_month_data":op_ret_per_proto_last_month.data,
+                     "tx_per_template_labels":tx_per_template.labels,
+                     "tx_per_template_data":tx_per_template.data,
+                     "tx_per_month_labels":tx_per_month.labels,
+                     "tx_per_month_data":tx_per_month.data,
+                     });
             write!(&mut buffer, "{}",
-                   reg.template_render(&contents, &json!({
-        "months": months,
-        "tx_per_month":tx_per_month,
-        "proto":proto,
-        "proto_count":proto_count,
-        "proto_last":proto_last,
-        "proto_last_count":proto_last_count,
-        })).unwrap()
+                   reg.template_render(&contents, &json).unwrap()
             ).unwrap();
-            let mut result_html : File = File::create("result.html").expect("error opening result.html");
+            let mut result_html : File = File::create("index.html").expect("error opening index.html");
             let _r = result_html.write_all(buffer.as_bytes());
 
 
@@ -140,7 +176,7 @@ fn run() -> Result<()> {
 }
 
 
-fn print_map_by_value(map : &HashMap<String,u32>) -> (String,String) {
+fn print_map_by_value(map : &HashMap<String,u32>) -> Serie {
     let mut count_vec: Vec<(&String, &u32)> = map.iter().collect();
     count_vec.sort_by(|a, b| b.1.cmp(a.1));
     let mut name : Vec<String> = vec!();
@@ -150,28 +186,39 @@ fn print_map_by_value(map : &HashMap<String,u32>) -> (String,String) {
         if i>49 {
             break;
         }
+        if i<10 {
+            name.push(a.to_owned());
+            value.push(b.clone());
+        }
         i=i+1;
-        name.push(a.to_owned());
-        value.push(b.clone());
-        println!("{} {}",a,b);
-    }
 
-    (str::replace(&format!("{:?}",name),"\"","'") , format!("{:?}", value) )
+        println!("key   {} {}",a,b);
+    }
+    println!("");
+    Serie {
+        labels: str::replace(&format!("{:?}",name),"\"","'"),
+        data: format!("{:?}", value),
+    }
 }
 
-fn print_map_by_key(map : &HashMap<String,u32>) -> (String,String) {
+fn print_map_by_key(map : &HashMap<String,u32>) -> Serie {
     let mut map_keys : Vec<_> = map.keys().collect();
     map_keys.sort();
-    let mut months : Vec<String> = vec!();
-    let mut tx_per_month : Vec<u32> = vec!();
-    for el in map_keys {
-        let tx_this_month = map.get(el).unwrap();
-        //println!("1 {} {}", el, tx_this_month);
-        months.push(el.to_owned());
-        tx_per_month.push(tx_this_month.clone());
-    }
-    (str::replace(&format!("{:?}",months),"\"","'"),format!("{:?}",tx_per_month))
+    let mut keys : Vec<String> = vec!();
+    let mut values : Vec<u32> = vec!();
+    for key in map_keys {
+        let value = map.get(key).unwrap();
+        println!("value {} {}", key, value);
+        keys.push(key.to_owned());
+        values.push(value.clone());
 
+    }
+    println!("");
+
+    Serie {
+        labels: str::replace(&format!("{:?}",keys),"\"","'"),
+        data: format!("{:?}",values),
+    }
 }
 
 fn parse_script(script : &bitcoin::blockdata::script::Script) -> String {
@@ -187,23 +234,16 @@ fn parse_script(script : &bitcoin::blockdata::script::Script) -> String {
                 buffer.push_str(el);
             }
         } else {
-            buffer.push_str("<DATA>");
+            buffer.push_str("(DATA)");
         }
         buffer.push_str(" ");
     }
     buffer
 }
 
-struct Parsed {
-    date : chrono::DateTime<chrono::Utc>,
-    ym : String,
-    script : String,
-    proto: Option<String>
 
 
-}
-
-fn parse_row(el : String) -> Option<Parsed> {
+fn parse_row(el : String, from : DateTime<Utc>) -> Option<Parsed> {
     let mut x = el.split_whitespace();
     let timestamp = x.next();
     let value = x.next();
@@ -215,20 +255,22 @@ fn parse_row(el : String) -> Option<Parsed> {
         let ym = format!("{}{:02}", date.year(), date.month());
         let script = Script::from(value.from_hex().unwrap());
         let script = parse_script(&script);
+        let is_last_month = date > from;
+        let is_segwit = value.starts_with("0014") ||  value.starts_with("0020");
 
-        let proto = if value.starts_with("6a") && value.len() > 9 {
+        let op_ret_proto = if value.starts_with("6a") && value.len() > 9 {
             Some(String::from(&value[4..10]))
         } else {
             None
         };
 
-
         Some(
             Parsed {
-                date,
                 ym,
                 script,
-                proto,
+                op_ret_proto,
+                is_last_month,
+                is_segwit,
             }
         )
     } else {
@@ -237,23 +279,26 @@ fn parse_row(el : String) -> Option<Parsed> {
 
 }
 
-fn update(parsed : Parsed,
-         counters : &mut HashMap<String,u32>,
-         counters_per_proto : &mut HashMap<String,u32>,
-         counters_per_proto_last : &mut HashMap<String,u32>,
-         counters_per_template : &mut HashMap<String,u32>,
-         from : DateTime<Utc>
-        ) {
-    *counters.entry(parsed.ym).or_insert(0)+=1;
-
-    *counters_per_template.entry(parsed.script).or_insert(0)+=1;
-
-    if let Some(proto) = parsed.proto {
-        if parsed.date>from {
-            *counters_per_proto_last.entry(proto.clone()).or_insert(0) += 1;
-        }
-        *counters_per_proto.entry(proto).or_insert(0)+=1;
+fn update(parsed : Parsed, maps :  &mut Maps) {
+    if parsed.is_segwit {
+        *maps.segwit_per_month.entry(parsed.ym.clone()).or_insert(0)+=1;
     }
+
+    if let Some(op_ret_proto) = parsed.op_ret_proto {
+        if parsed.is_last_month {
+            *maps.op_ret_per_proto_last_month.entry(op_ret_proto.clone()).or_insert(0) += 1;
+        }
+        *maps.op_ret_per_month.entry(parsed.ym.clone()).or_insert(0)+=1;
+        *maps.op_ret_per_proto.entry(op_ret_proto).or_insert(0)+=1;
+    }
+
+    if parsed.is_last_month {
+        *maps.tx_per_template_last_month.entry(parsed.script.clone()).or_insert(0)+=1;
+    }
+
+    *maps.tx_per_month.entry(parsed.ym).or_insert(0)+=1;
+    *maps.tx_per_template.entry(parsed.script).or_insert(0)+=1;
+
 }
 
 quick_main!(run);
