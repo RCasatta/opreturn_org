@@ -118,10 +118,12 @@ fn run() -> Result<()> {
 
             let tx_per_month : Serie = print_map_by_key(&maps.tx_per_month);
             let op_ret_per_month : Serie = print_map_by_key(&maps.op_ret_per_month);
+            let segwit_per_month : Serie = print_map_by_key(&maps.segwit_per_month);
 
             let op_ret_per_proto : Serie  = print_map_by_value(&maps.op_ret_per_proto);
             let op_ret_per_proto_last_month : Serie  = print_map_by_value(&maps.op_ret_per_proto_last_month);
             let tx_per_template = print_map_by_value(&maps.tx_per_template);
+            let tx_per_template_last_month = print_map_by_value(&maps.tx_per_template_last_month);
 
             let reg = Handlebars::new();
 
@@ -135,8 +137,12 @@ fn run() -> Result<()> {
                      "op_ret_per_proto_last_month_data":op_ret_per_proto_last_month.data,
                      "tx_per_template_labels":tx_per_template.labels,
                      "tx_per_template_data":tx_per_template.data,
+                     "tx_per_template_last_month_labels":tx_per_template_last_month.labels,
+                     "tx_per_template_last_month_data":tx_per_template_last_month.data,
                      "tx_per_month_labels":tx_per_month.labels,
                      "tx_per_month_data":tx_per_month.data,
+                     "segwit_per_month_labels":segwit_per_month.labels,
+                     "segwit_per_month_data":segwit_per_month.data,
                      });
             write!(&mut buffer, "{}",
                    reg.template_render(&contents, &json).unwrap()
