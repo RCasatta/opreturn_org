@@ -116,6 +116,13 @@ fn run() -> Result<()> {
                 }
             }
 
+            //remove current month
+            let now = Utc::now();
+            let current_ym = format!("{}{:02}", now.year(), now.month());
+            maps.op_ret_per_month.remove(&current_ym);
+            maps.segwit_per_month.remove(&current_ym);
+            maps.tx_per_month.remove(&current_ym);
+
             let tx_per_month : Serie = print_map_by_key(&maps.tx_per_month);
             let op_ret_per_month : Serie = print_map_by_key(&maps.op_ret_per_month);
             let segwit_per_month : Serie = print_map_by_key(&maps.segwit_per_month);
