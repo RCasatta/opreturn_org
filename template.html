@@ -53,6 +53,18 @@
 
     <script>
 
+        function tooltip_percentage(tooltipItem, data) {
+            var allData = data.datasets[tooltipItem.datasetIndex].data;
+            var tooltipLabel = data.labels[tooltipItem.index];
+            var tooltipData = allData[tooltipItem.index];
+            var total = 0;
+            for (var i in allData) {
+                total += allData[i];
+            }
+            var tooltipPercentage = Math.round((tooltipData / total) * 100);
+            return tooltipLabel + ': ' + tooltipData + ' (' + tooltipPercentage + '%)';
+        }
+
         var config_txo_per_month = {
             type: 'line',
             data: {
@@ -196,8 +208,16 @@
                 responsive: true,
                 legend: {
                     position: 'right'
+                },
+                tooltips: {
+                   callbacks: {
+                       label: tooltip_percentage
+                   }
                 }
             }
+
+
+
         };
 
 
@@ -222,6 +242,11 @@
                 responsive: true,
                 legend: {
                     position: 'right'
+                },
+                tooltips: {
+                   callbacks: {
+                       label: tooltip_percentage
+                   }
                 }
             }
         };
@@ -247,6 +272,11 @@
                 responsive: true,
                 legend: {
                     position: 'right'
+                },
+                tooltips: {
+                   callbacks: {
+                       label: tooltip_percentage
+                   }
                 }
             }
         };
@@ -272,6 +302,11 @@
                 responsive: true,
                 legend: {
                     position: 'right'
+                },
+                tooltips: {
+                   callbacks: {
+                       label: tooltip_percentage
+                   }
                 }
             }
         };
