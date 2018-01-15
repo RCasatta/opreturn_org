@@ -65,8 +65,9 @@ impl Maps {
 }
 
 fn run() -> Result<()> {
-    let opreturn_template = read_template("templates/opreturn.html");
+    let op_return_template = read_template("templates/opreturn.html");
     let segwit_template = read_template("templates/segwit.html");
+    let tx_template = read_template("templates/template.html");
 
     let mut maps = Maps::new();
     let from = Utc::now() - Duration::days(30); // 1 month ago
@@ -136,9 +137,6 @@ fn run() -> Result<()> {
             let tx_per_template = print_map_by_value(&maps.tx_per_template);
             let tx_per_template_last_month = print_map_by_value(&maps.tx_per_template_last_month);
 
-            let reg = Handlebars::new();
-
-            let mut buffer = String::new();
             let json = json!({
                      "op_ret_per_month_labels":op_ret_per_month.labels,
                      "op_ret_per_month_data":op_ret_per_month.data,
@@ -156,23 +154,9 @@ fn run() -> Result<()> {
                      "segwit_per_month_data":segwit_per_month.data,
                      });
 
-
-            write!(&mut buffer, "{}",
-                   reg.template_render(&opreturn_template, &json).unwrap()
-            ).unwrap();
-            fs::create_dir_all("outputs/op_return/").unwrap();
-            let mut result_html : File = File::create("outputs/op_return/index.html").expect("error opening output");
-            let _r = result_html.write_all(buffer.as_bytes());
-            buffer.clear();
-
-            write!(&mut buffer, "{}",
-                   reg.template_render(&segwit_template, &json).unwrap()
-            ).unwrap();
-            fs::create_dir_all("outputs/segwit/").unwrap();
-            let mut result_html : File = File::create("outputs/segwit/index.html").expect("error opening output");
-            let _r = result_html.write_all(buffer.as_bytes());
-            buffer.clear();
-
+            write_output(&op_return_template, &json, "outputs/op_return/");
+            write_output(&segwit_template, &json, "outputs/segwit/");
+            write_output(&tx_template, &json, "outputs/template/");
 
         }).unwrap();
 
@@ -203,6 +187,19 @@ fn run() -> Result<()> {
 
     Ok(())
 }
+
+fn write_output(template : &str, json : &serde_json::Value, dir : &str) {
+    let reg = Handlebars::new();
+    let mut buffer : String = String::new();
+    write!(&mut buffer, "{}",
+           reg.template_render(&template, &json).unwrap()
+    ).unwrap();
+    fs::create_dir_all(dir).unwrap();
+    let path = format!("{}/index.html", dir);
+    let mut result_html: File = File::create(&path).expect(&format!("error opening output {}",path));
+    let _r = result_html.write_all(buffer.as_bytes());
+}
+
 
 fn read_template(name : &str) -> String {
     let mut template = File::open(name).expect("template not found");

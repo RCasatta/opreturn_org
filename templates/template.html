@@ -4,7 +4,7 @@
 <head>
     <title>OP_RETURN stats</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.bundle.min.js"></script>
-    <script src="aWapBE.js"></script>
+    <script src="https://codepen.io/anon/pen/aWapBE.js"></script>
     <style>
     canvas{
         -moz-user-select: none;
@@ -15,31 +15,6 @@
 </head>
 
 <body>
-
-    <div style="width:90%;">
-        <canvas id="txo_per_month"></canvas>
-    </div>
-    <br><br>
-
-    <div style="width:90%;">
-        <canvas id="op_ret_per_month"></canvas>
-    </div>
-    <br><br>
-
-    <div style="width:90%;">
-        <canvas id="segwit_per_month"></canvas>
-    </div>
-    <br><br>
-
-    <div style="width:90%;">
-        <canvas id="op_ret_per_proto"></canvas>
-    </div>
-    <br><br>
-
-    <div style="width:90%;">
-        <canvas id="op_ret_per_proto_last_month"></canvas>
-    </div>
-    <br><br>
 
     <div style="width:90%;">
         <canvas id="tx_per_template"></canvas>
@@ -64,192 +39,6 @@
             var tooltipPercentage = Math.round((tooltipData / total) * 100);
             return tooltipLabel + ': ' + tooltipData + ' (' + tooltipPercentage + '%)';
         }
-
-        var config_txo_per_month = {
-            type: 'line',
-            data: {
-                labels: {{ txo_per_month_labels }},
-                datasets: [{
-                    label: "Transactions Outputs per month",
-                    data: {{ txo_per_month_data }},
-                    fill: true,
-                    backgroundColor: 'rgba(54, 162, 235,0.5)',
-                }]
-            },
-            options: {
-                responsive: true,
-                tooltips: {
-                    mode: 'index',
-                    intersect: false,
-                },
-                hover: {
-                    mode: 'nearest',
-                    intersect: true
-                },
-                scales: {
-                    xAxes: [{
-                        display: true,
-                        scaleLabel: {
-                            display: true,
-                            labelString: 'Months'
-                        }
-                    }],
-                    yAxes: [{
-                        display: true,
-                        scaleLabel: {
-                            display: true,
-                            labelString: 'TXO'
-                        }
-                    }]
-                }
-            }
-        };
-
-        var config_op_ret_per_month = {
-            type: 'line',
-            data: {
-                labels: {{ op_ret_per_month_labels }},
-                datasets: [{
-                    label: "OP_RETURNs per month",
-                    data: {{ op_ret_per_month_data }},
-                    fill: true,
-                    backgroundColor: 'rgba(54, 162, 235,0.5)',
-                }]
-            },
-            options: {
-                responsive: true,
-                tooltips: {
-                    mode: 'index',
-                    intersect: false,
-                },
-                hover: {
-                    mode: 'nearest',
-                    intersect: true
-                },
-                scales: {
-                    xAxes: [{
-                        display: true,
-                        scaleLabel: {
-                            display: true,
-                            labelString: 'Months'
-                        }
-                    }],
-                    yAxes: [{
-                        display: true,
-                        scaleLabel: {
-                            display: true,
-                            labelString: 'OP_RETURN'
-                        }
-                    }]
-                }
-            }
-        };
-
-
-        var config_segwit_per_month = {
-            type: 'line',
-            data: {
-                labels: {{ segwit_per_month_labels }},
-                datasets: [{
-                    label: "SegWit outputs per month",
-                    data: {{ segwit_per_month_data }},
-                    fill: true,
-                    backgroundColor: 'rgba(54, 162, 235,0.5)',
-                }]
-            },
-            options: {
-                responsive: true,
-                tooltips: {
-                    mode: 'index',
-                    intersect: false,
-                },
-                hover: {
-                    mode: 'nearest',
-                    intersect: true
-                },
-                scales: {
-                    xAxes: [{
-                        display: true,
-                        scaleLabel: {
-                            display: true,
-                            labelString: 'Months'
-                        }
-                    }],
-                    yAxes: [{
-                        display: true,
-                        scaleLabel: {
-                            display: true,
-                            labelString: 'Segwit Transactions'
-                        }
-                    }]
-                }
-            }
-        };
-
-        var config_op_ret_per_proto = {
-            type: 'pie',
-
-            data: {
-                datasets: [{
-                    data: {{ op_ret_per_proto_data }},
-                    backgroundColor: palette('tol-rainbow', 10).map(function(hex) {
-                                        return '#' + hex;
-                                      }),
-                    label: 'Dataset 1'
-                }],
-                labels: {{ op_ret_per_proto_labels }}
-            },
-
-            options: {
-                title:{
-                    display:true,
-                    text:'OP_RETURN protocols'
-                },
-                responsive: true,
-                legend: {
-                    position: 'right'
-                },
-                tooltips: {
-                   callbacks: {
-                       label: tooltip_percentage
-                   }
-                }
-            }
-
-
-
-        };
-
-
-        var config_op_ret_per_proto_last_month = {
-            type: 'pie',
-            data: {
-                datasets: [{
-                    data: {{ op_ret_per_proto_last_month_data }},
-                    backgroundColor: palette('tol-rainbow', 10).map(function(hex) {
-                                        return '#' + hex;
-                                      }),
-                    label: 'Dataset 1'
-                }],
-                labels: {{ op_ret_per_proto_last_month_labels }}
-            },
-
-            options: {
-                title:{
-                    display:true,
-                    text:'OP_RETURN protocols in the last 30 days'
-                },
-                responsive: true,
-                legend: {
-                    position: 'right'
-                },
-                tooltips: {
-                   callbacks: {
-                       label: tooltip_percentage
-                   }
-                }
-            }
-        };
 
         var config_tx_per_template = {
             type: 'pie',
@@ -315,20 +104,7 @@
 
         window.onload = function() {
 
-            var ctx_txo_per_month = document.getElementById("txo_per_month").getContext("2d");
-            window.txo_per_month = new Chart(ctx_txo_per_month, config_txo_per_month);
 
-            var ctx_op_ret_per_month = document.getElementById("op_ret_per_month").getContext("2d");
-            window.op_ret_per_month = new Chart(ctx_op_ret_per_month, config_op_ret_per_month);
-
-            var ctx_segwit_per_month = document.getElementById("segwit_per_month").getContext("2d");
-            window.segwit_per_month = new Chart(ctx_segwit_per_month, config_segwit_per_month);
-
-            var ctx_op_ret_per_proto = document.getElementById("op_ret_per_proto").getContext("2d");
-            window.op_ret_per_proto = new Chart(ctx_op_ret_per_proto, config_op_ret_per_proto);
-
-            var ctx_op_ret_per_proto_last_month = document.getElementById("op_ret_per_proto_last_month").getContext("2d");
-            window.ctx_op_ret_per_proto_last_month = new Chart(ctx_op_ret_per_proto_last_month, config_op_ret_per_proto_last_month);
 
             var ctx_tx_per_template = document.getElementById("tx_per_template").getContext("2d");
             window.ctx_tx_per_template = new Chart(ctx_tx_per_template, config_tx_per_template);
