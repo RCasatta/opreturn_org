@@ -2,12 +2,13 @@
 
 Generate statistic charts about the Bitcoin blockchain.
 
-# Dependency
+## Dependency
 
-You need [Rust](https://www.rust-lang.org/)
+You need [Rust](https://www.rust-lang.org/).
+
 It is based on the ouput of the [bitcoin-iterate](https://github.com/rustyrussell/bitcoin-iterate) tool.
 
-# Installation
+## Installation
 
 ```
 git clone https://github.com/RCasatta/rustat
@@ -15,7 +16,7 @@ cd rustat
 cargo build --release
 ```
 
-# Usage
+## Usage
 
 ```
 cd rustat
