@@ -23,6 +23,7 @@ use rustc_serialize::hex::FromHex;
 use std::sync::mpsc::channel;
 use std::sync::mpsc::sync_channel;
 use std::thread;
+use std::fs;
 
 error_chain! {}
 
@@ -159,6 +160,7 @@ fn run() -> Result<()> {
             write!(&mut buffer, "{}",
                    reg.template_render(&opreturn_template, &json).unwrap()
             ).unwrap();
+            fs::create_dir_all("outputs/op_return/").unwrap();
             let mut result_html : File = File::create("outputs/op_return/index.html").expect("error opening output");
             let _r = result_html.write_all(buffer.as_bytes());
             buffer.clear();
@@ -166,6 +168,7 @@ fn run() -> Result<()> {
             write!(&mut buffer, "{}",
                    reg.template_render(&segwit_template, &json).unwrap()
             ).unwrap();
+            fs::create_dir_all("outputs/segwit/").unwrap();
             let mut result_html : File = File::create("outputs/segwit/index.html").expect("error opening output");
             let _r = result_html.write_all(buffer.as_bytes());
             buffer.clear();
