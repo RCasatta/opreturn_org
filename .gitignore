@@ -3,4 +3,5 @@
 *.iml
 Cargo.lock
 
-outputs/*.html
+/outputs/segwit/index.html
+/outputs/op_return/index.html

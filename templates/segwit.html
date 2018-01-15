@@ -29,12 +29,14 @@
                     {
                         label: "Any Outputs",
                         data: {{ txo_per_month_data }},
+                        yAxisID: "y-axis-1",
                         fill: true,
                         backgroundColor: 'rgba(54, 162, 235,0.5)',
                     },
                     {
                         label: "Segwit Outputs",
                         data: {{ segwit_per_month_data }},
+                        yAxisID: "y-axis-2",
                         fill: true,
                         backgroundColor: 'rgba(54, 162, 235,0.5)',
                     }
@@ -60,9 +62,19 @@
                     }],
                     yAxes: [{
                         display: true,
+                        id: "y-axis-1",
+                        position: "left",
                         scaleLabel: {
                             display: true,
                             labelString: 'TXO'
+                        }
+                    },{
+                        display: true,
+                        id: "y-axis-2",
+                        position: "right",
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'SegWit'
                         }
                     }]
                 }
