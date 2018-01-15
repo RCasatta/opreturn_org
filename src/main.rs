@@ -64,9 +64,8 @@ impl Maps {
 }
 
 fn run() -> Result<()> {
-    let mut f = File::open("template.html").expect("template not found");
-    let mut contents = String::new();
-    f.read_to_string(&mut contents).expect("something went wrong reading the template file: 'template.html'");
+    let opreturn_template = read_template("templates/opreturn.html");
+    let segwit_template = read_template("templates/segwit.html");
 
     let mut maps = Maps::new();
     let from = Utc::now() - Duration::days(30); // 1 month ago
@@ -123,6 +122,10 @@ fn run() -> Result<()> {
             maps.segwit_per_month.remove(&current_ym);
             maps.txo_per_month.remove(&current_ym);
 
+            //align key space
+            align(&mut  maps.op_ret_per_month, &mut maps.txo_per_month);
+            align(&mut  maps.segwit_per_month, &mut maps.txo_per_month);
+
             let txo_per_month : Serie = print_map_by_key(&maps.txo_per_month);
             let op_ret_per_month : Serie = print_map_by_key(&maps.op_ret_per_month);
             let segwit_per_month : Serie = print_map_by_key(&maps.segwit_per_month);
@@ -151,11 +154,21 @@ fn run() -> Result<()> {
                      "segwit_per_month_labels":segwit_per_month.labels,
                      "segwit_per_month_data":segwit_per_month.data,
                      });
+
+
             write!(&mut buffer, "{}",
-                   reg.template_render(&contents, &json).unwrap()
+                   reg.template_render(&opreturn_template, &json).unwrap()
             ).unwrap();
-            let mut result_html : File = File::create("index.html").expect("error opening index.html");
+            let mut result_html : File = File::create("outputs/op_return/index.html").expect("error opening output");
             let _r = result_html.write_all(buffer.as_bytes());
+            buffer.clear();
+
+            write!(&mut buffer, "{}",
+                   reg.template_render(&segwit_template, &json).unwrap()
+            ).unwrap();
+            let mut result_html : File = File::create("outputs/segwit/index.html").expect("error opening output");
+            let _r = result_html.write_all(buffer.as_bytes());
+            buffer.clear();
 
 
         }).unwrap();
@@ -188,6 +201,14 @@ fn run() -> Result<()> {
     Ok(())
 }
 
+fn read_template(name : &str) -> String {
+    let mut template = File::open(name).expect("template not found");
+    let mut template_content = String::new();
+    template.read_to_string(&mut template_content).expect(&format!("something went wrong reading the template file: '{}'", name));
+    template_content
+}
+
+
 
 fn print_map_by_value(map : &HashMap<String,u32>) -> Serie {
     let mut count_vec: Vec<(&String, &u32)> = map.iter().collect();
@@ -211,6 +232,20 @@ fn print_map_by_value(map : &HashMap<String,u32>) -> Serie {
     Serie {
         labels: str::replace(&format!("{:?}",name),"\"","'"),
         data: format!("{:?}", value),
+    }
+}
+
+fn align (map1 : &mut HashMap<String,u32>, map2 : &mut HashMap<String,u32>) {
+    for key in map1.keys() {
+        if let None = map2.get(key) {
+            map2.insert(key.to_owned(),0);
+        }
+    }
+
+    for key in map2.keys() {
+        if let None = map1.get(key) {
+            map1.insert(key.to_owned(),0);
+        }
     }
 }
 

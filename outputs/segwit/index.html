@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>Segwit stats</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.bundle.min.js"></script>
+    <script src="https://codepen.io/anon/pen/aWapBE.js"></script>
+    <style>
+    canvas{
+        -moz-user-select: none;
+        -webkit-user-select: none;
+        -ms-user-select: none;
+    }
+    </style>
+</head>
+
+<body>
+
+    <div style="width:90%;">
+        <canvas id="segwit_per_month"></canvas>
+    </div>
+
+    <script>
+        var config_segwit_per_month = {
+            type: 'line',
+            data: {
+                labels: ['201509', '201512', '201603', '201604', '201605', '201611', '201612', '201701', '201703', '201704', '201705', '201708', '201710', '201711', '201712', '201907'],
+                datasets: [
+                    {
+                        label: "Any Outputs",
+                        data: [2, 1, 1, 2, 1, 1, 1, 1, 1, 3, 2, 2, 1, 2, 1, 1],
+                        fill: true,
+                        backgroundColor: 'rgba(54, 162, 235,0.5)',
+                    },
+                    {
+                        label: "Segwit Outputs",
+                        data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0],
+                        fill: true,
+                        backgroundColor: 'rgba(54, 162, 235,0.5)',
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                tooltips: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                hover: {
+                    mode: 'nearest',
+                    intersect: true
+                },
+                scales: {
+                    xAxes: [{
+                        display: true,
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Months'
+                        }
+                    }],
+                    yAxes: [{
+                        display: true,
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'TXO'
+                        }
+                    }]
+                }
+            }
+        };
+
+
+
+        window.onload = function() {
+
+            var ctx_segwit_per_month = document.getElementById("segwit_per_month").getContext("2d");
+            window.segwit_per_month = new Chart(ctx_segwit_per_month, config_segwit_per_month);
+
+        };
+
+    </script>
+</body>
+
+</html>
