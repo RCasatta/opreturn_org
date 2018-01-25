@@ -16,22 +16,50 @@
 
 <body>
 
-    <div style="width:90%;">
+    <div style="width:100%;">
         <canvas id="op_ret_per_month"></canvas>
     </div>
+
+    <div style="text-align: center;">
+        <button id="all">all</button>
+        <button id="last_five_year">last five years</button>
+        <button id="last_two_year">last two years</button>
+        <button id="last_year">last year</button>
+    </div>
+
     <br><br>
 
-    <div style="width:90%;">
+    <div style="width:100%;">
         <canvas id="op_ret_per_proto"></canvas>
     </div>
     <br><br>
 
-    <div style="width:90%;">
+    <div style="width:100%;">
         <canvas id="op_ret_per_proto_last_month"></canvas>
     </div>
     <br><br>
 
     <script>
+        function adjust(elements) {
+            var len = labels_op_ret_per_month.length;
+            config_op_ret_per_month.data.labels = labels_op_ret_per_month.slice(len-elements,len);
+            config_op_ret_per_month.data.datasets[0].data=data_any_outputs_per_month.slice(len-elements,len);
+            config_op_ret_per_month.data.datasets[1].data=data_op_return_per_month.slice(len-elements,len);
+            window.op_ret_per_month.update();
+        }
+        document.getElementById('last_five_year').addEventListener('click', function() {
+            adjust(61);
+        });
+        document.getElementById('last_two_year').addEventListener('click', function() {
+            adjust(25);
+        });
+        document.getElementById('last_year').addEventListener('click', function() {
+            adjust(13);
+        });
+        document.getElementById('all').addEventListener('click', function() {
+            adjust(labels_op_ret_per_month.length);
+        });
+
 
         function tooltip_percentage(tooltipItem, data) {
             var allData = data.datasets[tooltipItem.datasetIndex].data;
@@ -45,21 +73,28 @@
             return tooltipLabel + ': ' + tooltipData + ' (' + tooltipPercentage + '%)';
         }
 
+
+        var labels_op_ret_per_month = {{ txo_per_month_labels }};
+
+        var data_any_outputs_per_month = {{ txo_per_month_data }};
+
+        var data_op_return_per_month = {{ op_ret_per_month_data }};
+
         var config_op_ret_per_month = {
             type: 'line',
             data: {
-                labels: {{ txo_per_month_labels }},
+                labels: labels_op_ret_per_month,
                 datasets: [
                     {
                         label: "Any Outputs",
-                        data: {{ txo_per_month_data }},
+                        data: data_any_outputs_per_month,
                         yAxisID: "y-axis-1",
                         fill: true,
                         backgroundColor: 'rgba(54, 162, 235,0.5)',
                     },
                     {
                         label: "OP_RETURN Outputs",
-                        data: {{ op_ret_per_month_data }},
+                        data: data_op_return_per_month,
                         yAxisID: "y-axis-2",
                         fill: true,
                         backgroundColor: 'rgba(54, 162, 235,0.5)',
