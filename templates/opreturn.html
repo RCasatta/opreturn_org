@@ -15,7 +15,7 @@
 </head>
 
 <body>
-
+    <h2 style="text-align:center">Number of transaction outputs and number of OP_RETURN</h2>
     <div style="width:100%;">
         <canvas id="op_ret_per_month"></canvas>
     </div>
@@ -26,14 +26,21 @@
         <button id="last_two_year">last two years</button>
         <button id="last_year">last year</button>
     </div>
+    <br><br><br><br>
 
-    <br><br>
+    <h2 style="text-align:center">OP_RETURN sizes</h2>
+    <div style="width:100%;">
+        <canvas id="bar_canvas"></canvas>
+    </div>
+    <br><br><br><br>
 
+    <h2 style="text-align:center">OP_RETURN protocols</h2>
     <div style="width:100%;">
         <canvas id="op_ret_per_proto"></canvas>
     </div>
-    <br><br>
+    <br><br><br><br>
 
+    <h2 style="text-align:center">OP_RETURN protocols last 30 days</h2>
     <div style="width:100%;">
         <canvas id="op_ret_per_proto_last_month"></canvas>
     </div>
@@ -156,10 +163,6 @@
             },
 
             options: {
-                title:{
-                    display:true,
-                    text:'OP_RETURN protocols'
-                },
                 responsive: true,
                 legend: {
                     position: 'right'
@@ -190,10 +193,6 @@
             },
 
             options: {
-                title:{
-                    display:true,
-                    text:'OP_RETURN protocols in the last 30 days'
-                },
                 responsive: true,
                 legend: {
                     position: 'right'
@@ -207,6 +206,30 @@
         };
 
 
+        var bar_data = {
+            labels: {{ op_ret_size_labels  }},
+            datasets: [{
+                label: 'Dataset 1',
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                borderColor: 'rgba(54, 162, 235, 0.5)',
+                borderWidth: 1,
+                data: {{ op_ret_size_data  }}
+            }]
+        };
+        var bar_config = {
+            type: 'bar',
+            data: bar_data,
+            options: {
+                responsive: true,
+                legend: {
+                    position: 'top',
+                }
+            }
+        }
+
+
+
+
         window.onload = function() {
 
             var ctx_op_ret_per_month = document.getElementById("op_ret_per_month").getContext("2d");
@@ -217,6 +240,9 @@
 
             var ctx_op_ret_per_proto_last_month = document.getElementById("op_ret_per_proto_last_month").getContext("2d");
             window.ctx_op_ret_per_proto_last_month = new Chart(ctx_op_ret_per_proto_last_month, config_op_ret_per_proto_last_month);
+
+            var ctx_bar_data = document.getElementById("bar_canvas").getContext("2d");
+            window.ctx_bar_data = new Chart(ctx_bar_data, bar_config);
 
         };
 

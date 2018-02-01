@@ -32,17 +32,20 @@ struct Parsed {
     script : String,
     is_last_month : bool,
     is_segwit : bool,
-    op_ret_proto: Option<String>
+    op_ret_proto: Option<String>,
+    script_size: String,
 }
 
 struct Maps {
     op_ret_per_month : HashMap<String,u32>,
     op_ret_per_proto : HashMap<String,u32>,
     op_ret_per_proto_last_month : HashMap<String,u32>,
+    op_ret_size : HashMap<String,u32>,
     txo_per_month : HashMap<String,u32>,
     segwit_per_month : HashMap<String,u32>,
     tx_per_template : HashMap<String,u32>,
     tx_per_template_last_month : HashMap<String,u32>,
+    txo_size : HashMap<String,u32>,
 }
 
 struct Serie {
@@ -56,10 +59,12 @@ impl Maps {
             op_ret_per_month : HashMap::new(),
             op_ret_per_proto : HashMap::new(),
             op_ret_per_proto_last_month : HashMap::new(),
+            op_ret_size : HashMap::new(),
             txo_per_month : HashMap::new(),
             segwit_per_month : HashMap::new(),
             tx_per_template : HashMap::new(),
             tx_per_template_last_month : HashMap::new(),
+            txo_size : HashMap::new(),
         }
     }
 }
@@ -137,6 +142,9 @@ fn run() -> Result<()> {
             let tx_per_template = print_map_by_value(&maps.tx_per_template);
             let tx_per_template_last_month = print_map_by_value(&maps.tx_per_template_last_month);
 
+            let txo_size : Serie = print_map_by_key(&maps.txo_size);
+            let op_ret_size : Serie = print_map_by_key(&maps.op_ret_size);
+
             let json = json!({
                      "op_ret_per_month_labels":op_ret_per_month.labels,
                      "op_ret_per_month_data":op_ret_per_month.data,
@@ -152,6 +160,10 @@ fn run() -> Result<()> {
                      "txo_per_month_data":txo_per_month.data,
                      "segwit_per_month_labels":segwit_per_month.labels,
                      "segwit_per_month_data":segwit_per_month.data,
+                     "txo_size_labels":txo_size.labels,
+                     "txo_size_data":txo_size.data,
+                     "op_ret_size_labels":op_ret_size.labels,
+                     "op_ret_size_data":op_ret_size.data,
                      });
 
             write_output(&op_return_template, &json, "outputs/op_return/");
@@ -301,7 +313,9 @@ fn parse_row(el : String, from : DateTime<Utc>) -> Option<Parsed> {
         let date = Utc.timestamp(timestamp, 0);
 
         let ym = format!("{}{:02}", date.year(), date.month());
-        let script = Script::from(value.from_hex().unwrap());
+        let script_bytes = value.from_hex().unwrap();
+        let script_size = format!("{:03}",script_bytes.len());
+        let script = Script::from(script_bytes);
         let script = parse_script(&script);
         let is_last_month = date > from;
         let is_segwit = value.starts_with("0014") ||  value.starts_with("0020");
@@ -312,6 +326,7 @@ fn parse_row(el : String, from : DateTime<Utc>) -> Option<Parsed> {
             None
         };
 
+
         Some(
             Parsed {
                 ym,
@@ -319,6 +334,7 @@ fn parse_row(el : String, from : DateTime<Utc>) -> Option<Parsed> {
                 op_ret_proto,
                 is_last_month,
                 is_segwit,
+                script_size,
             }
         )
     } else {
@@ -338,14 +354,17 @@ fn update(parsed : Parsed, maps :  &mut Maps) {
         }
         *maps.op_ret_per_month.entry(parsed.ym.clone()).or_insert(0)+=1;
         *maps.op_ret_per_proto.entry(op_ret_proto).or_insert(0)+=1;
+        *maps.op_ret_size.entry(String::from(&parsed.script_size[1..])).or_insert(0)+=1;
     }
 
     if parsed.is_last_month {
         *maps.tx_per_template_last_month.entry(parsed.script.clone()).or_insert(0)+=1;
     }
 
+    *maps.txo_size.entry(parsed.script_size).or_insert(0)+=1;
     *maps.txo_per_month.entry(parsed.ym).or_insert(0)+=1;
     *maps.tx_per_template.entry(parsed.script).or_insert(0)+=1;
+
 
 }
 
