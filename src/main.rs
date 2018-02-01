@@ -33,19 +33,19 @@ struct Parsed {
     is_last_month : bool,
     is_segwit : bool,
     op_ret_proto: Option<String>,
-    script_size: String,
+    script_size: usize,
 }
 
 struct Maps {
     op_ret_per_month : HashMap<String,u32>,
     op_ret_per_proto : HashMap<String,u32>,
     op_ret_per_proto_last_month : HashMap<String,u32>,
-    op_ret_size : HashMap<String,u32>,
+    op_ret_size : HashMap<usize,u32>,
     txo_per_month : HashMap<String,u32>,
     segwit_per_month : HashMap<String,u32>,
     tx_per_template : HashMap<String,u32>,
     tx_per_template_last_month : HashMap<String,u32>,
-    txo_size : HashMap<String,u32>,
+    txo_size : HashMap<usize,u32>,
 }
 
 struct Serie {
@@ -142,8 +142,8 @@ fn run() -> Result<()> {
             let tx_per_template = print_map_by_value(&maps.tx_per_template);
             let tx_per_template_last_month = print_map_by_value(&maps.tx_per_template_last_month);
 
-            let txo_size : Serie = print_map_by_key(&maps.txo_size);
-            let op_ret_size : Serie = print_map_by_key(&maps.op_ret_size);
+            let txo_size : Serie = print_map_by_usize_key(&maps.txo_size);
+            let op_ret_size : Serie = print_map_by_usize_key(&maps.op_ret_size);
 
             let json = json!({
                      "op_ret_per_month_labels":op_ret_per_month.labels,
@@ -261,6 +261,27 @@ fn align (map1 : &mut HashMap<String,u32>, map2 : &mut HashMap<String,u32>) {
     }
 }
 
+
+fn print_map_by_usize_key(map : &HashMap<usize,u32>) -> Serie {
+    let mut map_keys : Vec<_> = map.keys().collect();
+    map_keys.sort();
+    let mut keys : Vec<usize> = vec!();
+    let mut values : Vec<u32> = vec!();
+    for key in map_keys {
+        let value = map.get(key).unwrap();
+        println!("value {} {}", key, value);
+        keys.push(key.to_owned());
+        values.push(value.clone());
+
+    }
+    println!("");
+
+    Serie {
+        labels: str::replace(&format!("{:?}",keys),"\"","'"),
+        data: format!("{:?}",values),
+    }
+}
+
 fn print_map_by_key(map : &HashMap<String,u32>) -> Serie {
     let mut map_keys : Vec<_> = map.keys().collect();
     map_keys.sort();
@@ -314,7 +335,7 @@ fn parse_row(el : String, from : DateTime<Utc>) -> Option<Parsed> {
 
         let ym = format!("{}{:02}", date.year(), date.month());
         let script_bytes = value.from_hex().unwrap();
-        let script_size = format!("{:03}",script_bytes.len());
+        let script_size = script_bytes.len();
         let script = Script::from(script_bytes);
         let script = parse_script(&script);
         let is_last_month = date > from;
@@ -354,7 +375,7 @@ fn update(parsed : Parsed, maps :  &mut Maps) {
         }
         *maps.op_ret_per_month.entry(parsed.ym.clone()).or_insert(0)+=1;
         *maps.op_ret_per_proto.entry(op_ret_proto).or_insert(0)+=1;
-        *maps.op_ret_size.entry(String::from(&parsed.script_size[1..])).or_insert(0)+=1;
+        *maps.op_ret_size.entry(parsed.script_size).or_insert(0)+=1;
     }
 
     if parsed.is_last_month {
