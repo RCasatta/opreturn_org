@@ -44,7 +44,14 @@
     <div style="width:100%;">
         <canvas id="op_ret_per_proto_last_month"></canvas>
     </div>
-    <br><br>
+    <br><br><br><br>
+
+    <h2 style="text-align:center">OP_RETURN protocols last year</h2>
+    <div style="width:100%;">
+        <canvas id="op_ret_per_proto_last_year"></canvas>
+    </div>
+    <br><br><br><br>
+
 
     <script>
         function adjust(elements) {
@@ -206,6 +213,34 @@
         };
 
 
+
+        var config_op_ret_per_proto_last_year = {
+            type: 'pie',
+            data: {
+                datasets: [{
+                    data: {{ op_ret_per_proto_last_year_data }},
+                    backgroundColor: palette('tol-rainbow', 10).map(function(hex) {
+                                        return '#' + hex;
+                                      }),
+                    label: 'Dataset 1'
+                }],
+                labels: {{ op_ret_per_proto_last_year_labels }}
+            },
+
+            options: {
+                responsive: true,
+                legend: {
+                    position: 'right'
+                },
+                tooltips: {
+                   callbacks: {
+                       label: tooltip_percentage
+                   }
+                }
+            }
+        };
+
+
         var bar_data = {
             labels: {{ op_ret_size_labels  }},
             datasets: [{
@@ -240,6 +275,9 @@
 
             var ctx_op_ret_per_proto_last_month = document.getElementById("op_ret_per_proto_last_month").getContext("2d");
             window.ctx_op_ret_per_proto_last_month = new Chart(ctx_op_ret_per_proto_last_month, config_op_ret_per_proto_last_month);
+
+            var ctx_op_ret_per_proto_last_year = document.getElementById("op_ret_per_proto_last_year").getContext("2d");
+            window.ctx_op_ret_per_proto_last_year = new Chart(ctx_op_ret_per_proto_last_year, config_op_ret_per_proto_last_year);
 
             var ctx_bar_data = document.getElementById("bar_canvas").getContext("2d");
             window.ctx_bar_data = new Chart(ctx_bar_data, bar_config);
