@@ -50,6 +50,7 @@ struct Maps {
     txo_size : HashMap<usize,u32>,
 }
 
+#[derive(Debug)]
 struct Serie {
     labels: String,
     data: String,
@@ -235,24 +236,25 @@ fn print_map_by_value(map : &HashMap<String,u32>) -> Serie {
     count_vec.sort_by(|a, b| b.1.cmp(a.1));
     let mut name : Vec<String> = vec!();
     let mut value : Vec<u32> = vec!();
+    let mut other = 0;
     let mut i = 0;
     for (a,b) in count_vec {
-        if i>49 {
-            break;
-        }
         if i<10 {
             name.push(a.to_owned());
             value.push(b.clone());
+        } else {
+            other += b;
         }
-        i=i+1;
-
-        println!("key   {} {}",a,b);
+        i += 1;
     }
-    println!("");
-    Serie {
+    name.push("other".to_owned());
+    value.push(other);
+    let ret = Serie {
         labels: str::replace(&format!("{:?}",name),"\"","'"),
         data: format!("{:?}", value),
-    }
+    };
+    println!("{:?}", ret);
+    ret
 }
 
 fn align (map1 : &mut HashMap<String,u32>, map2 : &mut HashMap<String,u32>) {
@@ -277,17 +279,16 @@ fn print_map_by_usize_key(map : &HashMap<usize,u32>) -> Serie {
     let mut values : Vec<u32> = vec!();
     for key in map_keys {
         let value = map.get(key).unwrap();
-        println!("value {} {}", key, value);
         keys.push(key.to_owned());
         values.push(value.clone());
 
     }
-    println!("");
-
-    Serie {
+    let ret = Serie {
         labels: str::replace(&format!("{:?}",keys),"\"","'"),
         data: format!("{:?}",values),
-    }
+    };
+    println!("{:?}", ret);
+    ret
 }
 
 fn print_map_by_key(map : &HashMap<String,u32>) -> Serie {
