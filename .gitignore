@@ -2,6 +2,7 @@
 **/*.rs.bk
 *.iml
 Cargo.lock
+.idea/
 
 /outputs/segwit/index.html
 /outputs/op_return/index.html

@@ -350,8 +350,12 @@ fn parse_row(el : String, month_ago : &DateTime<Utc>, year_ago : &DateTime<Utc>)
         let is_last_year = date > *year_ago;
         let is_segwit = value.starts_with("0014") ||  value.starts_with("0020");
 
-        let op_ret_proto = if value.starts_with("6a") && value.len() > 9 {
-            Some(String::from(&value[4..10]))
+        let op_ret_proto = if value.starts_with("6a") && value.len() > 9 { // 6a = OP_RETURN
+            if value.starts_with("6a4c") && value.len() > 11 {  // 4c = OP_PUSHDATA1
+                Some(String::from(&value[6..12]))
+            } else {
+                Some(String::from(&value[4..10]))
+            }
         } else {
             None
         };
