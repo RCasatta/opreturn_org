@@ -3,7 +3,7 @@
 *.iml
 Cargo.lock
 .idea/
-
+/samples_big/
 /outputs/segwit/index.html
 /outputs/op_return/index.html
 /outputs/template/index.html
