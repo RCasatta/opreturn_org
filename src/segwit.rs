@@ -3,12 +3,15 @@ use std::sync::mpsc::{Sender, Receiver};
 use crate::{Start, Parsed};
 
 pub struct Segwit {
+    sender : Sender<Option<Parsed>>,
     receiver : Receiver<Option<Parsed>>,
 }
 
 impl Segwit {
-    pub fn new(receiver : Receiver<Option<Parsed>>) -> Segwit {
+    pub fn new() -> Segwit {
+        let (sender, receiver) = channel();
         Segwit {
+            sender,
             receiver,
         }
     }
@@ -19,9 +22,13 @@ impl Start for Segwit {
         loop {
             let received = self.receiver.recv().unwrap();
             match received {
-                Some(_received) => print!("2"),
+                Some(_received) => continue,
                 None => break,
             }
         }
+    }
+
+    fn get_sender(&self) -> Sender<Option<Parsed>> {
+        self.sender.clone()
     }
 }
