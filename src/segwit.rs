@@ -19,6 +19,7 @@ impl Segwit {
 
 impl Start for Segwit {
     fn start(&self) {
+        println!("starting Segwit processer");
         loop {
             let received = self.receiver.recv().unwrap();
             match received {
@@ -26,6 +27,8 @@ impl Start for Segwit {
                 None => break,
             }
         }
+        println!("ending Segwit processer");
+
     }
 
     fn get_sender(&self) -> Sender<Option<Parsed>> {

@@ -20,6 +20,7 @@ impl OpReturn {
 
 impl Start for OpReturn {
     fn start(&self) {
+        println!("starting op_return processer");
         loop {
             let received = self.receiver.recv().unwrap();
             match received {
@@ -27,6 +28,7 @@ impl Start for OpReturn {
                 None => break,
             }
         }
+        println!("ending op_return processer");
     }
 
     fn get_sender(&self) -> Sender<Option<Parsed>> {

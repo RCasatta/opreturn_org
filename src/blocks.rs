@@ -20,6 +20,7 @@ impl Blocks {
 
 impl Start for Blocks {
     fn start(&self) {
+        println!("starting blocks processer");
         let mut map : HashMap<u32, u32> = HashMap::new();
         loop {
             let received = self.receiver.recv().unwrap();
@@ -35,6 +36,7 @@ impl Start for Blocks {
             sum += *v as u64;
         }
         println!("sum = {}", sum);
+        println!("ending blocks processer");
     }
 
     fn get_sender(&self) -> Sender<Option<Parsed>> {

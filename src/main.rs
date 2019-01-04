@@ -4,7 +4,6 @@ use crate::blocks::Blocks;
 use std::io;
 use std::thread;
 use bitcoin::{BlockHeader, Transaction};
-use std::collections::HashMap;
 use std::error::Error;
 use std::sync::mpsc::Sender;
 use std::sync::mpsc::sync_channel;
@@ -29,64 +28,84 @@ pub struct Parsed {
 }
 
 fn main() -> Result<(), Box<Error>> {
-    let (line_sender, line_receiver) = sync_channel(1000);
 
     let mut vec : Vec<Box<Start + Send>> = vec![Box::new(Segwit::new()),
                                                 Box::new(Blocks::new()),
                                                 Box::new(OpReturn::new())];
 
     let vec_senders : Vec<Sender<Option<Parsed>>> = vec.iter().map(|el| el.get_sender()).collect();
-    let handle = thread::spawn(move|| {
-        let mut headers : HashMap<u32,BlockHeader> = HashMap::new();
-        loop {
-            let received = line_receiver.recv().unwrap();
-            match received {
-                Some(value) => {
-                    //println!("{}", value);
-                    let result = parse::line(value, &mut headers).unwrap();
-                    //println!("{:?}", result)
-                    for el in vec_senders.iter() {
-                        el.send(Some(result.clone())).unwrap();
-                    }
-                },
-                None => {
-                    for el in vec_senders.iter() {
-                        el.send(None).unwrap();
-                    }
-                    break;
-                },
-            }
-        }
-    });
 
-    loop {
-        match vec.pop() {
-            Some(el) => {
-                thread::spawn(move|| {
-                    el.start();
-                });
-            },
-            None => break,
-        };
+    let mut line_senders = vec![];
+    let mut line_parsers = vec![];
+    let mut processer = vec![];
+    let parsers = 4;
+    for i in 0..parsers {
+        let (line_sender, line_receiver) = sync_channel(1000);
+        line_senders.push(line_sender);
+        let vec_senders = vec_senders.clone();
+        let handle = thread::spawn(move || {
+            loop {
+                let received = line_receiver.recv().unwrap();
+                match received {
+                    Some(value) => {
+                        //println!("{}", value);
+                        let result = parse::line(value).unwrap();
+                        //println!("{:?}", result)
+                        for el in vec_senders.iter() {
+                            el.send(Some(result.clone())).unwrap();
+                        }
+                    },
+                    None => break,
+                }
+            }
+            println!("ending line parser {}",i);
+        });
+        line_parsers.push(handle);
     }
 
+    while let Some(el) = vec.pop() {
+        let handle = thread::spawn(move|| {
+            el.start();
+        });
+        processer.push(handle);
+    }
+
+    let mut i = 0usize;
     loop {
         let mut buffer = String::new();
         match io::stdin().read_line(&mut buffer) {
             Ok(n) => {
                 if n == 0 {
+                    println!("Received 0 as read_line");
                     break;
                 }
-                line_sender.send(Some(buffer)).unwrap();
+                line_senders[i % parsers].send(Some(buffer)).unwrap();
+                i=i+1;
             }
             Err(error) => {
-                println!("error: {}", error);
+                println!("Error: {}", error);
                 break;
             }
         }
     }
-    line_sender.send(None).unwrap();
-    handle.join().unwrap();
+
+    for i in 0..parsers {
+        println!("sending None to line_senders[{}]", i);
+        line_senders[i].send(None).unwrap();
+    }
+
+    while let Some(handle) = line_parsers.pop() {
+        handle.join().unwrap();
+    }
+
+    for (i,el) in vec_senders.iter().enumerate() {
+        println!("sending None to parsed_senders[{}]",i);
+        el.send(None).unwrap();
+    }
+
+    while let Some(handle) = processer.pop() {
+        handle.join().unwrap();
+    }
 
     Ok(())
 }
