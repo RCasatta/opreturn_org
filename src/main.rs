@@ -1,3 +1,5 @@
+extern crate bitcoin;
+
 use crate::op_return::OpReturn;
 use crate::segwit::Segwit;
 use crate::blocks::Blocks;
@@ -45,14 +47,14 @@ fn main() -> Result<(), Box<Error>> {
         let vec_senders = vec_senders.clone();
         let handle = thread::spawn(move || {
             loop {
-                let received = line_receiver.recv().unwrap();
+                let received = line_receiver.recv().expect("failed to receive from line_receiver");
                 match received {
                     Some(value) => {
                         //println!("{}", value);
-                        let result = parse::line(value).unwrap();
+                        let result = parse::line(value).expect("failed to parse line");
                         //println!("{:?}", result)
                         for el in vec_senders.iter() {
-                            el.send(Some(result.clone())).unwrap();
+                            el.send(Some(result.clone())).expect("failed to send parsed");
                         }
                     },
                     None => break,
@@ -76,10 +78,10 @@ fn main() -> Result<(), Box<Error>> {
         match io::stdin().read_line(&mut buffer) {
             Ok(n) => {
                 if n == 0 {
-                    println!("Received 0 as read_line");
+                    println!("Received 0 as read_line after {} lines", i);
                     break;
                 }
-                line_senders[i % parsers].send(Some(buffer)).unwrap();
+                line_senders[i % parsers].send(Some(buffer)).expect("failed to send line");
                 i=i+1;
             }
             Err(error) => {
@@ -91,20 +93,20 @@ fn main() -> Result<(), Box<Error>> {
 
     for i in 0..parsers {
         println!("sending None to line_senders[{}]", i);
-        line_senders[i].send(None).unwrap();
+        line_senders[i].send(None).expect("failed to send to line_sender");
     }
 
     while let Some(handle) = line_parsers.pop() {
-        handle.join().unwrap();
+        handle.join().expect("line_parser failed to join");
     }
 
     for (i,el) in vec_senders.iter().enumerate() {
         println!("sending None to parsed_senders[{}]",i);
-        el.send(None).unwrap();
+        el.send(None).expect("failed to send to parsed");
     }
 
     while let Some(handle) = processer.pop() {
-        handle.join().unwrap();
+        handle.join().expect("processer failed to join");
     }
 
     Ok(())
