@@ -90,7 +90,9 @@ impl Start for OpReturn {
                 None => break,
             }
         }
+        println!("{:?}", data.op_ret_per_proto_last_month);
         println!("ending op_return processer");
+
     }
 
     fn get_sender(&self) -> Sender<Option<Parsed>> {
