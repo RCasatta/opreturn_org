@@ -50,8 +50,15 @@ impl OpReturn {
 
     fn process(&self, op_return_script : &Script, time : u32, data : &mut OpReturnData) {
         let script_hex = op_return_script.to_string();
-        if script_hex.starts_with("6a") && script_hex.len() > 9 { // 6a = OP_RETURN
-            let op_ret_proto = if script_hex.starts_with("6a4c") && script_hex.len() > 11 {  // 4c = OP_PUSHDATA1
+        let script_len = op_return_script.len();
+        let date = Utc.timestamp(time as i64, 0);
+        let ym = format!("{}{:02}", date.year(), date.month());
+
+        *data.op_ret_size.entry(script_len).or_insert(0)+=1;
+        *data.op_ret_per_month.entry(ym.clone()).or_insert(0)+=1;
+
+        if script_len > 4 { // 6a = OP_RETURN
+            let op_ret_proto = if script_hex.starts_with("6a4c") && script_hex.len() > 5 {  // 4c = OP_PUSHDATA1
                 String::from(&script_hex[6..12])
             } else {
                 String::from(&script_hex[4..10])
@@ -62,9 +69,8 @@ impl OpReturn {
             /*if op_ret_proto.starts_with("0040") {  //veriblock
                 tx.fe
             }*/
-        }
 
-        /*if let Some(op_ret_proto) = parsed.op_ret_proto {
+            /*if let Some(op_ret_proto) = parsed.op_ret_proto {
                         if parsed.is_last_month {
                             *maps.op_ret_per_proto_last_month.entry(op_ret_proto.clone()).or_insert(0) += 1;
                         }
@@ -75,7 +81,13 @@ impl OpReturn {
                         *maps.op_ret_per_proto.entry(op_ret_proto).or_insert(0)+=1;
                         *maps.op_ret_size.entry(parsed.script_size).or_insert(0)+=1;
                     }*/
+            if time > data.year_ago {
+                *data.op_ret_per_proto_last_year.entry(op_ret_proto.clone()).or_insert(0) += 1;
+            }
+            *data.op_ret_per_proto.entry(op_ret_proto).or_insert(0)+=1;
+        }
     }
+
 }
 
 impl Start for OpReturn {
