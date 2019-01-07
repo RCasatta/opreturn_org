@@ -29,6 +29,7 @@ impl Start for Stats {
         let mut utxo = HashMap::new();
         let mut amount_over_32 = 0usize;
 
+        let mut c = 0u64;
         loop {
             let received = self.receiver.recv().unwrap();
             match received {
@@ -46,6 +47,12 @@ impl Start for Stats {
                     }
                     for input in tx.input {
                         utxo.remove(&serialize(&input.previous_output));
+                    }
+                    if c % 100000 == 0 {
+                        println!("amount_over_32: {}", amount_over_32);
+                        println!("total_outputs: {}", total_outputs);
+                        println!("utxo len: {}", utxo.len());
+                        println!("ending Stats processer");
                     }
                     let over_32 = tx.output.iter().filter(|o| o.value > 0xffffffff).count();
                     if over_32 > 0 {
