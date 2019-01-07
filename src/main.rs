@@ -3,6 +3,7 @@ extern crate bitcoin;
 use crate::op_return::OpReturn;
 use crate::segwit::Segwit;
 use crate::blocks::Blocks;
+use crate::stats::Stats;
 use std::io;
 use std::thread;
 use bitcoin::{BlockHeader, Transaction};
@@ -20,6 +21,7 @@ mod parse;
 mod op_return;
 mod segwit;
 mod blocks;
+mod stats;
 
 pub trait Start {
     fn start(&self);
@@ -37,8 +39,9 @@ pub struct Parsed {
 
 fn main() -> Result<(), Box<Error>> {
 
-    let mut vec : Vec<Box<Start + Send>> = vec![Box::new(Segwit::new()),
+    let mut vec : Vec<Box<Start + Send>> = vec![/*Box::new(Segwit::new()),*/
                                                 Box::new(Blocks::new()),
+                                                Box::new(Stats::new()),
                                                 Box::new(OpReturn::new())];
 
     let vec_senders : Vec<Sender<Option<Parsed>>> = vec.iter().map(|el| el.get_sender()).collect();
@@ -126,4 +129,19 @@ fn main() -> Result<(), Box<Error>> {
     println!("{:?}",amounts.lock().unwrap().get(&Sha256dHash::default()));
 
     Ok(())
+}
+
+
+fn align (map1 : &mut HashMap<String,u32>, map2 : &mut HashMap<String,u32>) {
+    for key in map1.keys() {
+        if let None = map2.get(key) {
+            map2.insert(key.to_owned(),0);
+        }
+    }
+
+    for key in map2.keys() {
+        if let None = map1.get(key) {
+            map1.insert(key.to_owned(),0);
+        }
+    }
 }
