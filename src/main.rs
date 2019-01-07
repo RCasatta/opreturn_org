@@ -14,6 +14,7 @@ use std::sync::Mutex;
 use std::sync::Arc;
 use bitcoin::util::hash::BitcoinHash;
 use bitcoin::OutPoint;
+use bitcoin::util::hash::Sha256dHash;
 
 mod parse;
 mod op_return;
@@ -46,7 +47,7 @@ fn main() -> Result<(), Box<Error>> {
     let mut line_parsers = vec![];
     let mut processer = vec![];
 
-    let mut amounts : Arc<Mutex<HashMap<OutPoint, u64>>> = Arc::new(Mutex::new(HashMap::new()));
+    let amounts : Arc<Mutex<HashMap<Sha256dHash, Vec<u64>>>> = Arc::new(Mutex::new(HashMap::new()));
 
     let parsers = 4;
     for i in 0..parsers {
@@ -67,10 +68,8 @@ fn main() -> Result<(), Box<Error>> {
                         }
 
                         let txid = result.tx.txid();
-                        for (vout,output) in result.tx.output.iter().enumerate(){
-                            let vout = vout as u32;
-                            amounts.lock().unwrap().insert(OutPoint{ txid, vout }, output.value);
-                        }
+                        let values = result.tx.output.iter().map(|o| o.value).collect();
+                        amounts.lock().unwrap().insert(txid, values);
                     },
                     None => break,
                 }
@@ -123,6 +122,8 @@ fn main() -> Result<(), Box<Error>> {
     while let Some(handle) = processer.pop() {
         handle.join().expect("processer failed to join");
     }
+
+    println!("{:?}",amounts.lock().unwrap().get(&Sha256dHash::default()));
 
     Ok(())
 }
