@@ -11,11 +11,6 @@ use std::error::Error;
 use std::sync::mpsc::Sender;
 use std::sync::mpsc::sync_channel;
 use std::collections::HashMap;
-use std::sync::Mutex;
-use std::sync::Arc;
-use bitcoin::util::hash::BitcoinHash;
-use bitcoin::OutPoint;
-use bitcoin::util::hash::Sha256dHash;
 
 mod parse;
 mod op_return;
@@ -50,14 +45,11 @@ fn main() -> Result<(), Box<Error>> {
     let mut line_parsers = vec![];
     let mut processer = vec![];
 
-    let amounts : Arc<Mutex<HashMap<Sha256dHash, Vec<u64>>>> = Arc::new(Mutex::new(HashMap::new()));
-
     let parsers = 4;
     for i in 0..parsers {
         let (line_sender, line_receiver) = sync_channel(1000);
         line_senders.push(line_sender);
         let vec_senders = vec_senders.clone();
-        let amounts = amounts.clone();
         let handle = thread::spawn(move || {
             loop {
                 let received = line_receiver.recv().expect("failed to receive from line_receiver");
@@ -69,10 +61,6 @@ fn main() -> Result<(), Box<Error>> {
                         for el in vec_senders.iter() {
                             el.send(Some(result.clone())).expect("failed to send parsed");
                         }
-
-                        let txid = result.tx.txid();
-                        let values = result.tx.output.iter().map(|o| o.value).collect();
-                        amounts.lock().unwrap().insert(txid, values);
                     },
                     None => break,
                 }
@@ -125,8 +113,6 @@ fn main() -> Result<(), Box<Error>> {
     while let Some(handle) = processer.pop() {
         handle.join().expect("processer failed to join");
     }
-
-    println!("{:?}",amounts.lock().unwrap().get(&Sha256dHash::default()));
 
     Ok(())
 }
