@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use time::Duration;
 use chrono::{Utc, TimeZone, Datelike, DateTime};
 use bitcoin::Script;
+use bitcoin::Transaction;
 
 struct OpReturnData {
     op_ret_per_month: HashMap<String, u32>,
@@ -58,7 +59,11 @@ impl OpReturn {
             if time > data.month_ago {
                 *data.op_ret_per_proto_last_month.entry(op_ret_proto.clone()).or_insert(0) += 1;
             }
+            /*if op_ret_proto.starts_with("0040") {  //veriblock
+                tx.fe
+            }*/
         }
+
         /*if let Some(op_ret_proto) = parsed.op_ret_proto {
                         if parsed.is_last_month {
                             *maps.op_ret_per_proto_last_month.entry(op_ret_proto.clone()).or_insert(0) += 1;
@@ -83,7 +88,7 @@ impl Start for OpReturn {
                 Some(received) => {
                     for output in received.tx.output {
                         if output.script_pubkey.is_op_return() {
-                            self.process(&output.script_pubkey, received.block_header.time, &mut data);
+                            self.process( &output.script_pubkey, received.block_header.time, &mut data);
                         }
                     }
                 },
