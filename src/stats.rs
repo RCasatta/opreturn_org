@@ -43,7 +43,6 @@ impl Start for Stats {
                     let over_32 = tx.output.iter().filter(|o| o.value > 0xffffffff).count();
                     if over_32 > 0 {
                         amount_over_32 += over_32;
-                        println!("output over 2^32 {}", hash );
                     }
 
                 },
