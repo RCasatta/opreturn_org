@@ -1,7 +1,6 @@
 use std::sync::mpsc::channel;
 use std::sync::mpsc::{Sender, Receiver};
 use crate::{Start, Parsed};
-use std::collections::HashSet;
 use bitcoin::consensus::serialize;
 use std::collections::HashMap;
 use bitcoin::OutPoint;
@@ -43,10 +42,10 @@ impl Start for Stats {
                     }
                     for (i, output) in tx.output.iter().enumerate() {
                         let o = OutPoint { txid: tx.txid(), vout: i as u32};
-                        utxo.insert(serialize(&o), output.value);
+                        utxo.insert(trunc(&o), output.value);
                     }
                     for input in tx.input {
-                        utxo.remove(&serialize(&input.previous_output));
+                        utxo.remove(&trunc(&input.previous_output));
                     }
                     if c % 100000 == 0 {
                         println!("amount_over_32: {}", amount_over_32);
@@ -72,4 +71,20 @@ impl Start for Stats {
     fn get_sender(&self) -> Sender<Option<Parsed>> {
         self.sender.clone()
     }
+}
+
+fn trunc(outpoint : &OutPoint) -> Vec<u8> {
+    serialize(outpoint)[26..].to_vec()
+}
+
+#[cfg(test)]
+mod test {
+    use bitcoin::OutPoint;
+    use bitcoin::consensus::serialize;
+
+    #[test]
+    fn test() {
+        println!("{}", serialize(&OutPoint::default())[28..].len());
+    }
+
 }
