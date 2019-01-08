@@ -56,11 +56,14 @@ fn main() -> Result<(), Box<Error>> {
                 match received {
                     Some(value) => {
                         //println!("{}", value);
-                        let result = parse::line(value).expect("failed to parse line");
-                        //println!("{:?}", result)
-                        for el in vec_senders.iter() {
-                            el.send(Some(result.clone())).expect("failed to send parsed");
-                        }
+                        match parse::line(value) {
+                            Ok(result) => {
+                                for el in vec_senders.iter() {
+                                    el.send(Some(result.clone())).expect("failed to send parsed");
+                                }
+                            },
+                            Err(e) => eprintln!("parse line error {:?} for line {}", e, value),
+                        };
                     },
                     None => break,
                 }
