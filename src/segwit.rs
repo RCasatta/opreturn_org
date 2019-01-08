@@ -21,7 +21,7 @@ impl Start for Segwit {
     fn start(&self) {
         println!("starting Segwit processer");
         loop {
-            let received = self.receiver.recv().unwrap();
+            let received = self.receiver.recv().expect("cannot get segwit");
             match received {
                 Some(_received) => continue,
                 None => break,

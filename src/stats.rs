@@ -30,7 +30,7 @@ impl Start for Stats {
 
         let mut c = 0u64;
         loop {
-            let received = self.receiver.recv().unwrap();
+            let received = self.receiver.recv().expect("can't receive in stats");
             match received {
                 Some(received) => {
                     let tx = received.tx;

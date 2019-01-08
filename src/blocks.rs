@@ -26,7 +26,7 @@ impl Start for Blocks {
 
         let mut headers_sizes : BTreeMap<u32, (BlockHeader, u32)> = BTreeMap::new();
         loop {
-            let received = self.receiver.recv().unwrap();
+            let received = self.receiver.recv().expect("can't receive in blocks");
             match received {
                 Some(received) => {
                     headers_sizes.entry(received.height).or_insert((received.block_header, received.size));
