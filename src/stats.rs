@@ -52,6 +52,7 @@ impl Start for Stats {
                         println!("total_outputs: {}", total_outputs);
                         println!("utxo len: {}", utxo.len());
                     }
+                    c = c+1;
                     let over_32 = tx.output.iter().filter(|o| o.value > 0xffffffff).count();
                     if over_32 > 0 {
                         amount_over_32 += over_32;
