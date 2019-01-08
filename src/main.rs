@@ -11,6 +11,7 @@ use std::error::Error;
 use std::sync::mpsc::Sender;
 use std::sync::mpsc::sync_channel;
 use std::collections::HashMap;
+use std::sync::mpsc::Receiver;
 
 mod parse;
 mod op_return;
@@ -52,11 +53,11 @@ fn main() -> Result<(), Box<Error>> {
         let vec_senders = vec_senders.clone();
         let handle = thread::spawn(move || {
             loop {
-                let received = line_receiver.recv().expect("failed to receive from line_receiver");
+                let received : Option<String> = line_receiver.recv().expect("failed to receive from line_receiver");
                 match received {
                     Some(value) => {
                         //println!("{}", value);
-                        match parse::line(value) {
+                        match parse::line(&value) {
                             Ok(result) => {
                                 for el in vec_senders.iter() {
                                     el.send(Some(result.clone())).expect("failed to send parsed");

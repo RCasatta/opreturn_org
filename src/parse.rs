@@ -3,7 +3,7 @@ use bitcoin::{BlockHeader, Transaction};
 use bitcoin::consensus::deserialize;
 use std::error::Error;
 
-pub fn line(line : String) -> Result<Parsed, Box<Error>> {
+pub fn line(line : &str) -> Result<Parsed, Box<Error>> {
     let mut x = line.split_whitespace();
     let height = x.next().expect("cannot get height").parse::<u32>()?;
     let size = x.next().expect("cannot get size").parse::<u32>()?;
