@@ -95,7 +95,7 @@ impl Start for OpReturn {
         println!("starting op_return processer");
         let mut data = OpReturnData::new();
         loop {
-            let received = self.receiver.recv().unwrap("can't receive in op_return");
+            let received = self.receiver.recv().expect("can't receive in op_return");
             match received {
                 Some(received) => {
                     for output in received.tx.output {
