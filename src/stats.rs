@@ -47,11 +47,10 @@ impl Start for Stats {
                     for input in tx.input {
                         utxo.remove(&trunc(&input.previous_output));
                     }
-                    if c % 100000 == 0 {
+                    if c % 10_000_000 == 0 {
                         println!("amount_over_32: {}", amount_over_32);
                         println!("total_outputs: {}", total_outputs);
                         println!("utxo len: {}", utxo.len());
-                        println!("ending Stats processer");
                     }
                     let over_32 = tx.output.iter().filter(|o| o.value > 0xffffffff).count();
                     if over_32 > 0 {
