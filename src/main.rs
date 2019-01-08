@@ -34,10 +34,10 @@ pub struct Parsed {
 
 fn main() -> Result<(), Box<Error>> {
 
-    let mut vec : Vec<Box<Start + Send>> = vec![/*Box::new(Segwit::new()),*/
-                                                /*Box::new(Blocks::new()),*/
-                                                Box::new(Stats::new())
-                                                /*Box::new(OpReturn::new())*/];
+    let mut vec : Vec<Box<Start + Send>> = vec![/*Box::new(Segwit::new()),
+                                                Box::new(Blocks::new()),*/
+                                                Box::new(Stats::new())/*,
+                                                Box::new(OpReturn::new())*/];
 
     let vec_senders : Vec<Sender<Option<Parsed>>> = vec.iter().map(|el| el.get_sender()).collect();
 
@@ -78,7 +78,23 @@ fn main() -> Result<(), Box<Error>> {
     }
 
     let mut i = 0usize;
-
+    loop {
+        let mut buffer = String::new();
+        match io::stdin().read_line(&mut buffer) {
+            Ok(n) => {
+                if n == 0 {
+                    println!("Received 0 as read_line after {} lines", i);
+                    break;
+                }
+                line_senders[i % parsers].send(Some(buffer)).expect("failed to send line");
+                i=i+1;
+            }
+            Err(error) => {
+                println!("Error: {}", error);
+                break;
+            }
+        }
+    }
 
     for i in 0..parsers {
         println!("sending None to line_senders[{}]", i);
