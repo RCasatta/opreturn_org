@@ -1,10 +1,11 @@
+use crate::parse::TxOrBlock;
+use crate::Startable;
 use std::sync::mpsc::channel;
 use std::sync::mpsc::{Sender, Receiver};
-use crate::{Start, Parsed};
 
 pub struct Segwit {
-    sender : Sender<Option<Parsed>>,
-    receiver : Receiver<Option<Parsed>>,
+    sender : Sender<TxOrBlock>,
+    receiver : Receiver<TxOrBlock>,
 }
 
 impl Segwit {
@@ -15,23 +16,26 @@ impl Segwit {
             receiver,
         }
     }
+    pub fn get_sender(&self) -> Sender<TxOrBlock> {
+        self.sender.clone()
+    }
 }
 
-impl Start for Segwit {
+impl Startable for Segwit {
     fn start(&self) {
         println!("starting Segwit processer");
         loop {
             let received = self.receiver.recv().expect("cannot get segwit");
             match received {
-                Some(_received) => continue,
-                None => break,
+                TxOrBlock::Block(_block) => continue,
+                TxOrBlock::Tx(_tx) => continue,
+                _ => {
+                    println!("Segwit: received {:?}", received);
+                    break;
+                },
             }
         }
         println!("ending Segwit processer");
-
     }
 
-    fn get_sender(&self) -> Sender<Option<Parsed>> {
-        self.sender.clone()
-    }
 }

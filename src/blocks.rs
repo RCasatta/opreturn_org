@@ -1,13 +1,13 @@
+use crate::parse::BlockParsed;
+use crate::{Startable};
 use std::sync::mpsc::channel;
 use std::sync::mpsc::{Sender, Receiver};
-use crate::{Start, Parsed};
 use std::collections::BTreeMap;
-use bitcoin::BlockHeader;
 use bitcoin::util::hash::BitcoinHash;
 
 pub struct Blocks {
-    sender : Sender<Option<Parsed>>,
-    receiver : Receiver<Option<Parsed>>,
+    sender : Sender<Option<BlockParsed>>,
+    receiver : Receiver<Option<BlockParsed>>,
 }
 
 impl Blocks {
@@ -18,18 +18,22 @@ impl Blocks {
             receiver,
         }
     }
+
+    pub fn get_sender(&self) -> Sender<Option<BlockParsed>> {
+        self.sender.clone()
+    }
 }
 
-impl Start for Blocks {
+impl Startable for Blocks {
     fn start(&self) {
         println!("starting blocks processer");
 
-        let mut headers_sizes : BTreeMap<u32, (BlockHeader, u32)> = BTreeMap::new();
+        let mut headers_sizes : BTreeMap<u32, BlockParsed> = BTreeMap::new();
         loop {
             let received = self.receiver.recv().expect("can't receive in blocks");
             match received {
                 Some(received) => {
-                    headers_sizes.entry(received.height).or_insert((received.block_header, received.size));
+                    headers_sizes.entry(received.height).or_insert(received);
                 },
                 None => break,
             }
@@ -39,7 +43,8 @@ impl Start for Blocks {
         let mut max_size = 0;
         let mut min_hash = "Z".to_string();
         for (k, v) in headers_sizes {
-            let (header, size) = v;
+            let header = v.block_header;
+            let size = v.size;
 
             let cur_hash = header.bitcoin_hash().to_string();
             if min_hash > cur_hash {
@@ -56,9 +61,5 @@ impl Start for Blocks {
 
         println!("sum = {}", sum_size);
         println!("ending blocks processer");
-    }
-
-    fn get_sender(&self) -> Sender<Option<Parsed>> {
-        self.sender.clone()
     }
 }

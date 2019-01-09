@@ -1,11 +1,11 @@
+use crate::parse::TxOrBlock;
+use crate::Startable;
 use std::sync::mpsc::channel;
 use std::sync::mpsc::{Sender, Receiver};
-use crate::{Start, Parsed};
 use std::collections::HashMap;
 use time::Duration;
-use chrono::{Utc, TimeZone, Datelike, DateTime};
+use chrono::{Utc, TimeZone, Datelike};
 use bitcoin::Script;
-use bitcoin::Transaction;
 
 struct OpReturnData {
     op_ret_per_month: HashMap<String, u32>,
@@ -35,8 +35,8 @@ impl OpReturnData {
 }
 
 pub struct OpReturn {
-    sender : Sender<Option<Parsed>>,
-    receiver : Receiver<Option<Parsed>>,
+    sender : Sender<TxOrBlock>,
+    receiver : Receiver<TxOrBlock>,
 }
 
 impl OpReturn {
@@ -88,23 +88,35 @@ impl OpReturn {
         }
     }
 
+    pub fn get_sender(&self) -> Sender<TxOrBlock> {
+        self.sender.clone()
+    }
+
 }
 
-impl Start for OpReturn {
+impl Startable for OpReturn {
     fn start(&self) {
         println!("starting op_return processer");
         let mut data = OpReturnData::new();
+        let mut current_time = 0u32;
         loop {
             let received = self.receiver.recv().expect("can't receive in op_return");
+
             match received {
-                Some(received) => {
-                    for output in received.tx.output {
+                TxOrBlock::Block(block) => {
+                    current_time = block.block_header.time;
+                },
+                TxOrBlock::Tx(tx) => {
+                    for output in tx.tx.output {
                         if output.script_pubkey.is_op_return() {
-                            self.process( &output.script_pubkey, received.block_header.time, &mut data);
+                            self.process( &output.script_pubkey, current_time, &mut data);
                         }
                     }
                 },
-                None => break,
+                _ => {
+                    println!("op_return: received {:?}", received);
+                    break;
+                },
             }
         }
         println!("{:?}", data.op_ret_per_proto_last_month);
@@ -112,7 +124,4 @@ impl Start for OpReturn {
 
     }
 
-    fn get_sender(&self) -> Sender<Option<Parsed>> {
-        self.sender.clone()
-    }
 }
