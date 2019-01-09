@@ -29,7 +29,7 @@ impl Startable for Stats {
         println!("starting Stats processer");
         let mut max_outputs_per_tx = 0usize;
         let mut total_outputs = 0u64;
-        let mut utxo = HashMap::new();
+        //let mut utxo = HashMap::new();
         let mut amount_over_32 = 0usize;
         let mut _current_block : Option<BlockParsed> = None;
 
@@ -48,17 +48,17 @@ impl Startable for Stats {
                         max_outputs_per_tx = outputs;
                         println!("max_outputs_per_tx is {} for {}", max_outputs_per_tx, tx.txid());
                     }
-                    for (i, output) in tx.output.iter().enumerate() {
+                    /*for (i, output) in tx.output.iter().enumerate() {
                         let o = OutPoint { txid: tx.txid(), vout: i as u32};
                         utxo.insert(trunc(&o), output.value);
                     }
                     for input in tx.input {
                         utxo.remove(&trunc(&input.previous_output));
-                    }
+                    }*/
                     if c % 10_000_000 == 0 {
                         println!("amount_over_32: {}", amount_over_32);
                         println!("total_outputs: {}", total_outputs);
-                        println!("utxo len: {}", utxo.len());
+                        //println!("utxo len: {}", utxo.len());
                     }
                     c = c+1;
                     let over_32 = tx.output.iter().filter(|o| o.value > 0xffffffff).count();
@@ -73,7 +73,7 @@ impl Startable for Stats {
         }
         println!("amount_over_32: {}", amount_over_32);
         println!("total_outputs: {}", total_outputs);
-        println!("utxo len: {}", utxo.len());
+        //println!("utxo len: {}", utxo.len());
         println!("ending Stats processer");
 
     }
@@ -90,6 +90,12 @@ mod test {
 
     #[test]
     fn test() {
+        println!("{}", serialize(&OutPoint::default())[28..].len());
+    }
+
+    #[test]
+    fn test_map() {
+        let map = HashMap::new();
         println!("{}", serialize(&OutPoint::default())[28..].len());
     }
 
