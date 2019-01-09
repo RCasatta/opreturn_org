@@ -2,9 +2,6 @@ use crate::parse::{TxOrBlock, BlockParsed};
 use crate::{Startable};
 use std::sync::mpsc::channel;
 use std::sync::mpsc::{Sender, Receiver};
-use std::collections::HashMap;
-use bitcoin::consensus::serialize;
-use bitcoin::OutPoint;
 
 pub struct Stats {
     sender : Sender<TxOrBlock>,
@@ -79,9 +76,11 @@ impl Startable for Stats {
     }
 }
 
+/*
 fn trunc(outpoint : &OutPoint) -> Vec<u8> {
     serialize(outpoint)[26..].to_vec()
 }
+*/
 
 #[cfg(test)]
 mod test {
@@ -95,7 +94,6 @@ mod test {
 
     #[test]
     fn test_map() {
-        let map = HashMap::new();
         println!("{}", serialize(&OutPoint::default())[28..].len());
     }
 
