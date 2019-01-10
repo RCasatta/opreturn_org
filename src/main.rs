@@ -70,7 +70,7 @@ fn main() -> Result<(), Box<Error>> {
                             parsed_sender_clone.send(result).expect("failed to send tx to dispatcher");
                         },
                         Err(e) => {
-                            eprintln!("parse line error {:?}", e);
+                            eprintln!("parse line error {:?} ({})", e, value);
                             break;
                         },
                     };
