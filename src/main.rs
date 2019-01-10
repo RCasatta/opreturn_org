@@ -10,6 +10,8 @@ use std::thread;
 use std::error::Error;
 use std::sync::mpsc::sync_channel;
 use std::sync::mpsc::channel;
+use std::time::Instant;
+use std::time::Duration;
 
 mod parse;
 mod op_return;
@@ -56,8 +58,11 @@ fn main() -> Result<(), Box<Error>> {
     let parsed_sender_clone = parsed_sender.clone();
     let parse_handle = thread::spawn(move || {
         let mut i = 0u64;
+        let mut wait_time = Duration::from_secs(0);
         loop {
+            let instant = Instant::now();
             let received : Option<String> = line_receiver.recv().expect("failed to receive from tx_receiver");
+            wait_time += instant.elapsed();
             match received {
                 Some(value) => {
                     match parse::line(&value) {
@@ -74,7 +79,7 @@ fn main() -> Result<(), Box<Error>> {
                 None => break,
             }
         }
-        println!("ending line parser, line parsed {}", i);
+        println!("ending line parser, line parsed {}, wait time {:?}", i, wait_time);
     });
 
     let op_return_sender = op_return.get_sender();
@@ -82,8 +87,11 @@ fn main() -> Result<(), Box<Error>> {
     let blocks_sender = blocks.get_sender();
     let segwit_sender = segwit.get_sender();
     let dispatcher_handle = thread::spawn( move || {
+        let mut wait_time = Duration::from_secs(0);
         loop {
+            let instant = Instant::now();
             let tx_or_block : TxOrBlock = parsed_receiver.recv().expect("failed to receive from tx_receiver");
+            wait_time += instant.elapsed();
             op_return_sender.send(tx_or_block.clone()).expect("failed to send tx_or_block to op_return");
             stats_sender.send(tx_or_block.clone()).expect("failed to send tx_or_block to stats");
             segwit_sender.send(tx_or_block.clone()).expect("failed to send tx_or_block to segwit");
@@ -96,7 +104,7 @@ fn main() -> Result<(), Box<Error>> {
                 _ => continue,
             }
         }
-        println!("ending dispatcher");
+        println!("ending dispatcher {:?}", wait_time);
     });
 
     let mut startable : Vec<Box<Startable + Send>> = vec![Box::new(op_return),
