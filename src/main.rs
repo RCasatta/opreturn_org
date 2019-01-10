@@ -24,7 +24,7 @@ trait Startable {
 }
 
 fn main() -> Result<(), Box<Error>> {
-    let (line_sender, line_receiver) = sync_channel(10000);
+    let (line_sender, line_receiver) = sync_channel(1000);
     let (parsed_sender, parsed_receiver) = channel();
 
     let op_return = OpReturn::new();

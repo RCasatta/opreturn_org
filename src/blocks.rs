@@ -51,6 +51,9 @@ impl Startable for Blocks {
                         max_size = size;
                         println!("max size: {} at height {}", max_size, block.height );
                     }
+                    if block.height % 20000 == 0 {
+                        println!("height: {} ", block.heigth);
+                    }
 
                     sum_size += size as u64;
                 },

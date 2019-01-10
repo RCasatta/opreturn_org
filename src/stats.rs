@@ -28,6 +28,8 @@ impl Startable for Stats {
         println!("starting Stats processer");
         let mut max_outputs_per_tx = 100usize;
         let mut max_inputs_per_tx = 100usize;
+        let mut min_weight_tx = 10000u64;
+        let mut max_weight_tx = 0u64;
         let mut total_outputs = 0u64;
         let mut total_inputs = 0u64;
         let mut amount_over_32 = 0usize;
@@ -44,6 +46,7 @@ impl Startable for Stats {
                 },
                 TxOrBlock::Tx(tx) => {
                     let tx = tx.tx;
+                    let weight = tx.get_weight();
                     let outputs = tx.output.len();
                     let inputs = tx.input.len();
                     total_outputs += outputs as u64;
@@ -55,6 +58,14 @@ impl Startable for Stats {
                     if max_inputs_per_tx < inputs {
                         max_inputs_per_tx = inputs;
                         println!("max_inputs_per_tx is {} for {}", max_inputs_per_tx, tx.txid());
+                    }
+                    if max_weight_tx < weight {
+                        max_weight_tx = weight;
+                        println!("max_weight_tx is {} for {}", max_weight_tx, tx.txid());
+                    }
+                    if min_weight_tx > weight {
+                        min_weight_tx = weight;
+                        println!("min_weight_tx is {} for {}", min_weight_tx, tx.txid());
                     }
                     let over_32 = tx.output.iter().filter(|o| o.value > 0xffffffff).count();
                     if over_32 > 0 {
