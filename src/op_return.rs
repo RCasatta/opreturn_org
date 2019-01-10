@@ -6,6 +6,8 @@ use std::collections::HashMap;
 use time::Duration;
 use chrono::{Utc, TimeZone, Datelike};
 use bitcoin::Script;
+use std::time::Instant;
+use std::time::Duration as StdDur;
 
 struct OpReturnData {
     op_ret_per_month: HashMap<String, u32>,
@@ -99,9 +101,11 @@ impl Startable for OpReturn {
         println!("starting op_return processer");
         let mut data = OpReturnData::new();
         let mut current_time = 0u32;
+        let mut wait_time =  StdDur::from_secs(0);
         loop {
+            let instant = Instant::now();
             let received = self.receiver.recv().expect("can't receive in op_return");
-
+            wait_time += instant.elapsed();
             match received {
                 TxOrBlock::Block(block) => {
                     current_time = block.block_header.time;
@@ -120,7 +124,7 @@ impl Startable for OpReturn {
             }
         }
         println!("{:?}", data.op_ret_per_proto_last_month);
-        println!("ending op_return processer");
+        println!("ending op_return processer, wait time: {:?}", wait_time );
 
     }
 

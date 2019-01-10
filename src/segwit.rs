@@ -2,6 +2,8 @@ use crate::parse::TxOrBlock;
 use crate::Startable;
 use std::sync::mpsc::channel;
 use std::sync::mpsc::{Sender, Receiver};
+use std::time::Instant;
+use std::time::Duration;
 
 pub struct Segwit {
     sender : Sender<TxOrBlock>,
@@ -24,8 +26,11 @@ impl Segwit {
 impl Startable for Segwit {
     fn start(&self) {
         println!("starting Segwit processer");
+        let mut wait_time =  Duration::from_secs(0);
         loop {
+            let instant = Instant::now();
             let received = self.receiver.recv().expect("cannot get segwit");
+            wait_time += instant.elapsed();
             match received {
                 TxOrBlock::Block(_block) => continue,
                 TxOrBlock::Tx(_tx) => continue,
@@ -35,7 +40,7 @@ impl Startable for Segwit {
                 },
             }
         }
-        println!("ending Segwit processer");
+        println!("ending Segwit processer, wait time: {:?}", wait_time );
     }
 
 }
