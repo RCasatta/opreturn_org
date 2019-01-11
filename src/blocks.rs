@@ -75,8 +75,6 @@ impl Startable for Blocks {
 
         let v = View::new()
             .add(&s1)
-            .x_range(0.0, 600000.0)
-            .y_range(0.0, std::u32::MAX as f64)
             .x_label("Some varying variable")
             .y_label("The response of something");
         plotlib::page::Page::single(&v).save("scatter.svg");

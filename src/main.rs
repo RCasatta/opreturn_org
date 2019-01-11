@@ -71,7 +71,6 @@ fn main() -> Result<(), Box<Error>> {
                         },
                         Err(e) => {
                             eprintln!("parse line error {:?} ({})", e, value);
-                            break;
                         },
                     };
                     i += 1;
