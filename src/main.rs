@@ -104,7 +104,7 @@ fn main() -> Result<(), Box<Error>> {
                 _ => continue,
             }
         }
-        println!("ending dispatcher {:?}", wait_time);
+        println!("ending dispatcher wait time {:?}", wait_time);
     });
 
     let mut startable : Vec<Box<Startable + Send>> = vec![Box::new(op_return),
