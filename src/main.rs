@@ -9,7 +9,6 @@ use std::io;
 use std::thread;
 use std::error::Error;
 use std::sync::mpsc::sync_channel;
-use std::sync::mpsc::channel;
 use std::time::Instant;
 use std::time::Duration;
 
@@ -24,16 +23,15 @@ trait Startable {
 }
 
 fn main() -> Result<(), Box<Error>> {
-    let (line_sender, line_receiver) = sync_channel(1000);
-    let (parsed_sender, parsed_receiver) = channel();
+    let (parsed_sender, parsed_receiver) = sync_channel(1000);
 
     let op_return = OpReturn::new();
     let stats = Stats::new();
     let segwit = Segwit::new();
     let blocks = Blocks::new();
 
-    let line_sender_clone = line_sender.clone();
-    let stdin_handle = thread::spawn( move ||  {
+    let parsed_sender_clone = parsed_sender.clone();
+    let parse_handle = thread::spawn( move ||  {
         let mut i = 0u64;
         loop {
             let mut buffer = String::new();
@@ -43,42 +41,22 @@ fn main() -> Result<(), Box<Error>> {
                         println!("Received 0 as read_line after {} lines", i);
                         break;
                     }
-                    line_sender_clone.send(Some(buffer)).expect("failed to send line");
-                    i += 1;
-                }
-                Err(error) => {
-                    eprintln!("Error: {}", error);
-                    break;
-                }
-            }
-        }
-        println!("ending stdin reader, {} lines read", i);
-    });
-
-    let parsed_sender_clone = parsed_sender.clone();
-    let parse_handle = thread::spawn(move || {
-        let mut i = 0u64;
-        let mut wait_time = Duration::from_secs(0);
-        loop {
-            let instant = Instant::now();
-            let received : Option<String> = line_receiver.recv().expect("failed to receive from tx_receiver");
-            wait_time += instant.elapsed();
-            match received {
-                Some(value) => {
-                    match parse::line(&value) {
+                    match parse::line(&buffer) {
                         Ok(result) => {
                             parsed_sender_clone.send(result).expect("failed to send tx to dispatcher");
                         },
                         Err(e) => {
-                            eprintln!("parse line error {:?} ({})", e, value);
+                            eprintln!("parse line error {:?} ({})", e, buffer);
                         },
                     };
                     i += 1;
-                },
-                None => break,
+                }
+                Err(error) => {
+                    eprintln!("Error: {}", error);
+                }
             }
         }
-        println!("ending line parser, line parsed {}, wait time {:?}", i, wait_time);
+        println!("ending stdin and line parser reader, {} lines read", i);
     });
 
     let op_return_sender = op_return.get_sender();
@@ -117,10 +95,6 @@ fn main() -> Result<(), Box<Error>> {
         });
         processer.push(handle);
     }
-
-    stdin_handle.join().expect("stdin_handle failed to join");
-    println!("stdin_handle joined");
-    line_sender.send(None).expect("error sending None on line_sender");
 
     parse_handle.join().expect("parse_handle failed to join");
     println!("parse_handle joined");
