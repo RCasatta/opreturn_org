@@ -1,29 +1,30 @@
 use crate::parse::BlockParsed;
 use crate::{Startable};
-use std::sync::mpsc::channel;
-use std::sync::mpsc::{Sender, Receiver};
+use std::sync::mpsc::{Receiver};
 use bitcoin::util::hash::BitcoinHash;
 use std::time::Instant;
 use std::time::Duration;
 use plotlib::style::Point;
 use plotlib::scatter::Scatter;
 use plotlib::view::View;
+use std::sync::mpsc::SyncSender;
+use std::sync::mpsc::sync_channel;
 
 pub struct Blocks {
-    sender : Sender<Option<BlockParsed>>,
+    sender : SyncSender<Option<BlockParsed>>,
     receiver : Receiver<Option<BlockParsed>>,
 }
 
 impl Blocks {
     pub fn new() -> Blocks {
-        let (sender, receiver) = channel();
+        let (sender, receiver) = sync_channel(1000);
         Blocks {
             sender,
             receiver,
         }
     }
 
-    pub fn get_sender(&self) -> Sender<Option<BlockParsed>> {
+    pub fn get_sender(&self) -> SyncSender<Option<BlockParsed>> {
         self.sender.clone()
     }
 }

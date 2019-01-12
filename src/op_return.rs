@@ -1,13 +1,14 @@
 use crate::parse::TxOrBlock;
 use crate::Startable;
-use std::sync::mpsc::channel;
-use std::sync::mpsc::{Sender, Receiver};
 use std::collections::HashMap;
 use time::Duration;
 use chrono::{Utc, TimeZone, Datelike};
 use bitcoin::Script;
 use std::time::Instant;
 use std::time::Duration as StdDur;
+use std::sync::mpsc::sync_channel;
+use std::sync::mpsc::Receiver;
+use std::sync::mpsc::SyncSender;
 
 struct OpReturnData {
     op_ret_per_month: HashMap<String, u32>,
@@ -37,13 +38,13 @@ impl OpReturnData {
 }
 
 pub struct OpReturn {
-    sender : Sender<TxOrBlock>,
+    sender : SyncSender<TxOrBlock>,
     receiver : Receiver<TxOrBlock>,
 }
 
 impl OpReturn {
     pub fn new() -> OpReturn {
-        let (sender, receiver) = channel();
+        let (sender, receiver) = sync_channel(1000);
         OpReturn {
             sender,
             receiver,
@@ -90,7 +91,7 @@ impl OpReturn {
         }
     }
 
-    pub fn get_sender(&self) -> Sender<TxOrBlock> {
+    pub fn get_sender(&self) -> SyncSender<TxOrBlock> {
         self.sender.clone()
     }
 

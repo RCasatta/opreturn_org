@@ -8,9 +8,6 @@ use crate::parse::TxOrBlock;
 use std::io;
 use std::thread;
 use std::error::Error;
-use std::sync::mpsc::sync_channel;
-use std::time::Instant;
-use std::time::Duration;
 
 mod parse;
 mod op_return;
@@ -23,15 +20,17 @@ trait Startable {
 }
 
 fn main() -> Result<(), Box<Error>> {
-    let (parsed_sender, parsed_receiver) = sync_channel(1000);
-
     let op_return = OpReturn::new();
     let stats = Stats::new();
     let segwit = Segwit::new();
     let blocks = Blocks::new();
 
-    let parsed_sender_clone = parsed_sender.clone();
-    let parse_handle = thread::spawn( move ||  {
+    let op_return_sender = op_return.get_sender();
+    let stats_sender = stats.get_sender();
+    let blocks_sender = blocks.get_sender();
+    let segwit_sender = segwit.get_sender();
+
+    let handle = thread::spawn( move ||  {
         let mut i = 0u64;
         loop {
             let mut buffer = String::new();
@@ -39,12 +38,26 @@ fn main() -> Result<(), Box<Error>> {
                 Ok(n) => {
                     if n == 0 {
                         println!("Received 0 as read_line after {} lines", i);
+                        op_return_sender.send(TxOrBlock::End).expect("error sending End on op_return");
+                        stats_sender.send(TxOrBlock::End).expect("error sending End on stats_sender");
+                        segwit_sender.send(TxOrBlock::End).expect("error sending End on segwit");
+                        blocks_sender.send(None).expect("error sending None to blocks_sender");
+
                         break;
                     }
                     match parse::line(&buffer) {
-                        Ok(result) => {
-                            parsed_sender_clone.send(result).expect("failed to send tx to dispatcher");
-                        },
+                        Ok(tx_or_block) => {
+                            op_return_sender.send(tx_or_block.clone()).expect("failed to send tx_or_block to op_return");
+                            stats_sender.send(tx_or_block.clone()).expect("failed to send tx_or_block to stats");
+                            segwit_sender.send(tx_or_block.clone()).expect("failed to send tx_or_block to segwit");
+                            match tx_or_block {
+                                TxOrBlock::Block(block) => blocks_sender.send(Some(block)).expect("failed to send block to blocks"),
+                                TxOrBlock::End => {
+                                    blocks_sender.send(None).expect("failed to send block to blocks");
+                                    break;
+                                },
+                                _ => continue,
+                            }                        },
                         Err(e) => {
                             eprintln!("parse line error {:?} ({})", e, buffer);
                         },
@@ -59,31 +72,6 @@ fn main() -> Result<(), Box<Error>> {
         println!("ending stdin and line parser reader, {} lines read", i);
     });
 
-    let op_return_sender = op_return.get_sender();
-    let stats_sender = stats.get_sender();
-    let blocks_sender = blocks.get_sender();
-    let segwit_sender = segwit.get_sender();
-    let dispatcher_handle = thread::spawn( move || {
-        let mut wait_time = Duration::from_secs(0);
-        loop {
-            let instant = Instant::now();
-            let tx_or_block : TxOrBlock = parsed_receiver.recv().expect("failed to receive from tx_receiver");
-            wait_time += instant.elapsed();
-            op_return_sender.send(tx_or_block.clone()).expect("failed to send tx_or_block to op_return");
-            stats_sender.send(tx_or_block.clone()).expect("failed to send tx_or_block to stats");
-            segwit_sender.send(tx_or_block.clone()).expect("failed to send tx_or_block to segwit");
-            match tx_or_block {
-                TxOrBlock::Block(block) => blocks_sender.send(Some(block)).expect("failed to send block to blocks"),
-                TxOrBlock::End => {
-                    blocks_sender.send(None).expect("failed to send block to blocks");
-                    break;
-                },
-                _ => continue,
-            }
-        }
-        println!("ending dispatcher wait time {:?}", wait_time);
-    });
-
     let mut startable : Vec<Box<Startable + Send>> = vec![Box::new(op_return),
                                                           Box::new(stats),
                                                           Box::new(segwit),
@@ -96,12 +84,8 @@ fn main() -> Result<(), Box<Error>> {
         processer.push(handle);
     }
 
-    parse_handle.join().expect("parse_handle failed to join");
+    handle.join().expect("parse_handle failed to join");
     println!("parse_handle joined");
-    parsed_sender.send(TxOrBlock::End).expect("error sending End on parse_handle");
-
-    dispatcher_handle.join().expect("dispatcher failed to join");
-    println!("dispatcher_handle joined");
 
     while let Some(handle) = processer.pop() {
         println!("processer {:?} joining", handle);

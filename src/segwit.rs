@@ -1,24 +1,25 @@
 use crate::parse::TxOrBlock;
 use crate::Startable;
-use std::sync::mpsc::channel;
-use std::sync::mpsc::{Sender, Receiver};
 use std::time::Instant;
 use std::time::Duration;
+use std::sync::mpsc::sync_channel;
+use std::sync::mpsc::Receiver;
+use std::sync::mpsc::SyncSender;
 
 pub struct Segwit {
-    sender : Sender<TxOrBlock>,
+    sender : SyncSender<TxOrBlock>,
     receiver : Receiver<TxOrBlock>,
 }
 
 impl Segwit {
     pub fn new() -> Segwit {
-        let (sender, receiver) = channel();
+        let (sender, receiver) = sync_channel(1000);
         Segwit {
             sender,
             receiver,
         }
     }
-    pub fn get_sender(&self) -> Sender<TxOrBlock> {
+    pub fn get_sender(&self) -> SyncSender<TxOrBlock> {
         self.sender.clone()
     }
 }
