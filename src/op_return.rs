@@ -1,5 +1,8 @@
 use crate::parse::TxOrBlock;
 use crate::Startable;
+use crate::print_map_by_key;
+use crate::print_map_by_value;
+use crate::print_map_by_usize_key;
 use std::collections::HashMap;
 use time::Duration;
 use chrono::{Utc, TimeZone, Datelike};
@@ -10,6 +13,7 @@ use std::sync::mpsc::sync_channel;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::SyncSender;
 
+
 struct OpReturnData {
     op_ret_per_month: HashMap<String, u32>,
     op_ret_per_proto: HashMap<String, u32>,
@@ -19,7 +23,6 @@ struct OpReturnData {
     month_ago: u32,
     year_ago: u32,
 }
-
 
 impl OpReturnData {
     fn new() -> OpReturnData {
@@ -60,32 +63,18 @@ impl OpReturn {
         *data.op_ret_size.entry(script_len).or_insert(0)+=1;
         *data.op_ret_per_month.entry(ym.clone()).or_insert(0)+=1;
 
-        if script_len > 4 { // 6a = OP_RETURN
+        if script_len > 4 {
             let op_ret_proto = if script_hex.starts_with("6a4c") && script_hex.len() > 5 {  // 4c = OP_PUSHDATA1
                 String::from(&script_hex[6..12])
             } else {
                 String::from(&script_hex[4..10])
             };
-            if time > data.month_ago {
-                *data.op_ret_per_proto_last_month.entry(op_ret_proto.clone()).or_insert(0) += 1;
-            }
-            /*if op_ret_proto.starts_with("0040") {  //veriblock
-                tx.fe
-            }*/
-
-            /*if let Some(op_ret_proto) = parsed.op_ret_proto {
-                        if parsed.is_last_month {
-                            *maps.op_ret_per_proto_last_month.entry(op_ret_proto.clone()).or_insert(0) += 1;
-                        }
-                        if parsed.is_last_year {
-                            *maps.op_ret_per_proto_last_year.entry(op_ret_proto.clone()).or_insert(0) += 1;
-                        }
-                        *maps.op_ret_per_month.entry(parsed.ym.clone()).or_insert(0)+=1;
-                        *maps.op_ret_per_proto.entry(op_ret_proto).or_insert(0)+=1;
-                        *maps.op_ret_size.entry(parsed.script_size).or_insert(0)+=1;
-                    }*/
             if time > data.year_ago {
                 *data.op_ret_per_proto_last_year.entry(op_ret_proto.clone()).or_insert(0) += 1;
+
+                if time > data.month_ago {
+                    *data.op_ret_per_proto_last_month.entry(op_ret_proto.clone()).or_insert(0) += 1;
+                }
             }
             *data.op_ret_per_proto.entry(op_ret_proto).or_insert(0)+=1;
         }
@@ -124,9 +113,19 @@ impl Startable for OpReturn {
                 },
             }
         }
-        println!("{:?}", data.op_ret_per_proto_last_month);
+
+        //remove current month
+        let now = Utc::now();
+        let current_ym = format!("{}{:02}", now.year(), now.month());
+        data.op_ret_per_month.remove(&current_ym);
+
+        print_map_by_key(&data.op_ret_per_month, "op_ret_per_month");
+        print_map_by_value(&data.op_ret_per_proto, "op_ret_per_proto");
+        print_map_by_value(&data.op_ret_per_proto_last_month, "op_ret_per_proto_last_month");
+        print_map_by_value(&data.op_ret_per_proto_last_year, "op_ret_per_proto_last_year");
+        print_map_by_usize_key(&data.op_ret_size, "op_ret_size");
+
         println!("ending op_return processer, wait time: {:?}", wait_time );
-
     }
-
 }
+
