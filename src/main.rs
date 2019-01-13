@@ -105,7 +105,7 @@ fn print_map_by_usize_key(map : &HashMap<usize,u32>, file_name: &str) {
     map_keys.sort();
     for key in map_keys {
         let value = map.get(key).unwrap();
-        file.write(format!("{},{}\n",key,value).as_bytes()).expect("can't write");
+        file.write(format!("{} {}\n",key,value).as_bytes()).expect("can't write");
     }
     println!("file {} written", file_name);
 }
@@ -116,7 +116,7 @@ fn print_map_by_key(map : &HashMap<String,u32>, file_name: &str){
     map_keys.sort();
     for key in map_keys {
         let value = map.get(key).unwrap();
-        file.write(format!("{},{}\n",key,value).as_bytes()).expect("can't write");
+        file.write(format!("{} {}\n",key,value).as_bytes()).expect("can't write");
     }
     println!("file {} written", file_name);
 }
@@ -126,9 +126,9 @@ fn print_map_by_value(map : &HashMap<String,u32>, file_name: &str) {
     let mut count_vec: Vec<(&String, &u32)> = map.iter().collect();
     count_vec.sort_by(|a, b| b.1.cmp(a.1));
     for (key,value) in count_vec.iter().take(10) {
-        file.write(format!("{},{}\n",key,value).as_bytes()).expect("can't write");
+        file.write(format!("{} {}\n",key,value).as_bytes()).expect("can't write");
     }
     let other = count_vec.iter().skip(10).fold(0, |acc, x| acc + x.1);
-    file.write(format!("other,{}\n",other).as_bytes()).expect("can't write");
+    file.write(format!("other {}\n",other).as_bytes()).expect("can't write");
     println!("file {} written", file_name);
 }
