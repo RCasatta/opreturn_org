@@ -55,8 +55,9 @@ impl OpReturn {
     }
 
     fn process(&self, op_return_script : &Script, time : u32, data : &mut OpReturnData) {
-        let script_hex = op_return_script.to_string();
-        let script_len = op_return_script.len();
+        let script_bytes = op_return_script.as_bytes();
+        let script_hex = hex::encode(script_bytes);
+        let script_len = script_bytes.len();
         let date = Utc.timestamp(time as i64, 0);
         let ym = format!("{}{:02}", date.year(), date.month());
 

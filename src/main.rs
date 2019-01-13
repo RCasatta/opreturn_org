@@ -58,8 +58,8 @@ fn main() -> Result<(), Box<Error>> {
                                     blocks_sender.send(None).expect("failed to send block to blocks");
                                     break;
                                 },
-                                _ => continue,
-                            }
+                                _ => (),
+                            };
                         },
                         Err(e) => {
                             eprintln!("parse line error {:?} ({})", e, buffer);
