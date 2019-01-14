@@ -10,6 +10,8 @@ use std::sync::mpsc::sync_channel;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::SyncSender;
 use std::collections::BTreeMap;
+use std::fs::File;
+use std::fs;
 
 
 struct OpReturnData {
@@ -54,12 +56,11 @@ impl OpReturnData {
 
 fn toml_section(title : &str, map : &BTreeMap<String, u32>) -> String {
     let mut s = String::new();
-    s.push_str(&format!("[{}]", title ));
+    s.push_str(&format!("\n[{}]\n", title ));
     let labels : Vec<String> = map.keys().cloned().collect();
     s.push_str(&format!("labels={:?}\n", labels) );
     let values : Vec<u32> = map.values().cloned().collect();
     s.push_str(&format!("values={:?}\n", values ) );
-    s.push('\n');
     s
 }
 
@@ -115,6 +116,7 @@ impl OpReturn {
                 }
             }
             *data.op_ret_per_proto.entry(op_ret_proto).or_insert(0)+=1;
+
         }
     }
 
@@ -139,9 +141,13 @@ impl Startable for OpReturn {
                     current_time = block.block_header.time;
                 },
                 TxOrBlock::Tx(tx) => {
+                    let txid = tx.tx.txid();
                     for output in tx.tx.output {
                         if output.script_pubkey.is_op_return() {
                             self.process( &output.script_pubkey, current_time, &mut data);
+                            if output.script_pubkey.len() > 100 {
+                                println!("len greater than 100 {}", txid );
+                            }
                         }
                     }
                 },
@@ -157,7 +163,9 @@ impl Startable for OpReturn {
         let current_ym = format!("{}{:02}", now.year(), now.month());
         data.op_ret_per_month.remove(&current_ym);
 
-        println!("{}", data.to_toml());
+        let toml = data.to_toml();
+        println!("{}", toml);
+        fs::write("op_return.toml", toml).expect("Unable to write file");
 
         println!("ending op_return processer, wait time: {:?}", wait_time );
     }
