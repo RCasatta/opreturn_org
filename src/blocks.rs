@@ -4,9 +4,6 @@ use std::sync::mpsc::{Receiver};
 use bitcoin::util::hash::BitcoinHash;
 use std::time::Instant;
 use std::time::Duration;
-use plotlib::style::Point;
-use plotlib::scatter::Scatter;
-use plotlib::view::View;
 use std::sync::mpsc::SyncSender;
 use std::sync::mpsc::sync_channel;
 
@@ -66,19 +63,6 @@ impl Startable for Blocks {
                 None => break,
             }
         }
-
-        let s1 = Scatter::from_vec(&nonce_points).style(
-            plotlib::scatter::Style::new()
-                .marker(plotlib::style::Marker::Square)
-                .colour("#DD3355")
-                .size(2.),
-        );
-
-        let v = View::new()
-            .add(&s1)
-            .x_label("Some varying variable")
-            .y_label("The response of something");
-        plotlib::page::Page::single(&v).save("scatter.svg");
 
         println!("sum = {}", sum_size);
         println!("ending blocks processer, wait time: {:?}", wait_time );
