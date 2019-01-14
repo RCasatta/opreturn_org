@@ -1,8 +1,5 @@
 use crate::parse::TxOrBlock;
 use crate::Startable;
-use crate::print_map_by_key;
-use crate::print_map_by_value;
-use crate::print_map_by_usize_key;
 use std::collections::HashMap;
 use time::Duration;
 use chrono::{Utc, TimeZone, Datelike};
@@ -12,14 +9,17 @@ use std::time::Duration as StdDur;
 use std::sync::mpsc::sync_channel;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::SyncSender;
+use std::collections::BTreeMap;
 
 
 struct OpReturnData {
-    op_ret_per_month: HashMap<String, u32>,
+    op_ret_per_month: BTreeMap<String, u32>,
+    op_ret_size: BTreeMap<String, u32>,  //pad with spaces usize of len up to 3
+
     op_ret_per_proto: HashMap<String, u32>,
     op_ret_per_proto_last_month: HashMap<String, u32>,
     op_ret_per_proto_last_year: HashMap<String, u32>,
-    op_ret_size: HashMap<usize, u32>,
+
     month_ago: u32,
     year_ago: u32,
 }
@@ -29,16 +29,53 @@ impl OpReturnData {
         let month_ago = (Utc::now() - Duration::days(30)).timestamp() as u32; // 1 month ago
         let year_ago = (Utc::now() - Duration::days(365)).timestamp() as u32; // 1 year ago
         OpReturnData {
-            op_ret_per_month : HashMap::new(),
+            op_ret_per_month : BTreeMap::new(),
+            op_ret_size : BTreeMap::new(),
             op_ret_per_proto : HashMap::new(),
             op_ret_per_proto_last_month : HashMap::new(),
             op_ret_per_proto_last_year : HashMap::new(),
-            op_ret_size : HashMap::new(),
             month_ago,
             year_ago,
         }
     }
+
+    fn to_toml(&self) -> String {
+        let mut s = String::new();
+
+        s.push_str( &toml_section("op_ret_per_month", &self.op_ret_per_month) );
+        s.push_str( &toml_section("op_ret_size", &self.op_ret_size) );
+        s.push_str( &toml_section("op_ret_per_proto", &map_by_value(&self.op_ret_per_proto)) );
+        s.push_str( &toml_section("op_ret_per_proto_last_month", &map_by_value(&self.op_ret_per_proto_last_month)) );
+        s.push_str( &toml_section("op_ret_per_proto_last_year", &map_by_value(&self.op_ret_per_proto_last_year)) );
+
+        s
+    }
 }
+
+fn toml_section(title : &str, map : &BTreeMap<String, u32>) -> String {
+    let mut s = String::new();
+    s.push_str(&format!("[{}]", title ));
+    let labels : Vec<String> = map.keys().cloned().collect();
+    s.push_str(&format!("labels={:?}\n", labels) );
+    let values : Vec<u32> = map.values().cloned().collect();
+    s.push_str(&format!("values={:?}\n", values ) );
+    s.push('\n');
+    s
+}
+
+
+fn map_by_value(map : &HashMap<String,u32>) -> BTreeMap<String,u32> {
+    let mut tree : BTreeMap<String, u32> = BTreeMap::new();
+    let mut count_vec: Vec<(&String, &u32)> = map.iter().collect();
+    count_vec.sort_by(|a, b| b.1.cmp(a.1));
+    for (key,value) in count_vec.iter().take(10) {
+        tree.insert(key.to_string(),**value);
+    }
+    let other = count_vec.iter().skip(10).fold(0, |acc, x| acc + x.1);
+    tree.insert("other".to_owned(), other);
+    tree
+}
+
 
 pub struct OpReturn {
     sender : SyncSender<TxOrBlock>,
@@ -61,7 +98,7 @@ impl OpReturn {
         let date = Utc.timestamp(time as i64, 0);
         let ym = format!("{}{:02}", date.year(), date.month());
 
-        *data.op_ret_size.entry(script_len).or_insert(0)+=1;
+        *data.op_ret_size.entry(format!("{:>3}",script_len)).or_insert(0)+=1;
         *data.op_ret_per_month.entry(ym.clone()).or_insert(0)+=1;
 
         if script_len > 4 {
@@ -120,13 +157,32 @@ impl Startable for OpReturn {
         let current_ym = format!("{}{:02}", now.year(), now.month());
         data.op_ret_per_month.remove(&current_ym);
 
-        print_map_by_key(&data.op_ret_per_month, "op_ret_per_month");
-        print_map_by_value(&data.op_ret_per_proto, "op_ret_per_proto");
-        print_map_by_value(&data.op_ret_per_proto_last_month, "op_ret_per_proto_last_month");
-        print_map_by_value(&data.op_ret_per_proto_last_year, "op_ret_per_proto_last_year");
-        print_map_by_usize_key(&data.op_ret_size, "op_ret_size");
+        println!("{}", data.to_toml());
 
         println!("ending op_return processer, wait time: {:?}", wait_time );
     }
 }
 
+
+
+#[cfg(test)]
+mod test {
+    use toml;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test() {
+
+    }
+
+    #[test]
+    fn test() {
+        let mut c = HashMap::new();
+
+        let mut b = HashMap::new();
+        let a = vec![2,3];
+        b.insert("a", a);
+        c.insert("c", b);
+        println!("{}",toml::to_string(&c).unwrap() );
+    }
+}

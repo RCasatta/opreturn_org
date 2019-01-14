@@ -7,10 +7,6 @@ use crate::parse::TxOrBlock;
 use std::io;
 use std::thread;
 use std::error::Error;
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::BufWriter;
-use std::io::Write;
 
 mod parse;
 mod op_return;
@@ -97,38 +93,4 @@ fn main() -> Result<(), Box<Error>> {
 
     println!("end");
     Ok(())
-}
-
-fn print_map_by_usize_key(map : &HashMap<usize,u32>, file_name: &str) {
-    let mut file = BufWriter::new( File::create(&file_name).expect(&format!("error opening file {}", file_name)));
-    let mut map_keys : Vec<_> = map.keys().collect();
-    map_keys.sort();
-    for key in map_keys {
-        let value = map.get(key).unwrap();
-        file.write(format!("{} {}\n",key,value).as_bytes()).expect("can't write");
-    }
-    println!("file {} written", file_name);
-}
-
-fn print_map_by_key(map : &HashMap<String,u32>, file_name: &str){
-    let mut file = BufWriter::new( File::create(&file_name).expect(&format!("error opening file {}", file_name)));
-    let mut map_keys : Vec<_> = map.keys().collect();
-    map_keys.sort();
-    for key in map_keys {
-        let value = map.get(key).unwrap();
-        file.write(format!("{} {}\n",key,value).as_bytes()).expect("can't write");
-    }
-    println!("file {} written", file_name);
-}
-
-fn print_map_by_value(map : &HashMap<String,u32>, file_name: &str) {
-    let mut file = BufWriter::new(File::create(&file_name).expect(&format!("error opening file {}", file_name)));
-    let mut count_vec: Vec<(&String, &u32)> = map.iter().collect();
-    count_vec.sort_by(|a, b| b.1.cmp(a.1));
-    for (key,value) in count_vec.iter().take(10) {
-        file.write(format!("{} {}\n",key,value).as_bytes()).expect("can't write");
-    }
-    let other = count_vec.iter().skip(10).fold(0, |acc, x| acc + x.1);
-    file.write(format!("other {}\n",other).as_bytes()).expect("can't write");
-    println!("file {} written", file_name);
 }
