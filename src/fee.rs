@@ -48,7 +48,9 @@ impl Startable for Fee {
                 TxOrBlock::Block(block) => {
                     match current_block {
                         Some(current_block) => {
-                            println!("block {} fee {}", current_block.height, block_fee);
+                            if current_block.height % 1000 == 0 {
+                                println!("block {} fee {}", current_block.height, block_fee);
+                            }
                             db.put(&block_fee_key(current_block.block_header.bitcoin_hash()), &serialize(&VarInt(block_fee)) ).expect("put error");
                         },
                         None => (),
