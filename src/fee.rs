@@ -54,7 +54,7 @@ impl Startable for Fee {
                     for (i,output) in tx.output.iter().enumerate()  {
                         let key = output_key(txid, i as u64);
                         let value = serialize(&VarInt(output.value));
-                        //println!("put key:{} varint(value):{} for txid:{:?}  vout:{} value:{}",hex::encode(&key), hex::encode(&value), txid, i, output.value);
+                        println!("put key:{} varint(value):{} for txid:{:?}  vout:{} value:{}",hex::encode(&key), hex::encode(&value), txid, i, output.value);
                         batch.put(&key[..], &value).expect("can't put value in batch");
                         output_sum += output.value;
                     }
@@ -72,7 +72,7 @@ impl Startable for Fee {
                                 let value : VarInt = deserialize(&value).expect("error while deserializing varing");
                                 input_sum += value.0;
                             },
-                            Ok(None) => println!("value not found for key"),
+                            Ok(None) => println!("value not found for key {}", hex::encode(&key)),
                             Err(e) => println!("operational problem encountered: {}", e),
                         }
                     }
