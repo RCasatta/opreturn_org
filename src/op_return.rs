@@ -146,7 +146,7 @@ impl Startable for OpReturn {
                         if output.script_pubkey.is_op_return() {
                             self.process( &output.script_pubkey, current_time, &mut data);
                             if output.script_pubkey.len() > 100 {
-                                println!("len greater than 100 {}", txid );
+                                println!("len {} greater than 100 {}", output.script_pubkey.len(), txid );
                             }
                         }
                     }

@@ -96,11 +96,26 @@ fn trunc(outpoint : &OutPoint) -> Vec<u8> {
 mod test {
     use bitcoin::OutPoint;
     use bitcoin::consensus::serialize;
+    use std::collections::BTreeMap;
 
     #[test]
     fn test() {
         println!("{}", serialize(&OutPoint::default())[28..].len());
     }
+
+    #[test]
+    fn test_order() {
+        let mut b = BTreeMap::new();
+        b.insert("  1",());
+        b.insert(" 11",());
+        b.insert("211",());
+        b.insert("111",());
+        b.insert(" 21",());
+        for key in b.keys() {
+            println!("{}", key);
+        }
+    }
+
 
     #[test]
     fn test_map() {
