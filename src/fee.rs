@@ -54,11 +54,14 @@ impl Startable for Fee {
                     for (i,output) in tx.output.iter().enumerate()  {
                         let key = output_key(txid, i as u64);
                         let value = serialize(&VarInt(output.value));
-                        println!("put key:{} varint(value):{} for txid:{:?}  vout:{} value:{}",hex::encode(&key), hex::encode(&value), txid, i, output.value);
+                        //println!("put key:{} varint(value):{} for txid:{:?}  vout:{} value:{}",hex::encode(&key), hex::encode(&value), txid, i, output.value);
                         batch.put(&key[..], &value).expect("can't put value in batch");
                         output_sum += output.value;
                     }
                     db.write(batch).expect("error writing batch writes");
+                    if tx.is_coin_base() {
+                        continue;
+                    }
                     let mut keys = vec![];
                     for input in tx.input {
                         let key = output_key(input.previous_output.txid, input.previous_output.vout as u64);
