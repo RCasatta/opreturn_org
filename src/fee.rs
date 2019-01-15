@@ -64,6 +64,7 @@ impl Startable for Fee {
                         Some(value) => {
                             let value : VarInt = deserialize(&value).expect("error while deserializing varing");
                             block_fee += value.0;
+                            continue;
                         },
                         None => (),
                     }
@@ -75,6 +76,7 @@ impl Startable for Fee {
                         batch.put(&key[..], &value).expect("can't put value in batch");
                         output_sum += output.value;
                     }
+                    db.write(batch).expect("error writing batch writes");
                     if tx.is_coin_base() {
                         continue;
                     }
@@ -96,10 +98,9 @@ impl Startable for Fee {
                     }
                     if input_sum > output_sum {
                         let fee = input_sum - output_sum;
-                        batch.put(&tx_fee_key, &serialize(&VarInt(fee))).expect("can't write fee");
+                        db.put(&tx_fee_key, &serialize(&VarInt(fee))).expect("can't write fee");
                         block_fee += fee;
                     }
-                    db.write(batch).expect("error writing batch writes");
                 },
                 TxOrBlock::End => {
                     println!("fee: received {:?}", received);
