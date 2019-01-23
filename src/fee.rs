@@ -13,6 +13,7 @@ use bitcoin::consensus::serialize;
 use bitcoin::consensus::deserialize;
 use bitcoin::VarInt;
 use bitcoin::BitcoinHash;
+use std::env;
 
 pub struct Fee {
     sender : SyncSender<TxOrBlock>,
@@ -35,7 +36,7 @@ impl Fee {
 impl Startable for Fee {
     fn start(&self) {
         println!("starting fee processer");
-        let db = DB::open_default("db").unwrap();
+        let db = DB::open_default(env::var("DB").unwrap_or("db")).unwrap();
 
         let mut wait_time =  Duration::from_secs(0);
         let mut block_fee = 0u64;
