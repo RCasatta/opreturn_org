@@ -24,8 +24,9 @@ fn main() {
     println!("block files {:?}", paths);
     for path in paths.iter() {
         let blob = fs::read(path).expect(&format!("failed to read {:?}", path));
+        let len = blob.len();
         let vec = parse_blocks(blob, Network::Bitcoin.magic());
-        println!("read {:?} blocks {:?}", blob.len(), vec.len());
+        println!("read {:?} blocks {:?}", len, vec.len());
     }
 }
 
