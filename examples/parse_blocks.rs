@@ -24,12 +24,10 @@ fn main() {
     println!("block files {:?}", paths);
     for path in paths.iter() {
         let blob = fs::read(path).expect(&format!("failed to read {:?}", path));
-        println!("read {:?}", blob.len());
         let vec = parse_blocks(blob, Network::Bitcoin.magic());
-        println!("blocks {:?}", vec.len());
+        println!("read {:?} blocks {:?}", blob.len(), vec.len());
     }
 }
-
 
 fn parse_blocks(blob: Vec<u8>, magic: u32) -> Vec<Block> {
     let mut cursor = Cursor::new(&blob);
@@ -42,6 +40,7 @@ fn parse_blocks(blob: Vec<u8>, magic: u32) -> Vec<Block> {
                     cursor
                         .seek(SeekFrom::Current(-3))
                         .expect("failed to seek back");
+                    eprintln!("seek back");
                     continue;
                 }
             }
