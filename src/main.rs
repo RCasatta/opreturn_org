@@ -83,7 +83,6 @@ fn parse_blocks(blob: Vec<u8>, magic: u32) -> Vec<Block> {
             Ok(value) => {
                 if magic != value {
                     cursor.seek(SeekFrom::Current(-3)).expect("failed to seek back");
-                    eprintln!("seek back");
                     continue;
                 }
             }
