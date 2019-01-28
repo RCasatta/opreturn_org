@@ -13,6 +13,8 @@ use bitcoin::network::constants::Network;
 use std::sync::mpsc::sync_channel;
 use std::thread;
 use std::sync::mpsc::SyncSender;
+use std::sync::Mutex;
+use std::sync::Arc;
 
 fn main() {
     let mut path = PathBuf::from(env::var("BITCOIN_DIR").unwrap_or("~/.bitcoin/".to_string()));
@@ -26,18 +28,23 @@ fn main() {
     println!("block files {:?}", paths);
     let thread = env::var("THREAD").unwrap_or("2".to_string()).parse::<usize>().unwrap_or(2);
 
+    let block_counter = Arc::new(Mutex::new(0usize));
     let mut handles = vec![];
     let mut senders : Vec<SyncSender<Vec<u8>>> = vec![];
     for i in 0..thread {
         let (send_blocks, receive_blocks) = sync_channel(0);
         senders.push(send_blocks);
+        let block_counter_clone = block_counter.clone();
         let handle = thread::spawn( move || {
             loop {
                 match receive_blocks.recv() {
                     Ok(blob) => {
                         println!("{} thread received blob", i);
                         let blocks = parse_blocks(blob, Network::Bitcoin.magic());
-                        println!("{} thread received {} blocks", i, blocks.len());
+                        let blocks_len = blocks.len();
+                        let mut block_counter = block_counter_clone.lock().unwrap();
+                        *block_counter += blocks_len;
+                        println!("{} thread received {} blocks, total {}", i, blocks_len, block_counter);
                     },
                     Err(e) => {
                         eprintln!("erro {:?}", e);
