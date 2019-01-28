@@ -24,7 +24,7 @@ fn main() {
         .collect();
     paths.sort();
     println!("block files {:?}", paths);
-    let thread = 4usize;
+    let thread = env::var("THREAD").unwrap_or("2".to_string()).parse::<usize>().unwrap_or(2);
 
     let mut handles = vec![];
     let mut senders : Vec<SyncSender<Vec<u8>>> = vec![];
