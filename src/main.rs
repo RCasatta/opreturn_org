@@ -35,6 +35,7 @@ fn main() {
             loop {
                 match receive_blocks.recv() {
                     Ok(blob) => {
+                        println!("{} thread received blob", i);
                         let blocks = parse_blocks(blob, Network::Bitcoin.magic());
                         println!("{} thread received {} blocks", i, blocks.len());
                     },
