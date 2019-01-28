@@ -18,6 +18,9 @@ use std::sync::Arc;
 
 fn main() {
     let mut path = PathBuf::from(env::var("BITCOIN_DIR").unwrap_or("~/.bitcoin/".to_string()));
+    let thread = env::var("THREAD").unwrap_or("2".to_string()).parse::<usize>().unwrap_or(2);
+    let channel_size = env::var("CHANNEL_SIZE").unwrap_or("1".to_string()).parse::<usize>().unwrap_or(1);
+
     path.push("blocks");
     path.push("blk*.dat");
     println!("listing block files at {:?}", path);
@@ -26,18 +29,19 @@ fn main() {
         .collect();
     paths.sort();
     println!("block files {:?}", paths);
-    let thread = env::var("THREAD").unwrap_or("2".to_string()).parse::<usize>().unwrap_or(2);
+
+    let (send_blocks, receive_blocks) = sync_channel(channel_size);
+    let receive_blocks = Arc::new(Mutex::new(receive_blocks));
 
     let block_counter = Arc::new(Mutex::new(0usize));
     let mut handles = vec![];
-    let mut senders : Vec<SyncSender<Vec<u8>>> = vec![];
     for i in 0..thread {
-        let (send_blocks, receive_blocks) = sync_channel(0);
-        senders.push(send_blocks);
         let block_counter_clone = block_counter.clone();
+        let receive_clone = receive_blocks.clone();
         let handle = thread::spawn( move || {
             loop {
-                match receive_blocks.recv() {
+                let result = receive_clone.lock().unwrap().recv();
+                match result {
                     Ok(blob) => {
                         println!("{} thread received blob", i);
                         let blocks = parse_blocks(blob, Network::Bitcoin.magic());
@@ -62,7 +66,7 @@ fn main() {
             let blob = fs::read(path).expect(&format!("failed to read {:?}", path));
             let len = blob.len();
             println!("read {:?}", len);
-            senders[i%thread].send(blob).expect("cannot send");
+            send_blocks.send(blob).expect("cannot send");
             i=i+1;
         }
     });
