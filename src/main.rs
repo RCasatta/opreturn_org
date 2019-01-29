@@ -1,5 +1,7 @@
 extern crate bitcoin;
+extern crate rocksdb;
 
+use crate::fee::Fee;
 use std::path::PathBuf;
 use std::fs;
 use bitcoin::consensus::encode::Decodable;
@@ -15,11 +17,21 @@ use std::thread;
 use std::sync::mpsc::SyncSender;
 use std::sync::Mutex;
 use std::sync::Arc;
+use rocksdb::DB;
+
+
+mod fee;
+
+trait Startable {
+    fn start(&self);
+}
 
 fn main() {
     let mut path = PathBuf::from(env::var("BITCOIN_DIR").unwrap_or("~/.bitcoin/".to_string()));
     let thread = env::var("THREAD").unwrap_or("2".to_string()).parse::<usize>().unwrap_or(2);
     let channel_size = env::var("CHANNEL_SIZE").unwrap_or("1".to_string()).parse::<usize>().unwrap_or(1);
+    let db = DB::open_default(env::var("DB").unwrap_or("db".to_string())).unwrap();
+
 
     path.push("blocks");
     path.push("blk*.dat");
@@ -28,7 +40,13 @@ fn main() {
         .map(|r| r.unwrap())
         .collect();
     paths.sort();
-    println!("block files {:?}", paths);
+    println!("block files {:?}", paths.len());
+
+    let fee = Fee::new(db);
+    let fee_sender = fee.get_sender();
+    thread::spawn( move || {
+        fee.start();
+    });
 
     let (send_blocks, receive_blocks) = sync_channel(channel_size);
     let receive_blocks = Arc::new(Mutex::new(receive_blocks));
@@ -38,17 +56,29 @@ fn main() {
     for i in 0..thread {
         let block_counter_clone = block_counter.clone();
         let receive_clone = receive_blocks.clone();
+        let fee_sender_clone = fee_sender.clone();
         let handle = thread::spawn( move || {
             loop {
                 let result = receive_clone.lock().unwrap().recv();
                 match result {
                     Ok(blob) => {
-                        println!("{} thread received blob", i);
-                        let blocks = parse_blocks(blob, Network::Bitcoin.magic());
-                        let blocks_len = blocks.len();
-                        let mut block_counter = block_counter_clone.lock().unwrap();
-                        *block_counter += blocks_len;
-                        println!("{} thread received {} blocks, total {}", i, blocks_len, block_counter);
+                        match blob {
+                            Some(blob) => {
+                                println!("#{} thread received blob", i);
+                                let blocks = parse_blocks(blob, Network::Bitcoin.magic());
+                                let blocks_len = blocks.len();
+                                let mut block_counter = block_counter_clone.lock().unwrap();
+                                *block_counter += blocks_len;
+                                println!("#{} thread received {} blocks, total {}", i, blocks_len, block_counter);
+                                fee_sender_clone.send(Some(blocks));
+                            },
+
+                            None => {
+                                println!("#{} received None, finishing", i);
+                                break;
+                            }
+                        }
+
                     },
                     Err(e) => {
                         eprintln!("erro {:?}", e);
@@ -66,9 +96,13 @@ fn main() {
             let blob = fs::read(path).expect(&format!("failed to read {:?}", path));
             let len = blob.len();
             println!("read {:?}", len);
-            send_blocks.send(blob).expect("cannot send");
+            send_blocks.send(Some(blob)).expect("cannot send");
             i=i+1;
         }
+        for i in 0..thread {
+            send_blocks.send(None).expect("cannot send None");
+        }
+
     });
 
     handle.join().unwrap();
