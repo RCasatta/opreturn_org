@@ -14,8 +14,8 @@ use bitcoin::BitcoinHash;
 use bitcoin::Block;
 
 pub struct Fee {
-    sender : SyncSender<Option<Vec<Block>>>,
-    receiver : Receiver<Option<Vec<Block>>>,
+    sender : SyncSender<Option<Block>>,
+    receiver : Receiver<Option<Block>>,
     db : DB,
 }
 
@@ -28,7 +28,7 @@ impl Fee {
             db,
         }
     }
-    pub fn get_sender(&self) -> SyncSender<Option<Vec<Block>>> {
+    pub fn get_sender(&self) -> SyncSender<Option<Block>> {
         self.sender.clone()
     }
 }
@@ -37,14 +37,15 @@ impl Startable for Fee {
     fn start(&self) {
         println!("starting fee processer");
 
+        let mut total_tx = 0u64;
         loop {
             let received = self.receiver.recv().expect("cannot get segwit");
             match received {
-                Some(blocks) => println!("fee received {}", blocks.len()),
+                Some(block) => total_tx += block.txdata.len() as u64,
                 None => break,
             }
         }
-        println!("ending fee processer" );
+        println!("ending fee processer total tx {}", total_tx);
     }
 
 }

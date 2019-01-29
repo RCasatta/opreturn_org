@@ -44,7 +44,7 @@ fn main() {
 
     let fee = Fee::new(db);
     let fee_sender = fee.get_sender();
-    thread::spawn( move || {
+    let fee_handle = thread::spawn( move || {
         fee.start();
     });
 
@@ -70,7 +70,9 @@ fn main() {
                                 let mut block_counter = block_counter_clone.lock().unwrap();
                                 *block_counter += blocks_len;
                                 println!("#{} thread received {} blocks, total {}", i, blocks_len, block_counter);
-                                fee_sender_clone.send(Some(blocks));
+                                for block in blocks {
+                                    fee_sender_clone.send(Some(block));
+                                }
                             },
 
                             None => {
@@ -109,6 +111,7 @@ fn main() {
     for handle in handles {
         handle.join().unwrap();
     }
+    fee_handle.join().unwrap();
 
 }
 
