@@ -111,6 +111,7 @@ fn main() {
     for handle in handles {
         handle.join().unwrap();
     }
+    fee_sender.send(None);
     fee_handle.join().unwrap();
 
 }
