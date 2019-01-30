@@ -12,17 +12,19 @@ use bitcoin::consensus::deserialize;
 use bitcoin::VarInt;
 use bitcoin::Block;
 use bitcoin::BitcoinHash;
+use bitcoin::OutPoint;
 use std::collections::HashMap;
 use crate::parse::BlockSize;
 
+
 pub struct Fee {
-    sender : SyncSender<Option<BlockSizeFees>>,
+    sender : SyncSender<Option<BlockSizeValues>>,
     receiver : Receiver<Option<BlockSize>>,
     db : DB,
 }
 
 impl Fee {
-    pub fn new(receiver : Receiver<Option<BlockSize>>,  sender : SyncSender<Option<BlockSizeFees>>, db : DB) -> Fee {
+    pub fn new(receiver : Receiver<Option<BlockSize>>,  sender : SyncSender<Option<BlockSizeValues>>, db : DB) -> Fee {
         Fee {
             sender,
             receiver,
@@ -31,10 +33,10 @@ impl Fee {
     }
 }
 
-pub struct BlockSizeFees {
+pub struct BlockSizeValues {
     pub block: Block,
     pub size: u32,
-    pub fees: Vec<u64>,
+    pub outpoint_values: HashMap<OutPoint,u64>,
 }
 
 impl Startable for Fee {
@@ -48,19 +50,23 @@ impl Startable for Fee {
                 Some(block_and_size) => {
                     let (block,size) = (block_and_size.block, block_and_size.size);
                     total_txs += block.txdata.len() as u64;
-                    let block_fees_bytes = self.db.get(&block_fees_key(block.bitcoin_hash())).expect("operational problem encountered");
-                    let block_fees : Vec<VarInt> = match block_fees_bytes {
-                        Some(block_fees_bytes) => {
-                            deserialize(&block_fees_bytes).expect("cannot deserialize block fees")
-                        },
-                        None => self.compute_block_fees(&block),
+                    let outpoint_values_bytes = self.db.get(&block_outpoint_values_key(block.bitcoin_hash())).expect("operational problem encountered");
+                    let mut outpoint_values_vec = match outpoint_values_bytes {
+                        Some(block_outpoint_values_bytes) => deserialize(&block_outpoint_values_bytes).expect("cannot deserialize block fees"),
+                        None => self.compute_outpoint_values(&block),
                     };
-                    let b = BlockSizeFees {
+                    let mut outpoint_values = HashMap::new();
+                    for tx in block.txdata.iter() {
+                        for input in tx.input.iter() {
+                            outpoint_values.insert(input.previous_output, outpoint_values_vec.pop().expect("can't pop").0);
+                        }
+                    }
+                    let b = BlockSizeValues {
                         block,
                         size,
-                        fees: block_fees.iter().map(|el| el.0).collect(),
+                        outpoint_values,
                     };
-                    println!("# {} block size: {}, block txs: {}, block fees: {}", b.block.bitcoin_hash(), b.size, b.block.txdata.len(), b.fees.iter().sum::<u64>());
+                    println!("# {} block size: {}, block txs: {}", b.block.bitcoin_hash(), b.size, b.block.txdata.len());
                 },
                 None => break,
             }
@@ -71,7 +77,7 @@ impl Startable for Fee {
 }
 
 impl Fee {
-    fn compute_block_fees(&self, block : &Block) -> Vec<VarInt> {
+    fn compute_outpoint_values(&self, block : &Block) -> Vec<VarInt> {
 
         // saving all outputs value in the block in write batch
         let mut batch = WriteBatch::default();
@@ -81,73 +87,51 @@ impl Fee {
                 let key = output_key(txid, i as u64);
                 let value = serialize(&VarInt(output.value));
                 batch.put(&key[..], &value).expect("can't put value in batch");
+                println!("putting {:?} hex {}", txid, hex::encode(key));
+
             }
         }
         self.db.write(batch).expect("error writing batch writes");
 
-        // getting all inputs keys in the block
-        let mut keys = vec![];
-        for tx in block.txdata.iter() {
-            for input in tx.input.iter() {
-                let key = output_key(input.previous_output.txid, input.previous_output.vout as u64);
-                keys.push(key);
-            }
-        }
-        keys.sort();
-
         // getting all inputs values
-        let mut values = HashMap::new();
-        let mut iter = self.db.raw_iterator();
-        iter.seek_to_first();
-        for key in keys {
-            iter.seek(&key);
-            let value : VarInt = deserialize(&iter.value().expect("can't find value for key")).expect("can't decode value");
-            values.insert(key, value.0);
-        }
-
-        // computing fees for every tx
-        let mut fees = vec![];
+        let mut values : Vec<VarInt> = vec![];
         for tx in block.txdata.iter() {
             if tx.is_coin_base() {
+                values.push(VarInt( tx.output.iter().map(|el| el.value).sum() ) );
                 continue;
             }
-            let txid = tx.txid();
-            let sum_output : u64 = tx.output.iter().map(|el| el.value).sum();
-            let mut sum_input = 0u64;
             for input in tx.input.iter() {
                 let key = output_key(input.previous_output.txid, input.previous_output.vout as u64);
-                sum_input += values.get(&key).expect("can't find value in map");
+                match self.db.get(&key).expect("operational problem in get") {
+                    Some(val) => {
+                        values.push(deserialize(&val).expect("err in deser val"))
+                    },
+                    None => {
+                        println!("value not found for prevout {:?} hex {}", input.previous_output, hex::encode(key));
+                        values.push(VarInt(0));
+                    },
+                }
             }
-            let fee = sum_input-sum_output;
-            fees.push(VarInt(fee));
         }
+        values.reverse();
 
-        self.db.put(&block_fees_key(block.bitcoin_hash()), &serialize(&fees));
+        self.db.put(&block_outpoint_values_key(block.bitcoin_hash()), &serialize(&values));
 
-        fees
+        values
     }
 }
-
-
 
 fn output_key(txid : Sha256dHash, i : u64) -> Vec<u8> {
     let mut v = vec![];
     v.push('o' as u8);
-    v.extend(serialize(&txid.into_hash64()) );
+    v.extend(serialize(&txid));
     v.extend(serialize(&VarInt(i)) );
     v
 }
 
-fn tx_fee_key(txid : Sha256dHash) -> Vec<u8> {
+fn block_outpoint_values_key(hash : Sha256dHash) -> Vec<u8> {
     let mut v = vec![];
-    v.push('f' as u8);
-    v.extend(serialize(&txid.into_hash64()) );
-    v
-}
-
-fn block_fees_key(hash : Sha256dHash) -> Vec<u8> {
-    let mut v = vec![];
-    v.push('b' as u8);
-    v.extend(serialize(&hash.into_hash64()) );
+    v.push('v' as u8);
+    v.extend(serialize(&hash));
     v
 }
