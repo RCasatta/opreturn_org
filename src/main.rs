@@ -14,7 +14,6 @@ use std::io::Seek;
 use bitcoin::network::constants::Network;
 use std::sync::mpsc::sync_channel;
 use std::thread;
-use std::sync::mpsc::SyncSender;
 use std::sync::Mutex;
 use std::sync::Arc;
 use rocksdb::DB;
@@ -70,8 +69,8 @@ fn main() {
                                 let mut block_counter = block_counter_clone.lock().unwrap();
                                 *block_counter += blocks_len;
                                 println!("#{} thread received {} blocks, total {}", i, blocks_len, block_counter);
-                                for block in blocks {
-                                    fee_sender_clone.send(Some(block));
+                                for block_and_size in blocks {
+                                    fee_sender_clone.send(Some(block_and_size)).unwrap();
                                 }
                             },
 
@@ -101,7 +100,7 @@ fn main() {
             send_blocks.send(Some(blob)).expect("cannot send");
             i=i+1;
         }
-        for i in 0..thread {
+        for _ in 0..thread {
             send_blocks.send(None).expect("cannot send None");
         }
 
@@ -111,12 +110,13 @@ fn main() {
     for handle in handles {
         handle.join().unwrap();
     }
-    fee_sender.send(None);
+    fee_sender.send(None).unwrap();
     fee_handle.join().unwrap();
-
 }
 
-fn parse_blocks(blob: Vec<u8>, magic: u32) -> Vec<Block> {
+pub struct BlockAndSize(Block, u32);
+
+fn parse_blocks(blob: Vec<u8>, magic: u32) -> Vec<BlockAndSize> {
     let mut cursor = Cursor::new(&blob);
     let mut blocks = vec![];
     let max_pos = blob.len() as u64;
@@ -136,7 +136,7 @@ fn parse_blocks(blob: Vec<u8>, magic: u32) -> Vec<Block> {
         let end = cursor.position() as usize;
 
         match deserialize(&blob[start..end]) {
-            Ok(block) => blocks.push(block),
+            Ok(block) => blocks.push(BlockAndSize(block, block_size)),
             Err(e) => eprintln!("error block parsing {:?}", e ),
         }
     }

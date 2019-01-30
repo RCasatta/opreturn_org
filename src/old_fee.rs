@@ -125,7 +125,6 @@ fn output_key(txid : Sha256dHash, i : u64) -> Vec<u8> {
     v
 }
 
-
 fn tx_fee_key(txid : Sha256dHash) -> Vec<u8> {
     let mut v = vec![];
     v.push('f' as u8);
