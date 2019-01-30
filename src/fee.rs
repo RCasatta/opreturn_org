@@ -14,6 +14,7 @@ use bitcoin::Block;
 use bitcoin::BitcoinHash;
 use bitcoin::OutPoint;
 use std::collections::HashMap;
+use bitcoin::Transaction;
 use crate::parse::BlockSize;
 
 
@@ -66,7 +67,7 @@ impl Startable for Fee {
                         size,
                         outpoint_values,
                     };
-                    println!("# {} block size: {}, block txs: {}", b.block.bitcoin_hash(), b.size, b.block.txdata.len());
+                    println!("# {} prev {} block size: {}, block txs: {} block fee:{:?}", b.block.bitcoin_hash(), b.block.header.prev_blockhash, b.size, b.block.txdata.len(), block_fee(&b));
                 },
                 None => break,
             }
@@ -106,7 +107,7 @@ impl Fee {
                         values.push(deserialize(&val).expect("err in deser val"))
                     },
                     None => {
-                        println!("value not found for prevout {:?} hex {}", input.previous_output, hex::encode(key));
+                        //println!("tx {} value not found for prevout {:?} : {} hex {}", tx.txid(), input.previous_output.txid.be_hex_string(), input.previous_output.vout, hex::encode(key));
                         values.push(VarInt(0));
                     },
                 }
@@ -120,10 +121,36 @@ impl Fee {
     }
 }
 
+fn block_fee(block_value: &BlockSizeValues) -> Option<u64> {
+    let mut total = 0u64;
+    for tx in block_value.block.txdata.iter() {
+        match tx_fee(tx, &block_value.outpoint_values) {
+            Some(val) => {
+                total += val;
+                //println!("txfee {} {}", tx.txid(), val);
+            },
+            None => return None,
+        }
+    }
+    Some(total)
+}
+
+fn tx_fee(tx : &Transaction, outpoint_values : &HashMap<OutPoint, u64>) -> Option<u64> {
+    let output_total : u64 = tx.output.iter().map(|el| el.value).sum();
+    let mut input_total = 0u64;
+    for input in tx.input.iter() {
+        match outpoint_values.get(&input.previous_output) {
+            Some(val) => input_total += val,
+            None => return None,
+        }
+    }
+    Some(input_total - output_total)
+}
+
 fn output_key(txid : Sha256dHash, i : u64) -> Vec<u8> {
     let mut v = vec![];
     v.push('o' as u8);
-    v.extend(serialize(&txid));
+    v.extend(serialize(&txid.into_hash64()));
     v.extend(serialize(&VarInt(i)) );
     v
 }

@@ -97,7 +97,10 @@ impl Startable for Fee {
                                 let value : VarInt = deserialize(&value).expect("error while deserializing varing");
                                 input_sum += value.0;
                             },
-                            None => println!("value not found for key {}", hex::encode(&key)),
+                            None => {
+                                ()
+                                //println!("value not found for key {}", hex::encode(&key))},
+                            }
                         }
                     }
                     if input_sum > output_sum {
