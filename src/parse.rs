@@ -40,16 +40,20 @@ impl Parse {
                     let blocks_vec = parse_blocks(blob);
                     total_blocks += blocks_vec.len();
                     println!("received {} total {}", blocks_vec.len(), total_blocks);
+                    for block in blocks_vec {
+                        self.sender.send(Some(block));
+                    }
                 },
                 None => break,
             }
         }
+        self.sender.send(None);
     }
 }
 
 pub struct BlockSize {
-    block: Block,
-    size: u32,
+    pub block: Block,
+    pub size: u32,
 }
 
 fn parse_blocks(blob: Vec<u8>) -> Vec<BlockSize> {

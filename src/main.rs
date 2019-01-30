@@ -19,8 +19,9 @@ use std::sync::Arc;
 use rocksdb::DB;
 use crate::read::Read;
 use crate::parse::Parse;
+use crate::fee::Fee;
 
-//mod fee;
+mod fee;
 mod parse;
 mod read;
 
@@ -41,12 +42,12 @@ fn main() {
     let (send_blocks, receive_blocks) = sync_channel(blocks_size);
     let mut parse = Parse::new(receive_blobs, send_blocks);
     let parse_handle = thread::spawn( move || { parse.start(); });
-    /*
 
     let (send_blocks_and_fee, receive_blocks_and_fee) = sync_channel(blocks_size);
-    let fee = Fee::new(receive_blocks, send_blocks_and_fee, db);
+    let mut fee = Fee::new(receive_blocks, send_blocks_and_fee, db);
     let fee_handle = thread::spawn( move || { fee.start(); });
 
+    /*
     let process = Process::new(receive_blocks_and_fee);
     let process_handle = thread::spawn( move || { process.start(); });
 */
