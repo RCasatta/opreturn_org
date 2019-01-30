@@ -87,8 +87,7 @@ impl Fee {
                 let key = output_key(txid, i as u64);
                 let value = serialize(&VarInt(output.value));
                 batch.put(&key[..], &value).expect("can't put value in batch");
-                println!("putting {:?} hex {}", txid, hex::encode(key));
-
+                //println!("putting {:?} hex {}", txid, hex::encode(key));
             }
         }
         self.db.write(batch).expect("error writing batch writes");
