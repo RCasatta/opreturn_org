@@ -1,67 +1,79 @@
-use bitcoin::{BlockHeader, Transaction};
+use crate::Startable;
+use std::time::Instant;
+use std::time::Duration;
+use std::sync::mpsc::sync_channel;
+use std::sync::mpsc::Receiver;
+use std::sync::mpsc::SyncSender;
+use rocksdb::DB;
+use rocksdb::WriteBatch;
+use bitcoin::util::hash::Sha256dHash;
+use bitcoin::consensus::serialize;
 use bitcoin::consensus::deserialize;
-use std::error::Error;
-use std::fmt;
+use bitcoin::VarInt;
+use bitcoin::Block;
+use bitcoin::BitcoinHash;
+use std::io::Cursor;
+use std::io::SeekFrom;
+use bitcoin::network::constants::Network;
+use bitcoin::consensus::Decodable;
+use std::io::Seek;
 
-#[derive(Debug, Clone)]
-pub struct TxParsed {
-    pub height : u32,
-    pub tx: Transaction,
+pub struct Parse {
+    receiver : Receiver<Option<Vec<u8>>>,
+    sender : SyncSender<Option<BlockSize>>,
 }
 
-#[derive(Debug, Clone)]
-pub struct BlockParsed {
-    pub height : u32,
-    pub size : u32,
-    pub tx_count : u32,
-    pub block_header: BlockHeader,
-}
+impl Parse {
+    pub fn new(receiver : Receiver<Option<Vec<u8>>>, sender : SyncSender<Option<BlockSize>> ) -> Parse {
+        Parse {
+            sender,
+            receiver,
+        }
+    }
 
-#[derive(Debug, Clone)]
-pub enum TxOrBlock {
-    Tx(TxParsed),
-    Block(BlockParsed),
-    End,
-}
-
-#[derive(Debug)]
-struct MyError(String);
-
-impl fmt::Display for MyError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "There is an error: {}", self.0)
+    pub fn start(&mut self) {
+        loop {
+            let received = self.receiver.recv().expect("cannot receive blob");
+            match received {
+                Some(blob) => {
+                    let blocks_vec = parse_blocks(blob);
+                    println!("received {}", blocks_vec.len());
+                },
+                None => break,
+            }
+        }
     }
 }
 
-impl Error for MyError {}
+pub struct BlockSize {
+    block: Block,
+    size: u32,
+}
 
-pub fn line(line : &str) -> Result<TxOrBlock, Box<Error>> {
-    let mut x = line.split_whitespace();
-    let type_letter = match x.next() {
-        Some(l) => l,
-        None => return Err(Box::new(MyError("Oops".into()))),
-    };
-    match type_letter {
-        "T" => {
-            let height = x.next().expect("cannot get height").parse::<u32>()?;
-            let tx : Transaction = deserialize( &hex::decode( x.next().expect("cannot get tx") )? )?;
-            Ok(TxOrBlock::Tx(TxParsed {
-                height,
-                tx,
-            }))
-        },
-        "B" => {
-            let height = x.next().expect("cannot get height").parse::<u32>()?;
-            let size = x.next().expect("cannot get size").parse::<u32>()?;
-            let tx_count = x.next().expect("cannot get tx_count").parse::<u32>()?;
-            let block_header : BlockHeader = deserialize( &hex::decode( x.next().expect("cannot get block_header") )? )?;
-            Ok(TxOrBlock::Block(BlockParsed {
-                height,
-                size,
-                tx_count,
-                block_header,
-            }))
-        },
-        _ => Err(Box::new(MyError("Oops".into()))),
+fn parse_blocks(blob: Vec<u8>) -> Vec<BlockSize> {
+    let magic = Network::Bitcoin.magic();
+    let mut cursor = Cursor::new(&blob);
+    let mut blocks = vec![];
+    let max_pos = blob.len() as u64;
+    while cursor.position() < max_pos {
+        match u32::consensus_decode(&mut cursor) {
+            Ok(value) => {
+                if magic != value {
+                    cursor.seek(SeekFrom::Current(-3)).expect("failed to seek back");
+                    continue;
+                }
+            }
+            Err(_) => break, // EOF
+        };
+        let size = u32::consensus_decode(&mut cursor).expect("a");
+        let start = cursor.position() as usize;
+        cursor.seek(SeekFrom::Current(size as i64)).expect("failed to seek forward");
+        let end = cursor.position() as usize;
+
+        match deserialize(&blob[start..end]) {
+            Ok(block) => blocks.push(BlockSize{block, size}),
+            Err(e) => eprintln!("error block parsing {:?}", e ),
+        }
     }
+    blocks
 }
