@@ -32,12 +32,14 @@ impl Parse {
     }
 
     pub fn start(&mut self) {
+        let mut total_blocks = 0usize;
         loop {
             let received = self.receiver.recv().expect("cannot receive blob");
             match received {
                 Some(blob) => {
                     let blocks_vec = parse_blocks(blob);
-                    println!("received {}", blocks_vec.len());
+                    total_blocks += blocks_vec.len();
+                    println!("received {} total {}", blocks_vec.len(), total_blocks);
                 },
                 None => break,
             }
