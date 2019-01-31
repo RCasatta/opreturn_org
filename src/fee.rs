@@ -46,6 +46,7 @@ impl Startable for Fee {
         println!("starting fee processer");
 
         let mut total_txs = 0u64;
+        let mut found_values = 0u32;
         loop {
             let received = self.receiver.recv().expect("cannot get segwit");
             match received {
@@ -54,7 +55,10 @@ impl Startable for Fee {
                     total_txs += block.txdata.len() as u64;
                     let outpoint_values_bytes = self.db.get(&block_outpoint_values_key(block.bitcoin_hash())).expect("operational problem encountered");
                     let mut outpoint_values_vec = match outpoint_values_bytes {
-                        Some(block_outpoint_values_bytes) => deserialize(&block_outpoint_values_bytes).expect("cannot deserialize block fees"),
+                        Some(block_outpoint_values_bytes) => {
+                            found_values += 1;
+                            deserialize(&block_outpoint_values_bytes).expect("cannot deserialize block fees")
+                        },
                         None => self.compute_outpoint_values(&block),
                     };
                     let mut outpoint_values = HashMap::new();
@@ -69,17 +73,19 @@ impl Startable for Fee {
                         height,
                         outpoint_values,
                     };
-                    println!("#{} {} prev {} block size: {}, block txs: {} block fee:{:?}",
+                    println!("#{} {} prev {} size: {}, txs: {} fee:{:?} found:{}",
                              b.height,
                              b.block.bitcoin_hash(),
                              b.block.header.prev_blockhash,
                              b.size,
-                             b.block.txdata.len(), block_fee(&b));
+                             b.block.txdata.len(), block_fee(&b),
+                             found_values
+                    );
                 },
                 None => break,
             }
         }
-        println!("ending fee processer total tx {}", total_txs);
+        println!("ending fee processer total tx {}, output values found: {}", total_txs, found_values);
     }
 
 }
@@ -110,13 +116,8 @@ impl Fee {
             for input in tx.input.iter() {
                 let key = output_key(input.previous_output.txid, input.previous_output.vout as u64);
                 match self.db.get(&key).expect("operational problem in get") {
-                    Some(val) => {
-                        values.push(deserialize(&val).expect("err in deser val"))
-                    },
-                    None => {
-                        //println!("tx {} value not found for prevout {:?} : {} hex {}", tx.txid(), input.previous_output.txid.be_hex_string(), input.previous_output.vout, hex::encode(key));
-                        values.push(VarInt(0));
-                    },
+                    Some(val) => values.push(deserialize(&val).expect("err in deser val")),
+                    None => panic!("tx {} value not found for prevout {:?} : {} hex {}", tx.txid(), input.previous_output.txid.be_hex_string(), input.previous_output.vout, hex::encode(key)),
                 }
             }
         }
@@ -128,30 +129,24 @@ impl Fee {
     }
 }
 
-fn block_fee(block_value: &BlockSizeHeightValues) -> Option<u64> {
+pub fn block_fee(block_value: &BlockSizeHeightValues) -> u64 {
     let mut total = 0u64;
     for tx in block_value.block.txdata.iter() {
-        match tx_fee(tx, &block_value.outpoint_values) {
-            Some(val) => {
-                total += val;
-                //println!("txfee {} {}", tx.txid(), val);
-            },
-            None => return None,
-        }
+        total += tx_fee(tx, &block_value.outpoint_values);
     }
-    Some(total)
+    total
 }
 
-fn tx_fee(tx : &Transaction, outpoint_values : &HashMap<OutPoint, u64>) -> Option<u64> {
+pub fn tx_fee(tx : &Transaction, outpoint_values : &HashMap<OutPoint, u64>) -> u64 {
     let output_total : u64 = tx.output.iter().map(|el| el.value).sum();
     let mut input_total = 0u64;
     for input in tx.input.iter() {
         match outpoint_values.get(&input.previous_output) {
             Some(val) => input_total += val,
-            None => return None,
+            None => panic!("can't find tx fee {}", tx.txid()),
         }
     }
-    Some(input_total - output_total)
+    input_total - output_total
 }
 
 fn output_key(txid : Sha256dHash, i : u64) -> Vec<u8> {
