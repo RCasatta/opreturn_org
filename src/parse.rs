@@ -18,6 +18,11 @@ use bitcoin::network::constants::Network;
 use bitcoin::consensus::Decodable;
 use std::io::Seek;
 
+pub struct BlockSize {
+    pub block: Block,
+    pub size: u32,
+}
+
 pub struct Parse {
     receiver : Receiver<Option<Vec<u8>>>,
     sender : SyncSender<Option<BlockSize>>,
@@ -49,11 +54,6 @@ impl Parse {
         }
         self.sender.send(None);
     }
-}
-
-pub struct BlockSize {
-    pub block: Block,
-    pub size: u32,
 }
 
 fn parse_blocks(blob: Vec<u8>) -> Vec<BlockSize> {

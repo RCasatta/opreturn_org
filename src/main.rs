@@ -20,10 +20,12 @@ use rocksdb::DB;
 use crate::read::Read;
 use crate::parse::Parse;
 use crate::fee::Fee;
+use crate::reorder::Reorder;
 
 mod fee;
 mod parse;
 mod read;
+mod reorder;
 
 trait Startable {
     fn start(&self);
@@ -43,8 +45,12 @@ fn main() {
     let mut parse = Parse::new(receive_blobs, send_blocks);
     let parse_handle = thread::spawn( move || { parse.start(); });
 
+    let (send_ordered_blocks, receive_ordered_blocks) = sync_channel(blocks_size);
+    let mut parse = Reorder::new(receive_blocks, send_ordered_blocks);
+    let parse_handle = thread::spawn( move || { parse.start(); });
+
     let (send_blocks_and_fee, receive_blocks_and_fee) = sync_channel(blocks_size);
-    let mut fee = Fee::new(receive_blocks, send_blocks_and_fee, db);
+    let mut fee = Fee::new(receive_ordered_blocks, send_blocks_and_fee, db);
     let fee_handle = thread::spawn( move || { fee.start(); });
 
     /*

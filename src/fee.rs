@@ -1,9 +1,9 @@
-use crate::Startable;
 use std::time::Instant;
 use std::time::Duration;
 use std::sync::mpsc::sync_channel;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::SyncSender;
+use std::collections::HashMap;
 use rocksdb::DB;
 use rocksdb::WriteBatch;
 use bitcoin::util::hash::Sha256dHash;
@@ -13,31 +13,32 @@ use bitcoin::VarInt;
 use bitcoin::Block;
 use bitcoin::BitcoinHash;
 use bitcoin::OutPoint;
-use std::collections::HashMap;
 use bitcoin::Transaction;
+use crate::Startable;
 use crate::parse::BlockSize;
+use crate::reorder::BlockSizeHeight;
 
+pub struct BlockSizeHeightValues {
+    pub block : Block,
+    pub size: u32,
+    pub height: u32,
+    pub outpoint_values: HashMap<OutPoint,u64>,
+}
 
 pub struct Fee {
-    sender : SyncSender<Option<BlockSizeValues>>,
-    receiver : Receiver<Option<BlockSize>>,
+    receiver : Receiver<Option<BlockSizeHeight>>,
+    sender : SyncSender<Option<BlockSizeHeightValues>>,
     db : DB,
 }
 
 impl Fee {
-    pub fn new(receiver : Receiver<Option<BlockSize>>,  sender : SyncSender<Option<BlockSizeValues>>, db : DB) -> Fee {
+    pub fn new(receiver : Receiver<Option<BlockSizeHeight>>,  sender : SyncSender<Option<BlockSizeHeightValues>>, db : DB) -> Fee {
         Fee {
             sender,
             receiver,
             db,
         }
     }
-}
-
-pub struct BlockSizeValues {
-    pub block: Block,
-    pub size: u32,
-    pub outpoint_values: HashMap<OutPoint,u64>,
 }
 
 impl Startable for Fee {
@@ -48,8 +49,8 @@ impl Startable for Fee {
         loop {
             let received = self.receiver.recv().expect("cannot get segwit");
             match received {
-                Some(block_and_size) => {
-                    let (block,size) = (block_and_size.block, block_and_size.size);
+                Some(block_size_height) => {
+                    let (block,size,height) = (block_size_height.block, block_size_height.size, block_size_height.height);
                     total_txs += block.txdata.len() as u64;
                     let outpoint_values_bytes = self.db.get(&block_outpoint_values_key(block.bitcoin_hash())).expect("operational problem encountered");
                     let mut outpoint_values_vec = match outpoint_values_bytes {
@@ -62,12 +63,18 @@ impl Startable for Fee {
                             outpoint_values.insert(input.previous_output, outpoint_values_vec.pop().expect("can't pop").0);
                         }
                     }
-                    let b = BlockSizeValues {
+                    let b = BlockSizeHeightValues {
                         block,
                         size,
+                        height,
                         outpoint_values,
                     };
-                    println!("# {} prev {} block size: {}, block txs: {} block fee:{:?}", b.block.bitcoin_hash(), b.block.header.prev_blockhash, b.size, b.block.txdata.len(), block_fee(&b));
+                    println!("#{} {} prev {} block size: {}, block txs: {} block fee:{:?}",
+                             b.height,
+                             b.block.bitcoin_hash(),
+                             b.block.header.prev_blockhash,
+                             b.size,
+                             b.block.txdata.len(), block_fee(&b));
                 },
                 None => break,
             }
@@ -121,7 +128,7 @@ impl Fee {
     }
 }
 
-fn block_fee(block_value: &BlockSizeValues) -> Option<u64> {
+fn block_fee(block_value: &BlockSizeHeightValues) -> Option<u64> {
     let mut total = 0u64;
     for tx in block_value.block.txdata.iter() {
         match tx_fee(tx, &block_value.outpoint_values) {
