@@ -34,7 +34,7 @@ trait Startable {
 fn main() {
     let mut path = PathBuf::from(env::var("BITCOIN_DIR").unwrap_or("~/.bitcoin/".to_string()));
     let blob_size = env::var("BLOB_CHANNEL_SIZE").unwrap_or("1".to_string()).parse::<usize>().unwrap_or(1);
-    let blocks_size = env::var("BLOCKS_CHANNEL_SIZE").unwrap_or("1000".to_string()).parse::<usize>().unwrap_or(1000);
+    let blocks_size = env::var("BLOCKS_CHANNEL_SIZE").unwrap_or("100".to_string()).parse::<usize>().unwrap_or(100);
     let db = DB::open_default(env::var("DB").unwrap_or("db".to_string())).unwrap();
 
     let (send_blobs, receive_blobs) = sync_channel(blob_size);

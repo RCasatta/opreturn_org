@@ -31,6 +31,7 @@ pub struct Reorder {
     sender : SyncSender<Option<BlockSizeHeight>>,
     height: u32,
     next: Sha256dHash,
+    out_of_order_blocks: HashMap<Sha256dHash, BlockSize>,
 }
 
 impl Reorder {
@@ -40,6 +41,7 @@ impl Reorder {
             receiver,
             height: 0,
             next: Sha256dHash::default(),
+            out_of_order_blocks: HashMap::new(),
         }
     }
 
@@ -47,10 +49,12 @@ impl Reorder {
         self.next = block_size.block.bitcoin_hash();
         self.sender.send(Some(BlockSizeHeight { block: block_size.block, size: block_size.size, height: self.height}));
         self.height += 1;
+        if self.height % 1000 == 0 {
+            println!("out_of_order_size: {}", self.out_of_order_blocks.len());
+        }
     }
 
     pub fn start(&mut self) {
-        let mut old = HashMap::new();
         loop {
             let received = self.receiver.recv().expect("cannot receive blob");
             match received {
@@ -59,13 +63,13 @@ impl Reorder {
                     if prev_blockhash == self.next {
                         self.send(block_size);
                         loop {
-                            match old.remove(&self.next) {
+                            match self.out_of_order_blocks.remove(&self.next) {
                                 Some(value) => self.send(value),
                                 None => break,
                             }
                         }
                     } else {
-                        old.insert(prev_blockhash, block_size);
+                        self.out_of_order_blocks.insert(prev_blockhash, block_size);
                     }
                 },
                 None => break,
