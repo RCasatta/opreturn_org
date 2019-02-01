@@ -6,6 +6,7 @@ use std::sync::mpsc::SyncSender;
 use std::collections::HashMap;
 use rocksdb::DB;
 use rocksdb::WriteBatch;
+use rocksdb::WriteOptions;
 use bitcoin::util::hash::Sha256dHash;
 use bitcoin::consensus::serialize;
 use bitcoin::consensus::deserialize;
@@ -73,10 +74,9 @@ impl Startable for Fee {
                         height,
                         outpoint_values,
                     };
-                    println!("#{} {} prev {} size: {}, txs: {} fee:{:?} found:{}",
+                    println!("#{:>6} {} size:{:>6}, txs:{:>4} fee:{:>9} found:{:>6}",
                              b.height,
                              b.block.bitcoin_hash(),
-                             b.block.header.prev_blockhash,
                              b.size,
                              b.block.txdata.len(), block_fee(&b),
                              found_values
@@ -108,48 +108,30 @@ impl Fee {
 
         // getting all inputs keys and outpoints, prepare for deletion
         let mut keys_outpoint = vec![];
-        let mut batch_delete = WriteBatch::default();
-        for tx in block.txdata.iter() {
-            if tx.is_coin_base() {
-                continue;
-            }
+        let mut index = 1u32;
+        for tx in block.txdata.iter().skip(1) {
             for input in tx.input.iter() {
                 let key = output_key(input.previous_output.txid, input.previous_output.vout as u64);
-                batch_delete.delete(&key);
-                keys_outpoint.push((key,input.previous_output.clone()));
-
+                keys_outpoint.push((key,index));
+                index += 1;
             }
         }
 
         // getting value from db in ordered fashion (because of paging is faster)
         keys_outpoint.sort_by(|a, b| a.0.cmp(&b.0));
-        let mut map = HashMap::new();
-        for (key, outpoint) in keys_outpoint {
-            match self.db.get(&key).expect("operational problem in get") {
-                Some(val) => {
-                    map.insert(outpoint, deserialize(&val).expect("err in deser val"));
-                    ()
-                } ,
-                None => println!("value not found for key {} outpoint: {:?}", hex::encode(key), outpoint ),
-            };
+        let mut values = vec![];
+        values.push( (0, VarInt( block.txdata[0].output.iter().map(|el| el.value).sum() ) ) );  //coinbase
+        for (key, index) in keys_outpoint {
+            let value = self.db.get(&key).expect("operational problem in get").unwrap();
+            values.push( (index, deserialize::<VarInt>( &value ).unwrap() ) );
         }
 
-        // creating array of prevout values
-        let mut values : Vec<VarInt> = vec![];
-        for tx in block.txdata.iter() {
-            if tx.is_coin_base() {
-                values.push(VarInt( tx.output.iter().map(|el| el.value).sum() ) );
-            } else {
-                for input in tx.input.iter() {
-                    values.push(map.remove(&input.previous_output).expect("value not found"));
-                }
-            }
-
-        }
-        values.reverse();  // we will use them in reverse order
+        // reordering in block order (reversed)
+        values.sort_by(|a,b| a.0.cmp(&b.0));
+        let mut values : Vec<VarInt> = values.iter().map(|el| el.1.clone() ).collect();
+        values.reverse();
 
         self.db.put(&block_outpoint_values_key(block.bitcoin_hash()), &serialize(&values));
-        self.db.write(batch_delete);  // since every output could be spent exactly once, we can remove it from db (we can rebuild the db in bad cases like reorgs)
 
         values
     }
