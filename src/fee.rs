@@ -106,7 +106,6 @@ impl Fee {
         }
         self.db.write(batch).expect("error writing batch writes");
 
-
         // getting all inputs keys and outpoints, prepare for deletion
         let mut keys_outpoint = vec![];
         let mut batch_delete = WriteBatch::default();
@@ -140,16 +139,17 @@ impl Fee {
         for tx in block.txdata.iter() {
             if tx.is_coin_base() {
                 values.push(VarInt( tx.output.iter().map(|el| el.value).sum() ) );
-                continue;
+            } else {
+                for input in tx.input.iter() {
+                    values.push(map.remove(&input.previous_output).expect("value not found"));
+                }
             }
-            for input in tx.input.iter() {
-                values.push(map.remove(&input.previous_output).expect("value not found"));
-            }
+
         }
         values.reverse();  // we will use them in reverse order
 
         self.db.put(&block_outpoint_values_key(block.bitcoin_hash()), &serialize(&values));
-        //self.db.write(batch_delete);  // since every output could be spent exactly once, we can remove it from db (we can rebuild the db in bad cases like reorgs)
+        self.db.write(batch_delete);  // since every output could be spent exactly once, we can remove it from db (we can rebuild the db in bad cases like reorgs)
 
         values
     }
