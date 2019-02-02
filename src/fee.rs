@@ -3,6 +3,7 @@ use std::sync::mpsc::SyncSender;
 use std::collections::HashMap;
 use rocksdb::DB;
 use rocksdb::WriteBatch;
+use rocksdb::WriteOptions;
 use bitcoin::util::hash::Sha256dHash;
 use bitcoin::consensus::serialize;
 use bitcoin::consensus::deserialize;
@@ -11,7 +12,6 @@ use bitcoin::Block;
 use bitcoin::BitcoinHash;
 use bitcoin::OutPoint;
 use bitcoin::Transaction;
-use crate::Startable;
 use crate::reorder::BlockSizeHeight;
 
 pub struct BlockSizeHeightValues {
@@ -25,6 +25,7 @@ pub struct Fee {
     receiver : Receiver<Option<BlockSizeHeight>>,
     sender : SyncSender<Option<BlockSizeHeightValues>>,
     db : DB,
+    delete_after: HashMap<u32, Vec<Vec<u8>>>,
 }
 
 impl Fee {
@@ -33,12 +34,13 @@ impl Fee {
             sender,
             receiver,
             db,
+            delete_after: HashMap::new(),
         }
     }
 }
 
-impl Startable for Fee {
-    fn start(&self) {
+impl Fee {
+    pub fn start(&mut self) {
         println!("starting fee processer");
 
         let mut total_txs = 0u64;
@@ -55,7 +57,7 @@ impl Startable for Fee {
                             found_values += 1;
                             deserialize(&block_outpoint_values_bytes).expect("cannot deserialize block fees")
                         },
-                        None => self.compute_outpoint_values(&block),
+                        None => self.compute_outpoint_values(&block, height),
                     };
                     let mut outpoint_values = HashMap::new();
                     for tx in block.txdata.iter() {
@@ -90,7 +92,7 @@ impl Startable for Fee {
 }
 
 impl Fee {
-    fn compute_outpoint_values(&self, block : &Block) -> Vec<VarInt> {
+    fn compute_outpoint_values(&mut self, block : &Block, height : u32) -> Vec<VarInt> {
 
         // saving all outputs value in the block in write batch
         let mut batch = WriteBatch::default();
@@ -125,6 +127,8 @@ impl Fee {
             let value = self.db.get(key).expect("operational problem in get").expect("unexpected None in db");
             values_index.push( (deserialize::<VarInt>( &value ).unwrap(), *index ) );
         }
+        let to_delete = keys_index.into_iter().map(|el| el.0).collect();
+        self.delete_after(height,to_delete);
 
         // reordering in block order (reversed)
         values_index.sort_by(|a,b| b.1.cmp(&a.1));
@@ -134,6 +138,22 @@ impl Fee {
                     &serialize(&values)).expect("fee: cannot put value in db");
 
         values
+    }
+
+    fn delete_after(&mut self, height : u32, to_delete : Vec<Vec<u8>>) {
+        self.delete_after.insert(height, to_delete);
+        if height>6 {
+            if let Some(val) = self.delete_after.remove(&(height - 6) ) {
+                let mut batch = WriteBatch::default();
+                for el in val {
+                    batch.delete(&el).expect("cannot insert deletion in batch");
+                }
+                let mut opt = WriteOptions::default();
+                opt.set_sync(false);
+                opt.disable_wal(true);
+                self.db.write_opt(batch, &opt).expect("cannot delete batch");
+            }
+        }
     }
 }
 

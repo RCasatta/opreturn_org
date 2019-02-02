@@ -15,10 +15,6 @@ mod read;
 mod reorder;
 mod process;
 
-trait Startable {
-    fn start(&self);
-}
-
 fn main() {
     let path = PathBuf::from(env::var("BITCOIN_DIR").unwrap_or("~/.bitcoin/".to_string()));
     let blob_size = env::var("BLOB_CHANNEL_SIZE").unwrap_or("1".to_string()).parse::<usize>().unwrap_or(2);
@@ -38,7 +34,7 @@ fn main() {
     let orderer_handle = thread::spawn( move || { parse.start(); });
 
     let (send_blocks_and_fee, receive_blocks_and_fee) = sync_channel(blocks_size);
-    let fee = Fee::new(receive_ordered_blocks, send_blocks_and_fee, db);
+    let mut fee = Fee::new(receive_ordered_blocks, send_blocks_and_fee, db);
     let fee_handle = thread::spawn( move || { fee.start(); });
 
     let process = Process::new(receive_blocks_and_fee);
