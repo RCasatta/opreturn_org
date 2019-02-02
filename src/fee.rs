@@ -1,12 +1,8 @@
-use std::time::Instant;
-use std::time::Duration;
-use std::sync::mpsc::sync_channel;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::SyncSender;
 use std::collections::HashMap;
 use rocksdb::DB;
 use rocksdb::WriteBatch;
-use rocksdb::WriteOptions;
 use bitcoin::util::hash::Sha256dHash;
 use bitcoin::consensus::serialize;
 use bitcoin::consensus::deserialize;
@@ -16,7 +12,6 @@ use bitcoin::BitcoinHash;
 use bitcoin::OutPoint;
 use bitcoin::Transaction;
 use crate::Startable;
-use crate::parse::BlockSize;
 use crate::reorder::BlockSizeHeight;
 
 pub struct BlockSizeHeightValues {
@@ -74,17 +69,21 @@ impl Startable for Fee {
                         height,
                         outpoint_values,
                     };
-                    println!("#{:>6} {} size:{:>6}, txs:{:>4} fee:{:>9} found:{:>6}",
+                    println!("#{:>6} {} size:{:>7}, txs:{:>4} total_txs:{:>9} fee:{:>9} found:{:>6}",
                              b.height,
                              b.block.bitcoin_hash(),
                              b.size,
-                             b.block.txdata.len(), block_fee(&b),
+                             b.block.txdata.len(),
+                             total_txs,
+                             block_fee(&b),
                              found_values
                     );
+                    self.sender.send(Some(b)).expect("fee: cannot send");
                 },
                 None => break,
             }
         }
+        self.sender.send(None).expect("fee: cannot send none");
         println!("ending fee processer total tx {}, output values found: {}", total_txs, found_values);
     }
 
@@ -128,10 +127,10 @@ impl Fee {
 
         // reordering in block order (reversed)
         values.sort_by(|a,b| a.0.cmp(&b.0));
-        let mut values : Vec<VarInt> = values.iter().map(|el| el.1.clone() ).collect();
+        let mut values : Vec<VarInt> = values.into_iter().map(|el| el.1 ).collect();
         values.reverse();
 
-        self.db.put(&block_outpoint_values_key(block.bitcoin_hash()), &serialize(&values));
+        self.db.put(&block_outpoint_values_key(block.bitcoin_hash()), &serialize(&values)).expect("fee: cannot put value in db");
 
         values
     }

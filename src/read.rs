@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 use std::sync::mpsc::SyncSender;
 use std::fs;
-use bitcoin::Block;
 
 pub struct Read {
     path: PathBuf,

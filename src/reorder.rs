@@ -1,22 +1,8 @@
-use crate::Startable;
-use std::time::Instant;
-use std::time::Duration;
-use std::sync::mpsc::sync_channel;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::SyncSender;
-use rocksdb::DB;
-use rocksdb::WriteBatch;
 use bitcoin::util::hash::Sha256dHash;
-use bitcoin::consensus::serialize;
-use bitcoin::consensus::deserialize;
-use bitcoin::VarInt;
 use bitcoin::Block;
 use bitcoin::BitcoinHash;
-use std::io::Cursor;
-use std::io::SeekFrom;
-use bitcoin::network::constants::Network;
-use bitcoin::consensus::Decodable;
-use std::io::Seek;
 use crate::parse::BlockSize;
 use std::collections::HashMap;
 
@@ -47,7 +33,8 @@ impl Reorder {
 
     fn send(&mut self, block_size : BlockSize) {
         self.next = block_size.block.bitcoin_hash();
-        self.sender.send(Some(BlockSizeHeight { block: block_size.block, size: block_size.size, height: self.height}));
+        let b = BlockSizeHeight { block: block_size.block, size: block_size.size, height: self.height };
+        self.sender.send(Some(b)).expect("reorder: cannot send block");
         self.height += 1;
         if self.height % 1000 == 0 {
             println!("out_of_order_size: {}", self.out_of_order_blocks.len());
@@ -75,6 +62,6 @@ impl Reorder {
                 None => break,
             }
         }
-        self.sender.send(None);
+        self.sender.send(None).expect("reorder cannot send none");
     }
 }

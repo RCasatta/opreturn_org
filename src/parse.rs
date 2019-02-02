@@ -1,17 +1,7 @@
-use crate::Startable;
-use std::time::Instant;
-use std::time::Duration;
-use std::sync::mpsc::sync_channel;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::SyncSender;
-use rocksdb::DB;
-use rocksdb::WriteBatch;
-use bitcoin::util::hash::Sha256dHash;
-use bitcoin::consensus::serialize;
 use bitcoin::consensus::deserialize;
-use bitcoin::VarInt;
 use bitcoin::Block;
-use bitcoin::BitcoinHash;
 use std::io::Cursor;
 use std::io::SeekFrom;
 use bitcoin::network::constants::Network;
@@ -46,13 +36,13 @@ impl Parse {
                     total_blocks += blocks_vec.len();
                     println!("received {} total {}", blocks_vec.len(), total_blocks);
                     for block in blocks_vec {
-                        self.sender.send(Some(block));
+                        self.sender.send(Some(block)).expect("parse: cannot send block");
                     }
                 },
                 None => break,
             }
         }
-        self.sender.send(None);
+        self.sender.send(None).expect("parse: cannot send None");
     }
 }
 
