@@ -37,7 +37,7 @@ fn main() {
     let mut fee = Fee::new(receive_ordered_blocks, send_blocks_and_fee, db);
     let fee_handle = thread::spawn( move || { fee.start(); });
 
-    let process = Process::new(receive_blocks_and_fee);
+    let mut process = Process::new(receive_blocks_and_fee);
     let process_handle = thread::spawn( move || { process.start(); });
 
     read_handle.join().unwrap();
