@@ -30,8 +30,8 @@ fn main() {
     let parse_handle = thread::spawn( move || { parse.start(); });
 
     let (send_ordered_blocks, receive_ordered_blocks) = sync_channel(blocks_size);
-    let mut parse = Reorder::new(receive_blocks, send_ordered_blocks);
-    let orderer_handle = thread::spawn( move || { parse.start(); });
+    let mut reorder = Reorder::new(receive_blocks, send_ordered_blocks);
+    let orderer_handle = thread::spawn( move || { reorder.start(); });
 
     let (send_blocks_and_fee, receive_blocks_and_fee) = sync_channel(blocks_size);
     let mut fee = Fee::new(receive_ordered_blocks, send_blocks_and_fee, db);
