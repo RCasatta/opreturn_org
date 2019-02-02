@@ -69,7 +69,7 @@ impl Startable for Fee {
                         height,
                         outpoint_values,
                     };
-                    println!("#{:>6} {} size:{:>7}, txs:{:>4} total_txs:{:>9} fee:{:>9} found:{:>6}",
+                    println!("#{:>6} {} size:{:>7} txs:{:>4} total_txs:{:>9} fee:{:>9} found:{:>6}",
                              b.height,
                              b.block.bitcoin_hash(),
                              b.size,
@@ -106,31 +106,32 @@ impl Fee {
         self.db.write(batch).expect("error writing batch writes");
 
         // getting all inputs keys and outpoints, prepare for deletion
-        let mut keys_outpoint = vec![];
+        let mut keys_index = vec![];
         let mut index = 1u32;
         for tx in block.txdata.iter().skip(1) {
             for input in tx.input.iter() {
                 let key = output_key(input.previous_output.txid, input.previous_output.vout as u64);
-                keys_outpoint.push((key,index));
+                keys_index.push((key,index));
                 index += 1;
             }
         }
 
         // getting value from db in ordered fashion (because of paging is faster)
-        keys_outpoint.sort_by(|a, b| a.0.cmp(&b.0));
-        let mut values = vec![];
-        values.push( (0, VarInt( block.txdata[0].output.iter().map(|el| el.value).sum() ) ) );  //coinbase
-        for (key, index) in keys_outpoint {
-            let value = self.db.get(&key).expect("operational problem in get").unwrap();
-            values.push( (index, deserialize::<VarInt>( &value ).unwrap() ) );
+        keys_index.sort_by(|a, b| a.0.cmp(&b.0));
+        let mut values_index = vec![];
+        let coin_base_output_value = block.txdata[0].output.iter().map(|el| el.value).sum();
+        values_index.push( ( VarInt(coin_base_output_value), 0 ) );  //coinbase
+        for (key, index) in keys_index.iter() {
+            let value = self.db.get(key).expect("operational problem in get").expect("unexpected None in db");
+            values_index.push( (deserialize::<VarInt>( &value ).unwrap(), *index ) );
         }
 
         // reordering in block order (reversed)
-        values.sort_by(|a,b| a.0.cmp(&b.0));
-        let mut values : Vec<VarInt> = values.into_iter().map(|el| el.1 ).collect();
-        values.reverse();
+        values_index.sort_by(|a,b| b.1.cmp(&a.1));
+        let values : Vec<VarInt> = values_index.into_iter().map(|el| el.0 ).collect();
 
-        self.db.put(&block_outpoint_values_key(block.bitcoin_hash()), &serialize(&values)).expect("fee: cannot put value in db");
+        self.db.put(&block_outpoint_values_key(block.bitcoin_hash()),
+                    &serialize(&values)).expect("fee: cannot put value in db");
 
         values
     }
