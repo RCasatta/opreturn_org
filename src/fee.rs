@@ -71,14 +71,15 @@ impl Fee {
                         height,
                         outpoint_values,
                     };
-                    println!("#{:>6} {} size:{:>7} txs:{:>4} total_txs:{:>9} fee:{:>9} found:{:>6}",
+                    println!("#{:>6} {} size:{:>7} txs:{:>4} total_txs:{:>9} fee:{:>9} found:{:>6} reorder_cache:{:>4}",
                              b.height,
                              b.block.bitcoin_hash(),
                              b.size,
                              b.block.txdata.len(),
                              total_txs,
                              block_fee(&b),
-                             found_values
+                             found_values,
+                             block_size_height.out_of_order_size,
                     );
                     self.sender.send(Some(b)).expect("fee: cannot send");
                 },

@@ -10,6 +10,7 @@ pub struct BlockSizeHeight {
     pub block: Block,
     pub size: u32,
     pub height: u32,
+    pub out_of_order_size: usize,
 }
 
 pub struct Reorder {
@@ -33,12 +34,9 @@ impl Reorder {
 
     fn send(&mut self, block_size : BlockSize) {
         self.next = block_size.block.bitcoin_hash();
-        let b = BlockSizeHeight { block: block_size.block, size: block_size.size, height: self.height };
+        let b = BlockSizeHeight { block: block_size.block, size: block_size.size, height: self.height, out_of_order_size: self.out_of_order_blocks.len() };
         self.sender.send(Some(b)).expect("reorder: cannot send block");
         self.height += 1;
-        if self.height % 1000 == 0 || self.out_of_order_blocks.len() > 200 {
-            println!("out_of_order_size: {}", self.out_of_order_blocks.len());
-        }
     }
 
     pub fn start(&mut self) {
