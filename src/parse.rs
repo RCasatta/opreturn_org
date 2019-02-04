@@ -1,25 +1,21 @@
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::SyncSender;
 use bitcoin::consensus::deserialize;
-use bitcoin::Block;
 use std::io::Cursor;
 use std::io::SeekFrom;
 use bitcoin::network::constants::Network;
 use bitcoin::consensus::Decodable;
 use std::io::Seek;
-
-pub struct BlockSize {
-    pub block: Block,
-    pub size: u32,
-}
+use crate::BlockExtra;
+use std::collections::HashMap;
 
 pub struct Parse {
     receiver : Receiver<Option<Vec<u8>>>,
-    sender : SyncSender<Option<BlockSize>>,
+    sender : SyncSender<Option<BlockExtra>>,
 }
 
 impl Parse {
-    pub fn new(receiver : Receiver<Option<Vec<u8>>>, sender : SyncSender<Option<BlockSize>> ) -> Parse {
+    pub fn new(receiver : Receiver<Option<Vec<u8>>>, sender : SyncSender<Option<BlockExtra>> ) -> Parse {
         Parse {
             sender,
             receiver,
@@ -46,7 +42,7 @@ impl Parse {
     }
 }
 
-fn parse_blocks(blob: Vec<u8>) -> Vec<BlockSize> {
+fn parse_blocks(blob: Vec<u8>) -> Vec<BlockExtra> {
     let magic = Network::Bitcoin.magic();
     let mut cursor = Cursor::new(&blob);
     let mut blocks = vec![];
@@ -67,7 +63,7 @@ fn parse_blocks(blob: Vec<u8>) -> Vec<BlockSize> {
         let end = cursor.position() as usize;
 
         match deserialize(&blob[start..end]) {
-            Ok(block) => blocks.push(BlockSize{block, size}),
+            Ok(block) => blocks.push(BlockExtra {block, size, height: 0, next: None, outpoint_values: HashMap::new()}),
             Err(e) => eprintln!("error block parsing {:?}", e ),
         }
     }

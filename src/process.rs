@@ -1,5 +1,5 @@
 use std::sync::mpsc::Receiver;
-use crate::fee::BlockSizeHeightValues;
+use crate::BlockExtra;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use chrono::{Utc, TimeZone, Datelike};
@@ -8,12 +8,12 @@ use bitcoin::Script;
 use std::fs;
 
 pub struct Process {
-    receiver : Receiver<Option<BlockSizeHeightValues>>,
+    receiver : Receiver<Option<BlockExtra>>,
     op_return_data: OpReturnData,
 }
 
 impl Process {
-    pub fn new(receiver : Receiver<Option<BlockSizeHeightValues>> ) -> Process {
+    pub fn new(receiver : Receiver<Option<BlockExtra>> ) -> Process {
         Process {
             receiver,
             op_return_data: OpReturnData::new(),
@@ -44,7 +44,7 @@ impl Process {
         println!("ending processer");
     }
 
-    fn process_block(&mut self, block : BlockSizeHeightValues) {
+    fn process_block(&mut self, block : BlockExtra) {
         for tx in block.block.txdata {
             let txid = tx.txid();
             for output in tx.output {

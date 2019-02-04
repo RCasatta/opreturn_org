@@ -8,12 +8,24 @@ use crate::parse::Parse;
 use crate::fee::Fee;
 use crate::reorder::Reorder;
 use crate::process::Process;
+use std::collections::HashMap;
+use bitcoin::Block;
+use bitcoin::util::hash::Sha256dHash;
+use bitcoin::OutPoint;
 
 mod fee;
 mod parse;
 mod read;
 mod reorder;
 mod process;
+
+pub struct BlockExtra {
+    pub block : Block,
+    pub next: Option<Sha256dHash>,
+    pub size: u32,
+    pub height: u32,
+    pub outpoint_values: HashMap<OutPoint,u64>,
+}
 
 fn main() {
     let path = PathBuf::from(env::var("BITCOIN_DIR").unwrap_or("~/.bitcoin/".to_string()));

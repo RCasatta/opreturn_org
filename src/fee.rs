@@ -12,24 +12,17 @@ use bitcoin::Block;
 use bitcoin::BitcoinHash;
 use bitcoin::OutPoint;
 use bitcoin::Transaction;
-use crate::reorder::BlockSizeHeight;
-
-pub struct BlockSizeHeightValues {
-    pub block : Block,
-    pub size: u32,
-    pub height: u32,
-    pub outpoint_values: HashMap<OutPoint,u64>,
-}
+use crate::BlockExtra;
 
 pub struct Fee {
-    receiver : Receiver<Option<BlockSizeHeight>>,
-    sender : SyncSender<Option<BlockSizeHeightValues>>,
+    receiver : Receiver<Option<BlockExtra>>,
+    sender : SyncSender<Option<BlockExtra>>,
     db : DB,
     delete_after: HashMap<u32, Vec<Vec<u8>>>,
 }
 
 impl Fee {
-    pub fn new(receiver : Receiver<Option<BlockSizeHeight>>,  sender : SyncSender<Option<BlockSizeHeightValues>>, db : DB) -> Fee {
+    pub fn new(receiver : Receiver<Option<BlockExtra>>, sender : SyncSender<Option<BlockExtra>>, db : DB) -> Fee {
         Fee {
             sender,
             receiver,
@@ -48,39 +41,33 @@ impl Fee {
         loop {
             let received = self.receiver.recv().expect("cannot get segwit");
             match received {
-                Some(block_size_height) => {
-                    let (block,size,height) = (block_size_height.block, block_size_height.size, block_size_height.height);
-                    total_txs += block.txdata.len() as u64;
-                    let outpoint_values_bytes = self.db.get(&block_outpoint_values_key(block.bitcoin_hash())).expect("operational problem encountered");
+                Some(mut block_extra) => {
+                    total_txs += block_extra.block.txdata.len() as u64;
+                    let outpoint_values_bytes = self.db.get(&block_outpoint_values_key(block_extra.block.bitcoin_hash())).expect("operational problem encountered");
                     let mut outpoint_values_vec = match outpoint_values_bytes {
                         Some(block_outpoint_values_bytes) => {
                             found_values += 1;
                             deserialize(&block_outpoint_values_bytes).expect("cannot deserialize block fees")
                         },
-                        None => self.compute_outpoint_values(&block, height),
+                        None => self.compute_outpoint_values(&block_extra.block, block_extra.height),
                     };
                     let mut outpoint_values = HashMap::new();
-                    for tx in block.txdata.iter() {
+                    for tx in block_extra.block.txdata.iter() {
                         for input in tx.input.iter() {
                             outpoint_values.insert(input.previous_output, outpoint_values_vec.pop().expect("can't pop").0);
                         }
                     }
-                    let b = BlockSizeHeightValues {
-                        block,
-                        size,
-                        height,
-                        outpoint_values,
-                    };
+                    block_extra.outpoint_values = outpoint_values;
                     println!("#{:>6} {} size:{:>7} txs:{:>4} total_txs:{:>9} fee:{:>9} found:{:>6}",
-                             b.height,
-                             b.block.bitcoin_hash(),
-                             b.size,
-                             b.block.txdata.len(),
+                             block_extra.height,
+                             block_extra.block.bitcoin_hash(),
+                             block_extra.size,
+                             block_extra.block.txdata.len(),
                              total_txs,
-                             block_fee(&b),
+                             block_fee(&block_extra),
                              found_values
                     );
-                    self.sender.send(Some(b)).expect("fee: cannot send");
+                    self.sender.send(Some(block_extra)).expect("fee: cannot send");
                 },
                 None => break,
             }
@@ -157,7 +144,7 @@ impl Fee {
     }
 }
 
-pub fn block_fee(block_value: &BlockSizeHeightValues) -> u64 {
+pub fn block_fee(block_value: &BlockExtra) -> u64 {
     let mut total = 0u64;
     for tx in block_value.block.txdata.iter() {
         total += tx_fee(tx, &block_value.outpoint_values);

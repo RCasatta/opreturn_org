@@ -1,27 +1,20 @@
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::SyncSender;
 use bitcoin::util::hash::Sha256dHash;
-use bitcoin::Block;
 use bitcoin::BitcoinHash;
-use crate::parse::BlockSize;
 use std::collections::HashMap;
-
-pub struct BlockSizeHeight {
-    pub block: Block,
-    pub size: u32,
-    pub height: u32,
-}
+use crate::BlockExtra;
 
 pub struct Reorder {
-    receiver : Receiver<Option<BlockSize>>,
-    sender : SyncSender<Option<BlockSizeHeight>>,
+    receiver : Receiver<Option<BlockExtra>>,
+    sender : SyncSender<Option<BlockExtra>>,
     height: u32,
     next: Sha256dHash,
-    out_of_order_blocks: HashMap<Sha256dHash, BlockSize>,
+    out_of_order_blocks: HashMap<Sha256dHash, BlockExtra>,
 }
 
 impl Reorder {
-    pub fn new(receiver : Receiver<Option<BlockSize>>, sender : SyncSender<Option<BlockSizeHeight>> ) -> Reorder {
+    pub fn new(receiver : Receiver<Option<BlockExtra>>, sender : SyncSender<Option<BlockExtra>> ) -> Reorder {
         Reorder {
             sender,
             receiver,
@@ -31,14 +24,11 @@ impl Reorder {
         }
     }
 
-    fn send(&mut self, block_size : BlockSize) {
-        self.next = block_size.block.bitcoin_hash();
-        let b = BlockSizeHeight { block: block_size.block, size: block_size.size, height: self.height };
-        self.sender.send(Some(b)).expect("reorder: cannot send block");
+    fn send(&mut self, mut block_extra : BlockExtra) {
+        self.next = block_extra.block.bitcoin_hash();
+        block_extra.height = self.height;
+        self.sender.send(Some(block_extra)).expect("reorder: cannot send block");
         self.height += 1;
-        if self.height % 1000 == 0 {
-            println!("out_of_order_size: {}", self.out_of_order_blocks.len());
-        }
     }
 
     pub fn start(&mut self) {
