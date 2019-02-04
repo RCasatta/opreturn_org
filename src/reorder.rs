@@ -53,5 +53,6 @@ impl Reorder {
             }
         }
         self.sender.send(None).expect("reorder cannot send none");
+        println!("ending reorder");
     }
 }
