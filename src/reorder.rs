@@ -36,7 +36,7 @@ impl Reorder {
         let b = BlockSizeHeight { block: block_size.block, size: block_size.size, height: self.height };
         self.sender.send(Some(b)).expect("reorder: cannot send block");
         self.height += 1;
-        if self.height % 1000 == 0 {
+        if self.height % 1000 == 0 || self.out_of_order_blocks.len() > 200 {
             println!("out_of_order_size: {}", self.out_of_order_blocks.len());
         }
     }
