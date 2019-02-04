@@ -43,6 +43,7 @@ impl Parse {
             }
         }
         self.sender.send(None).expect("parse: cannot send None");
+        println!("ending parser");
     }
 }
 

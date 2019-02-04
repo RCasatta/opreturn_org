@@ -32,6 +32,7 @@ impl Read {
 
         }
         self.sender.send(None).expect("cannot send");
+        println!("ending  reader");
     }
 }
 
