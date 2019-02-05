@@ -24,17 +24,15 @@ impl OutOfOrderBlocks {
         }
     }
 
-    fn add(&mut self, block_extra: BlockExtra) {
+    fn add(&mut self, mut block_extra: BlockExtra) {
         let prev_hash = block_extra.block.header.prev_blockhash;
         let hash = block_extra.block.header.bitcoin_hash();
-        /*for (key, value) in self.blocks.iter_mut() {
-            if key == &prev_hash {
-                value.next = Some(hash);
+        for (key,value) in self.blocks.iter() {
+            if value.block.header.prev_blockhash == hash {
+                block_extra.next = Some(*key);
             }
-        }*/
-        println!("inserting hash {} with prev_hash {}", hash, prev_hash);
+        }
         if let Some(mut prev_block) = self.blocks.get_mut(&prev_hash) {
-            println!("setting next of {} to {}", prev_hash, hash);
             prev_block.next = Some(hash);
         }
         self.blocks.insert(hash, block_extra);
@@ -79,7 +77,6 @@ impl Reorder {
     }
 
     pub fn start(&mut self) {
-        let mut a = 0;
         loop {
             let received = self.receiver.recv().expect("cannot receive blob");
             match received {
@@ -90,10 +87,6 @@ impl Reorder {
                     }
                 },
                 None => break,
-            }
-            a += 1;
-            if a > 100 {
-                panic!("asfas");
             }
         }
         self.sender.send(None).expect("reorder cannot send none");
