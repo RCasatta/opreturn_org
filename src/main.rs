@@ -22,7 +22,7 @@ mod process;
 #[derive(Debug)]
 pub struct BlockExtra {
     pub block: Block,
-    pub next: Option<Sha256dHash>,
+    pub next: Vec<Sha256dHash>, // reorg
     pub size: u32,
     pub height: u32,
     pub outpoint_values: HashMap<OutPoint, u64>,

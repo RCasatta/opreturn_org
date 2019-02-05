@@ -29,27 +29,37 @@ impl OutOfOrderBlocks {
         let hash = block_extra.block.header.bitcoin_hash();
         for (key,value) in self.blocks.iter() {
             if value.block.header.prev_blockhash == hash {
-                block_extra.next = Some(*key);
+                block_extra.next.push(*key);
             }
         }
-        if let Some(mut prev_block) = self.blocks.get_mut(&prev_hash) {
-            prev_block.next = Some(hash);
+        if let Some(prev_block) = self.blocks.get_mut(&prev_hash) {
+            prev_block.next.push(hash);
         }
         self.blocks.insert(hash, block_extra);
     }
 
-    fn exist_and_has_next(&self, hash: &Sha256dHash) -> bool {
-        if let Some(block) = self.blocks.get(hash)  {
-            if let Some(next) = block.next {
-                return self.blocks.get(&next).is_some();
+    fn exist_and_has_two_following(&mut self, hash: &Sha256dHash) -> Option<Sha256dHash> {
+        if let Some(block1) = self.blocks.get(hash)  {
+            for next1 in block1.next.iter() {
+                if let Some(block2) = self.blocks.get(next1) {
+                    for next2 in block2.next.iter() {
+                        if self.blocks.get(next2).is_some() {
+                            return Some(*next1);
+                        }
+                    }
+                }
             }
         }
-        false
+        None
     }
 
     fn remove(&mut self, hash: &Sha256dHash) -> Option<BlockExtra> {
-        if self.exist_and_has_next(hash) {
-            self.blocks.remove(hash)
+        if let Some(next) = self.exist_and_has_two_following(hash) {
+            let mut value = self.blocks.remove(hash).unwrap();
+            if value.next.len()>1 {
+                value.next = vec![next];
+            }
+            Some(value)
         } else {
             None
         }
@@ -70,7 +80,7 @@ impl Reorder {
     }
 
     fn send(&mut self, mut block_extra : BlockExtra) {
-        self.next = block_extra.next.unwrap();
+        self.next = block_extra.next[0].clone();
         block_extra.height = self.height;
         self.sender.send(Some(block_extra)).expect("reorder: cannot send block");
         self.height += 1;
