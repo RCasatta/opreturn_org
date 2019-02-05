@@ -14,7 +14,7 @@ pub struct Reorder {
 }
 
 struct OutOfOrderBlocks {
-    blocks: HashMap<Sha256dHash, BlockExtra>
+    blocks: HashMap<Sha256dHash, BlockExtra>,  // hash, block
 }
 
 impl OutOfOrderBlocks {
@@ -23,20 +23,27 @@ impl OutOfOrderBlocks {
             blocks : HashMap::new(),
         }
     }
+
     fn add(&mut self, block_extra: BlockExtra) {
-        let hash = block_extra.block.bitcoin_hash();
-        if let Some(mut prev_block) = self.blocks.get_mut(&hash) {
+        let prev_hash = block_extra.block.header.prev_blockhash;
+        let hash = block_extra.block.header.bitcoin_hash();
+        /*for (key, value) in self.blocks.iter_mut() {
+            if key == &prev_hash {
+                value.next = Some(hash);
+            }
+        }*/
+        println!("inserting hash {} with prev_hash {}", hash, prev_hash);
+        if let Some(mut prev_block) = self.blocks.get_mut(&prev_hash) {
+            println!("setting next of {} to {}", prev_hash, hash);
             prev_block.next = Some(hash);
         }
-        self.blocks.insert(block_extra.block.bitcoin_hash(), block_extra);
+        self.blocks.insert(hash, block_extra);
     }
 
     fn exist_and_has_next(&self, hash: &Sha256dHash) -> bool {
         if let Some(block) = self.blocks.get(hash)  {
             if let Some(next) = block.next {
-                if let Some(_) = self.blocks.get(&next) {
-                    return true
-                }
+                return self.blocks.get(&next).is_some();
             }
         }
         false
@@ -59,19 +66,20 @@ impl Reorder {
             sender,
             receiver,
             height: 0,
-            next: Sha256dHash::default(),
+            next: Sha256dHash::from_hex("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f").unwrap(),
             blocks: OutOfOrderBlocks::new(),
         }
     }
 
     fn send(&mut self, mut block_extra : BlockExtra) {
-        self.next = block_extra.block.bitcoin_hash();
+        self.next = block_extra.next.unwrap();
         block_extra.height = self.height;
         self.sender.send(Some(block_extra)).expect("reorder: cannot send block");
         self.height += 1;
     }
 
     pub fn start(&mut self) {
+        let mut a = 0;
         loop {
             let received = self.receiver.recv().expect("cannot receive blob");
             match received {
@@ -82,6 +90,10 @@ impl Reorder {
                     }
                 },
                 None => break,
+            }
+            a += 1;
+            if a > 100 {
+                panic!("asfas");
             }
         }
         self.sender.send(None).expect("reorder cannot send none");
