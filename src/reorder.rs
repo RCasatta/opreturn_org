@@ -6,12 +6,52 @@ use std::collections::HashMap;
 use crate::BlockExtra;
 
 pub struct Reorder {
-    receiver : Receiver<Option<BlockExtra>>,
-    sender : SyncSender<Option<BlockExtra>>,
+    receiver: Receiver<Option<BlockExtra>>,
+    sender: SyncSender<Option<BlockExtra>>,
     height: u32,
     next: Sha256dHash,
-    out_of_order_blocks: HashMap<Sha256dHash, BlockExtra>,
+    blocks : OutOfOrderBlocks,
 }
+
+struct OutOfOrderBlocks {
+    blocks: HashMap<Sha256dHash, BlockExtra>
+}
+
+impl OutOfOrderBlocks {
+    fn new() -> Self {
+        OutOfOrderBlocks {
+            blocks : HashMap::new(),
+        }
+    }
+    fn add(&mut self, block_extra: BlockExtra) {
+        let hash = block_extra.block.bitcoin_hash();
+        if let Some(mut prev_block) = self.blocks.get_mut(&hash) {
+            prev_block.next = Some(hash);
+        }
+        self.blocks.insert(block_extra.block.bitcoin_hash(), block_extra);
+    }
+
+    fn exist_and_has_next(&self, hash: &Sha256dHash) -> bool {
+        if let Some(block) = self.blocks.get(hash)  {
+            if let Some(next) = block.next {
+                if let Some(_) = self.blocks.get(&next) {
+                    return true
+                }
+            }
+        }
+        false
+    }
+
+    fn remove(&mut self, hash: &Sha256dHash) -> Option<BlockExtra> {
+        if self.exist_and_has_next(hash) {
+            self.blocks.remove(hash)
+        } else {
+            None
+        }
+    }
+}
+
+
 
 impl Reorder {
     pub fn new(receiver : Receiver<Option<BlockExtra>>, sender : SyncSender<Option<BlockExtra>> ) -> Reorder {
@@ -20,7 +60,7 @@ impl Reorder {
             receiver,
             height: 0,
             next: Sha256dHash::default(),
-            out_of_order_blocks: HashMap::new(),
+            blocks: OutOfOrderBlocks::new(),
         }
     }
 
@@ -35,18 +75,10 @@ impl Reorder {
         loop {
             let received = self.receiver.recv().expect("cannot receive blob");
             match received {
-                Some(block_size) => {
-                    let prev_blockhash = block_size.block.header.prev_blockhash;
-                    if prev_blockhash == self.next {
-                        self.send(block_size);
-                        loop {
-                            match self.out_of_order_blocks.remove(&self.next) {
-                                Some(value) => self.send(value),
-                                None => break,
-                            }
-                        }
-                    } else {
-                        self.out_of_order_blocks.insert(prev_blockhash, block_size);
+                Some(block_extra) => {
+                    self.blocks.add(block_extra);
+                    while let Some(block_to_send) = self.blocks.remove(&self.next) {
+                        self.send(block_to_send);
                     }
                 },
                 None => break,

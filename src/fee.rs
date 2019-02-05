@@ -51,13 +51,11 @@ impl Fee {
                         },
                         None => self.compute_outpoint_values(&block_extra.block, block_extra.height),
                     };
-                    let mut outpoint_values = HashMap::new();
                     for tx in block_extra.block.txdata.iter() {
                         for input in tx.input.iter() {
-                            outpoint_values.insert(input.previous_output, outpoint_values_vec.pop().expect("can't pop").0);
+                            block_extra.outpoint_values.insert(input.previous_output, outpoint_values_vec.pop().expect("can't pop").0);
                         }
                     }
-                    block_extra.outpoint_values = outpoint_values;
                     println!("#{:>6} {} size:{:>7} txs:{:>4} total_txs:{:>9} fee:{:>9} found:{:>6}",
                              block_extra.height,
                              block_extra.block.bitcoin_hash(),
@@ -75,7 +73,6 @@ impl Fee {
         self.sender.send(None).expect("fee: cannot send none");
         println!("ending fee processer total tx {}, output values found: {}", total_txs, found_values);
     }
-
 }
 
 impl Fee {
