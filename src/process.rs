@@ -39,7 +39,7 @@ impl Process {
 
         let toml = self.op_return_data.to_toml();
         println!("{}", toml);
-        fs::write("op_return.toml", toml).expect("Unable to write file");
+        fs::write("outputs/op_return.toml", toml).expect("Unable to write file");
 
         println!("ending processer");
     }
@@ -56,7 +56,6 @@ impl Process {
                 }
             }
         }
-
     }
 
     fn process_script(&mut self, op_return_script : &Script, time : u32) {

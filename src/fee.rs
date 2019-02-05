@@ -56,14 +56,15 @@ impl Fee {
                             block_extra.outpoint_values.insert(input.previous_output, outpoint_values_vec.pop().expect("can't pop").0);
                         }
                     }
-                    println!("#{:>6} {} size:{:>7} txs:{:>4} total_txs:{:>9} fee:{:>9} found:{:>6}",
+                    println!("#{:>6} {} size:{:>7} txs:{:>4} total_txs:{:>9} fee:{:>9} found:{:>6} ooo_size:{:>4}" ,
                              block_extra.height,
                              block_extra.block.bitcoin_hash(),
                              block_extra.size,
                              block_extra.block.txdata.len(),
                              total_txs,
                              block_fee(&block_extra),
-                             found_values
+                             found_values,
+                             block_extra.out_of_order_size,
                     );
                     self.sender.send(Some(block_extra)).expect("fee: cannot send");
                 },

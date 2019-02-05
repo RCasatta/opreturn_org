@@ -92,7 +92,8 @@ impl Reorder {
             match received {
                 Some(block_extra) => {
                     self.blocks.add(block_extra);
-                    while let Some(block_to_send) = self.blocks.remove(&self.next) {
+                    while let Some(mut block_to_send) = self.blocks.remove(&self.next) {
+                        block_to_send.out_of_order_size = self.blocks.blocks.len();
                         self.send(block_to_send);
                     }
                 },

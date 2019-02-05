@@ -25,6 +25,7 @@ pub struct BlockExtra {
     pub next: Vec<Sha256dHash>, // reorg
     pub size: u32,
     pub height: u32,
+    pub out_of_order_size: usize,
     pub outpoint_values: HashMap<OutPoint, u64>,
 }
 

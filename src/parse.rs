@@ -64,7 +64,7 @@ fn parse_blocks(blob: Vec<u8>) -> Vec<BlockExtra> {
         let end = cursor.position() as usize;
 
         match deserialize(&blob[start..end]) {
-            Ok(block) => blocks.push(BlockExtra {block, size, height: 0, next: vec![], outpoint_values: HashMap::new()}),
+            Ok(block) => blocks.push(BlockExtra {block, size, height: 0, next: vec![], outpoint_values: HashMap::new(), out_of_order_size: 0}),
             Err(e) => eprintln!("error block parsing {:?}", e ),
         }
     }
