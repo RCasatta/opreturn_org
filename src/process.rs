@@ -32,12 +32,12 @@ impl Process {
             }
         }
 
-
         //remove current month
         let now = Utc::now();
         let current_ym = format!("{}{:02}", now.year(), now.month());
         self.op_return_data.op_ret_per_month.remove(&current_ym);
         self.op_return_data.veriblock_per_month.remove(&current_ym);
+        self.op_return_data.op_ret_fee_per_month.remove(&current_ym);
 
         let toml = self.op_return_data.to_toml();
         println!("{}", toml);
