@@ -134,14 +134,14 @@ impl OpReturnData {
         s.push_str( &toml_section("op_ret_per_proto_last_month", &map_by_value(&self.op_ret_per_proto_last_month)) );
         s.push_str( &toml_section("op_ret_per_proto_last_year", &map_by_value(&self.op_ret_per_proto_last_year)) );
         s.push_str( &toml_section("veriblock_per_month", &self.veriblock_per_month) );
-        s.push_str( &toml_section("op_ret_fee_per_month", &convert_sat_to_bits(&self.op_ret_fee_per_month) ));
+        s.push_str( &toml_section_f64("op_ret_fee_per_month", &convert_sat_to_bitcoin(&self.op_ret_fee_per_month) ));
 
         s
     }
 }
 
-fn convert_sat_to_bits( map : &BTreeMap<String, u64>) ->  BTreeMap<String, u32> {
-    map.iter().map(|(k,v)| (k.to_string(), (v / 100) as u32)).into_iter().collect()
+fn convert_sat_to_bitcoin( map : &BTreeMap<String, u64>) ->  BTreeMap<String, f64> {
+    map.iter().map(|(k,v)| (k.to_string(), (*v as f64 / 100_000_000f64) )).into_iter().collect()
 }
 
 fn toml_section(title : &str, map : &BTreeMap<String, u32>) -> String {
@@ -154,6 +154,16 @@ fn toml_section(title : &str, map : &BTreeMap<String, u32>) -> String {
     s
 }
 
+
+fn toml_section_f64(title : &str, map : &BTreeMap<String, f64>) -> String {
+    let mut s = String::new();
+    s.push_str(&format!("\n[{}]\n", title ));
+    let labels : Vec<String> = map.keys().cloned().collect();
+    s.push_str(&format!("labels={:?}\n", labels) );
+    let values : Vec<f64> = map.values().cloned().collect();
+    s.push_str(&format!("values={:?}\n", values ) );
+    s
+}
 
 fn map_by_value(map : &HashMap<String,u32>) -> BTreeMap<String,u32> {
     let mut tree : BTreeMap<String, u32> = BTreeMap::new();
