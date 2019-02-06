@@ -72,8 +72,6 @@ impl OutOfOrderBlocks {
     }
 }
 
-
-
 impl Reorder {
     pub fn new(receiver : Receiver<Option<BlockExtra>>, sender : SyncSender<Option<BlockExtra>> ) -> Reorder {
         Reorder {

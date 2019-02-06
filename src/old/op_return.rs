@@ -178,8 +178,10 @@ mod test {
     use std::collections::HashMap;
 
     #[test]
-    fn test() {
-
+    fn test2() {
+        let tuples = vec![("one", 1), ("two", 2), ("three", 3)];
+        let m: HashMap<_, _> = tuples.into_iter().collect();
+        println!("{:?}", m);
     }
 
     #[test]
