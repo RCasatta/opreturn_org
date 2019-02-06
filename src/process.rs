@@ -134,6 +134,7 @@ impl OpReturnData {
         s.push_str( &toml_section("op_ret_per_proto_last_month", &map_by_value(&self.op_ret_per_proto_last_month)) );
         s.push_str( &toml_section("op_ret_per_proto_last_year", &map_by_value(&self.op_ret_per_proto_last_year)) );
         s.push_str( &toml_section("veriblock_per_month", &self.veriblock_per_month) );
+        s.push_str( &toml_section_u64("op_ret_fee_per_month", &self.op_ret_fee_per_month) );
 
         s
     }
@@ -145,6 +146,17 @@ fn toml_section(title : &str, map : &BTreeMap<String, u32>) -> String {
     let labels : Vec<String> = map.keys().cloned().collect();
     s.push_str(&format!("labels={:?}\n", labels) );
     let values : Vec<u32> = map.values().cloned().collect();
+    s.push_str(&format!("values={:?}\n", values ) );
+    s
+}
+
+
+fn toml_section_u64(title : &str, map : &BTreeMap<String, u64>) -> String {
+    let mut s = String::new();
+    s.push_str(&format!("\n[{}]\n", title ));
+    let labels : Vec<String> = map.keys().cloned().collect();
+    s.push_str(&format!("labels={:?}\n", labels) );
+    let values : Vec<u64> = map.values().cloned().collect();
     s.push_str(&format!("values={:?}\n", values ) );
     s
 }
