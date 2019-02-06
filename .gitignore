@@ -6,3 +6,4 @@ Cargo.lock
 /samples_big/
 /outputs/
 /db/
+site/_site

@@ -27,7 +27,7 @@ impl Read {
         for path in paths.iter() {
             let blob = fs::read(path).expect(&format!("failed to read {:?}", path));
             let len = blob.len();
-            println!("read {:?}", len);
+            println!("read {} of {:?}", len, path);
             self.sender.send(Some(blob)).expect("cannot send");
 
         }

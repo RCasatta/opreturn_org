@@ -64,6 +64,12 @@ impl OutOfOrderBlocks {
             None
         }
     }
+
+    fn print(&self) {
+        for (key, value) in self.blocks.iter() {
+            println!("hash {} prev {} next {:?}", key, value.block.header.prev_blockhash, value.next);
+        }
+    }
 }
 
 
@@ -100,6 +106,7 @@ impl Reorder {
                 None => break,
             }
         }
+        self.blocks.print();
         self.sender.send(None).expect("reorder cannot send none");
         println!("ending reorder");
     }
