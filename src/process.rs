@@ -41,7 +41,7 @@ impl Process {
 
         let toml = self.op_return_data.to_toml();
         println!("{}", toml);
-        fs::write("outputs/op_return.toml", toml).expect("Unable to write file");
+        fs::write("site/_data/op_return.toml", toml).expect("Unable to write file");
 
         println!("ending processer");
     }
