@@ -7,3 +7,4 @@ Cargo.lock
 /outputs/
 /db/
 site/_site
+site/_data
