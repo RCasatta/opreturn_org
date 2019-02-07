@@ -246,9 +246,13 @@ impl Stats {
         let mut s = String::new();
 
         s.push_str(&toml_section_tx("max_outputs_per_tx",&self.max_outputs_per_tx));
-        s.push_str(&format!("total_outputs = {}", self.total_outputs));
-        s.push_str(&format!("total_outputs = {}", self.total_inputs));
-        s.push_str(&format!("total_outputs = {}", self.amount_over_32));
+        s.push_str(&toml_section_tx("max_inputs_per_tx",&self.max_inputs_per_tx));
+        s.push_str(&toml_section_tx("min_weight_tx",&self.min_weight_tx));
+        s.push_str(&toml_section_tx("max_weight_tx",&self.max_weight_tx));
+
+        s.push_str(&format!("total_outputs = {}\n", self.total_outputs));
+        s.push_str(&format!("total_inputs = {}\n", self.total_inputs));
+        s.push_str(&format!("amount_over_32 = {}\n", self.amount_over_32));
 
         s
     }
@@ -259,7 +263,7 @@ fn toml_section_tx(title : &str, value : &(u64,Option<Transaction>)) -> String {
     let mut s = String::new();
     s.push_str(&format!("\n[{}]\n", title ));
     s.push_str(&format!("hash={:?}\n", value.0 ) );
-    s.push_str(&format!("value={:?}\n", value.1.clone().unwrap().txid() ) );
+    s.push_str(&format!("value={:?}\n\n", value.1.clone().unwrap().txid() ) );
     s
 }
 
