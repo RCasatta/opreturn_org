@@ -262,8 +262,8 @@ impl Stats {
 fn toml_section_tx(title : &str, value : &(u64,Option<Transaction>)) -> String {
     let mut s = String::new();
     s.push_str(&format!("\n[{}]\n", title ));
-    s.push_str(&format!("hash={:?}\n", value.0 ) );
-    s.push_str(&format!("value={:?}\n\n", value.1.clone().unwrap().txid() ) );
+    s.push_str(&format!("hash={:?}\n\n", value.1.clone().unwrap().txid() ) );
+    s.push_str(&format!("value={:?}\n", value.0 ) );
     s
 }
 
