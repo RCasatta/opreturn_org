@@ -2,7 +2,7 @@
 title: OP_RETURN fee per month
 layout: chart.liquid
 permalink: /{{ name }}
-description: Chart showing the sum of the fees of transactions per month containing an OP_RETURN script.
+description: Chart showing the sum of the fees of transactions containing an OP_RETURN script per month.
 ---
 
 <canvas id="myChart" width="100%"></canvas>
@@ -15,7 +15,7 @@ var myChart = new Chart(ctx, {
     data: {
         labels: labels,
         datasets: [{
-            label: '# of OP_RETURN outputs',
+            label: 'fees of OP_RETURN tx [bitcoin]',
             data: values,
             backgroundColor: 'rgba(54, 162, 235,0.5)',
             fill: true,
