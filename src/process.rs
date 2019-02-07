@@ -173,10 +173,10 @@ impl OpReturnData {
         s.push_str( &toml_section_f64("veriblock_fee_per_month", &convert_sat_to_bitcoin(&self.veriblock_fee_per_month) ));
 
         let op_ret_fee_total : u64 = self.op_ret_fee_per_month.iter().map(|(_k,v)| v).sum();
-        s.push_str(&format!("op_ret_fee_per_month = {}", (op_ret_fee_total as f64 / 100_000_000f64)));
+        s.push_str(&format!("op_ret_fee_per_month = {}\n", (op_ret_fee_total as f64 / 100_000_000f64)));
 
         let veriblock_fee_total : u64 = self.veriblock_fee_per_month.iter().map(|(_k,v)| v).sum();
-        s.push_str(&format!("veriblock_fee_total = {}", (veriblock_fee_total as f64 / 100_000_000f64)));
+        s.push_str(&format!("veriblock_fee_total = {}\n", (veriblock_fee_total as f64 / 100_000_000f64)));
 
         s
     }
@@ -262,8 +262,8 @@ impl Stats {
 fn toml_section_tx(title : &str, value : &(u64,Option<Transaction>)) -> String {
     let mut s = String::new();
     s.push_str(&format!("\n[{}]\n", title ));
-    s.push_str(&format!("hash={:?}\n\n", value.1.clone().unwrap().txid() ) );
-    s.push_str(&format!("value={:?}\n", value.0 ) );
+    s.push_str(&format!("hash={:?}\n", value.1.clone().unwrap().txid().be_hex_string() ) );
+    s.push_str(&format!("value={:?}\n\n", value.0 ) );
     s
 }
 
