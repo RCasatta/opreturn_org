@@ -89,7 +89,7 @@ impl Process {
     fn process_output_script(&mut self, script: &Script, time: u32) {
         let date = Utc.timestamp(time as i64, 0);
         let ym = format!("{}{:02}", date.year(), date.month());
-        self.script_type.all.entry(ym.clone()).or_insert(0) += 1;
+        *self.script_type.all.entry(ym.clone()).or_insert(0) += 1;
         if script.is_p2pkh() {
             *self.script_type.p2pkh.entry(ym).or_insert(0) += 1;
         } else if script.is_p2pk() {
