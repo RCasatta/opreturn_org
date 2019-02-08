@@ -52,8 +52,13 @@ impl Process {
 
         let toml = self.stats.to_toml();
         println!("{}", toml);
-        fs::write("site/_data/stats.toml", toml).expect("Unable to write file");
+        fs::write("site/_data/stats.toml", toml).expect("Unable to w rite file");
 
+        align(&mut self.script_type.all, &mut self.script_type.p2pkh);
+        align(&mut self.script_type.all, &mut self.script_type.p2pk);
+        align(&mut self.script_type.all, &mut self.script_type.p2sh);
+        align(&mut self.script_type.all, &mut self.script_type.v0_p2wpkh);
+        align(&mut self.script_type.all, &mut self.script_type.v0_p2wsh);
         let toml = self.script_type.to_toml();
         println!("{}", toml);
         fs::write("site/_data/script_type.toml", toml).expect("Unable to write file");
@@ -84,6 +89,7 @@ impl Process {
     fn process_output_script(&mut self, script: &Script, time: u32) {
         let date = Utc.timestamp(time as i64, 0);
         let ym = format!("{}{:02}", date.year(), date.month());
+        self.script_type.all.entry(ym.clone()).or_insert(0) += 1;
         if script.is_p2pkh() {
             *self.script_type.p2pkh.entry(ym).or_insert(0) += 1;
         } else if script.is_p2pk() {
@@ -157,6 +163,7 @@ impl Process {
 }
 
 struct ScriptType {
+    all: BTreeMap<String, u32>,
     p2pkh: BTreeMap<String, u32>,
     p2pk: BTreeMap<String, u32>,
     v0_p2wpkh: BTreeMap<String, u32>,
@@ -167,6 +174,7 @@ struct ScriptType {
 impl ScriptType {
     fn new() -> Self {
         ScriptType {
+            all : BTreeMap::new(),
             p2pkh : BTreeMap::new(),
             p2pk : BTreeMap::new(),
             v0_p2wpkh : BTreeMap::new(),
@@ -178,6 +186,7 @@ impl ScriptType {
     fn to_toml(&self) -> String {
         let mut s = String::new();
 
+        s.push_str( &toml_section("all", &self.all));
         s.push_str( &toml_section("p2pkh", &self.p2pkh));
         s.push_str( &toml_section("p2pk", &self.p2pk));
         s.push_str( &toml_section("v0_p2wpkh", &self.v0_p2wpkh));
@@ -280,6 +289,20 @@ fn map_by_value(map : &HashMap<String,u32>) -> BTreeMap<String,u32> {
     let other = count_vec.iter().skip(10).fold(0, |acc, x| acc + x.1);
     tree.insert("other".to_owned(), other);
     tree
+}
+
+fn align (map1 : &mut BTreeMap<String,u32>, map2 : &mut BTreeMap<String,u32>) {
+    for key in map1.keys() {
+        if let None = map2.get(key) {
+            map2.insert(key.to_owned(),0);
+        }
+    }
+
+    for key in map2.keys() {
+        if let None = map1.get(key) {
+            map1.insert(key.to_owned(),0);
+        }
+    }
 }
 
 struct Stats {
