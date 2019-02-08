@@ -345,7 +345,9 @@ impl Stats {
         s.push_str(&toml_section_hash("max_inputs_per_tx",&self.max_inputs_per_tx));
         s.push_str(&toml_section_hash("min_weight_tx",&self.min_weight_tx));
         s.push_str(&toml_section_hash("max_weight_tx",&self.max_weight_tx));
+        s.push_str(&toml_section_hash("max_block_size",&self.max_block_size));
 
+        s.push_str(&format!("min_hash = {}\n", self.min_hash.be_hex_string()));
         s.push_str(&format!("total_outputs = {}\n", self.total_outputs));
         s.push_str(&format!("total_inputs = {}\n", self.total_inputs));
         s.push_str(&format!("amount_over_32 = {}\n", self.amount_over_32));
