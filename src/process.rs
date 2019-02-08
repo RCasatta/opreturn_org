@@ -8,6 +8,8 @@ use bitcoin::Script;
 use std::fs;
 use crate::fee::tx_fee;
 use bitcoin::Transaction;
+use bitcoin::util::hash::Sha256dHash;
+use bitcoin::util::hash::BitcoinHash;
 
 pub struct Process {
     receiver : Receiver<Option<BlockExtra>>,
@@ -66,6 +68,14 @@ impl Process {
             }
             self.process_stats(&tx);
         }
+        let hash = block.block.header.bitcoin_hash();
+        if self.stats.min_hash > hash {
+            self.stats.min_hash = hash.clone();
+        }
+        let size = block.size as u64;
+        if self.stats.max_block_size.0 < size {
+            self.stats.max_block_size = (size, Some(hash));
+        }
     }
 
     fn process_script(&mut self, op_return_script: &Script, time: u32, fee: u64) {
@@ -105,19 +115,20 @@ impl Process {
         let weight = tx.get_weight();
         let outputs = tx.output.len() as u64;
         let inputs = tx.input.len() as u64;
+        let txid = tx.txid();
         self.stats.total_outputs += outputs as u64;
         self.stats.total_inputs += inputs as u64;
         if self.stats.max_outputs_per_tx.0 < outputs {
-            self.stats.max_outputs_per_tx = (outputs, Some(tx.clone()));
+            self.stats.max_outputs_per_tx = (outputs, Some(txid.clone()));
         }
         if self.stats.max_inputs_per_tx.0 < inputs {
-            self.stats.max_inputs_per_tx = (inputs, Some(tx.clone()));
+            self.stats.max_inputs_per_tx = (inputs, Some(txid.clone()));
         }
         if self.stats.max_weight_tx.0 < weight {
-            self.stats.max_weight_tx = (weight, Some(tx.clone()));
+            self.stats.max_weight_tx = (weight, Some(txid.clone()));
         }
         if self.stats.min_weight_tx.0 > weight {
-            self.stats.min_weight_tx = (weight, Some(tx.clone()));
+            self.stats.min_weight_tx = (weight, Some(txid.clone()));
         }
         let over_32 = tx.output.iter().filter(|o| o.value > 0xffffffff).count();
         if over_32 > 0 {
@@ -220,13 +231,16 @@ fn map_by_value(map : &HashMap<String,u32>) -> BTreeMap<String,u32> {
 }
 
 struct Stats {
-    max_outputs_per_tx : (u64, Option<Transaction>),
-    min_weight_tx : (u64, Option<Transaction>),
-    max_inputs_per_tx : (u64, Option<Transaction>),
-    max_weight_tx : (u64, Option<Transaction>),
+    max_outputs_per_tx : (u64, Option<Sha256dHash>),
+    min_weight_tx : (u64, Option<Sha256dHash>),
+    max_inputs_per_tx : (u64, Option<Sha256dHash>),
+    max_weight_tx : (u64, Option<Sha256dHash>),
     total_outputs : u64,
     total_inputs : u64,
     amount_over_32 : usize,
+    max_block_size: (u64, Option<Sha256dHash>),
+    min_hash : Sha256dHash,
+
 }
 
 impl Stats {
@@ -239,16 +253,18 @@ impl Stats {
             total_outputs: 0u64,
             total_inputs: 0u64,
             amount_over_32: 0usize,
+            max_block_size : (0u64, None),
+            min_hash: Sha256dHash::from_hex("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f").unwrap(),
         }
     }
 
     fn to_toml(&self) -> String {
         let mut s = String::new();
 
-        s.push_str(&toml_section_tx("max_outputs_per_tx",&self.max_outputs_per_tx));
-        s.push_str(&toml_section_tx("max_inputs_per_tx",&self.max_inputs_per_tx));
-        s.push_str(&toml_section_tx("min_weight_tx",&self.min_weight_tx));
-        s.push_str(&toml_section_tx("max_weight_tx",&self.max_weight_tx));
+        s.push_str(&toml_section_hash("max_outputs_per_tx",&self.max_outputs_per_tx));
+        s.push_str(&toml_section_hash("max_inputs_per_tx",&self.max_inputs_per_tx));
+        s.push_str(&toml_section_hash("min_weight_tx",&self.min_weight_tx));
+        s.push_str(&toml_section_hash("max_weight_tx",&self.max_weight_tx));
 
         s.push_str(&format!("total_outputs = {}\n", self.total_outputs));
         s.push_str(&format!("total_inputs = {}\n", self.total_inputs));
@@ -259,11 +275,12 @@ impl Stats {
 
 }
 
-fn toml_section_tx(title : &str, value : &(u64,Option<Transaction>)) -> String {
+fn toml_section_hash(title : &str, value : &(u64,Option<Sha256dHash>)) -> String {
     let mut s = String::new();
     s.push_str(&format!("\n[{}]\n", title ));
-    s.push_str(&format!("hash={:?}\n", value.1.clone().unwrap().txid().be_hex_string() ) );
-    s.push_str(&format!("value={:?}\n\n", value.0 ) );
+    s.push_str(&format!("hash={:?}\n", value.0 ) );
+    s.push_str(&format!("value={:?}\n", value.1 ) );
+
     s
 }
 

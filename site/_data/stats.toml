@@ -1,0 +1,23 @@
+
+[max_outputs_per_tx]
+hash="dd9f6bbf80ab36b722ca95d93268667a3ea6938288e0d4cf0e7d2e28a7a91ab3"
+value=13107
+
+
+[max_inputs_per_tx]
+hash="52539a56b1eb890504b775171923430f0355eb836a57134ba598170a2f8980c1"
+value=20000
+
+
+[min_weight_tx]
+hash="c0aa8559184115cf8b3042b75e0cdb1454bd48be3b4396b67cdc16bfd91b618f"
+value=248
+
+
+[max_weight_tx]
+hash="bb41a757f405890fb0f5856228e23b715702d714d59bf2b1feb70d8b2b4e3e08"
+value=3998628
+
+total_outputs = 1027111959
+total_inputs = 962973483
+amount_over_32 = 14426349

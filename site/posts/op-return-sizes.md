@@ -17,7 +17,7 @@ var myChart = new Chart(ctx, {
         datasets: [{
             label: 'OP_RETURN sizes [bytes]',
             data: values,
-            backgroundColor: 'rgba(54, 162, 235,0.5)',
+            backgroundColor: window.chartColors.purple,
             fill: true,
         }]
     }
