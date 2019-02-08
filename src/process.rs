@@ -54,6 +54,12 @@ impl Process {
         println!("{}", toml);
         fs::write("site/_data/stats.toml", toml).expect("Unable to w rite file");
 
+        self.script_type.all.remove(&current_ym);
+        self.script_type.p2pkh.remove(&current_ym);
+        self.script_type.p2pk.remove(&current_ym);
+        self.script_type.p2sh.remove(&current_ym);
+        self.script_type.v0_p2wpkh.remove(&current_ym);
+        self.script_type.v0_p2wsh.remove(&current_ym);
         align(&mut self.script_type.all, &mut self.script_type.p2pkh);
         align(&mut self.script_type.all, &mut self.script_type.p2pk);
         align(&mut self.script_type.all, &mut self.script_type.p2sh);
