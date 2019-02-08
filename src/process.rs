@@ -15,6 +15,7 @@ pub struct Process {
     receiver : Receiver<Option<BlockExtra>>,
     op_return_data: OpReturnData,
     stats: Stats,
+    script_type: ScriptType,
 }
 
 impl Process {
@@ -23,6 +24,7 @@ impl Process {
             receiver,
             op_return_data: OpReturnData::new(),
             stats: Stats::new(),
+            script_type: ScriptType::new(),
         }
     }
 
@@ -52,19 +54,20 @@ impl Process {
         println!("{}", toml);
         fs::write("site/_data/stats.toml", toml).expect("Unable to write file");
 
+        let toml = self.script_type.to_toml();
+        println!("{}", toml);
+        fs::write("site/_data/script_type.toml", toml).expect("Unable to write file");
+
         println!("ending processer");
     }
 
     fn process_block(&mut self, block: BlockExtra) {
         for tx in block.block.txdata {
-            let txid = tx.txid();
             for output in tx.output.iter() {
                 if output.script_pubkey.is_op_return() {
-                    self.process_script(&output.script_pubkey, block.block.header.time, tx_fee(&tx, &block.outpoint_values));
-                    if output.script_pubkey.len() > 100 {
-                        println!("len {} greater than 100 {}", output.script_pubkey.len(), txid);
-                    }
+                    self.process_op_return_script(&output.script_pubkey, block.block.header.time, tx_fee(&tx, &block.outpoint_values));
                 }
+                self.process_output_script(&output.script_pubkey, block.block.header.time);
             }
             self.process_stats(&tx);
         }
@@ -78,7 +81,23 @@ impl Process {
         }
     }
 
-    fn process_script(&mut self, op_return_script: &Script, time: u32, fee: u64) {
+    fn process_output_script(&mut self, script: &Script, time: u32) {
+        let date = Utc.timestamp(time as i64, 0);
+        let ym = format!("{}{:02}", date.year(), date.month());
+        if script.is_p2pkh() {
+            *self.script_type.p2pkh.entry(ym).or_insert(0) += 1;
+        } else if script.is_p2pk() {
+            *self.script_type.p2pk.entry(ym).or_insert(0) += 1;
+        } else if script.is_v0_p2wpkh() {
+            *self.script_type.v0_p2wpkh.entry(ym).or_insert(0) += 1;
+        } else if script.is_v0_p2wsh() {
+            *self.script_type.v0_p2wsh.entry(ym).or_insert(0) += 1;
+        } else if script.is_p2sh() {
+            *self.script_type.p2sh.entry(ym).or_insert(0) += 1;
+        }
+    }
+
+    fn process_op_return_script(&mut self, op_return_script: &Script, time: u32, fee: u64) {
         let script_bytes = op_return_script.as_bytes();
         let script_hex = hex::encode(script_bytes);
         let script_len = script_bytes.len();
@@ -134,6 +153,39 @@ impl Process {
         if over_32 > 0 {
             self.stats.amount_over_32 += over_32;
         }
+    }
+}
+
+struct ScriptType {
+    p2pkh: BTreeMap<String, u32>,
+    p2pk: BTreeMap<String, u32>,
+    v0_p2wpkh: BTreeMap<String, u32>,
+    v0_p2wsh: BTreeMap<String, u32>,
+    p2sh: BTreeMap<String, u32>,
+}
+
+impl ScriptType {
+    fn new() -> Self {
+        ScriptType {
+            p2pkh : BTreeMap::new(),
+            p2pk : BTreeMap::new(),
+            v0_p2wpkh : BTreeMap::new(),
+            v0_p2wsh : BTreeMap::new(),
+            p2sh : BTreeMap::new(),
+        }
+    }
+
+    fn to_toml(&self) -> String {
+        let mut s = String::new();
+
+        s.push_str( &toml_section("p2pkh", &self.p2pkh));
+        s.push_str( &toml_section("p2pk", &self.p2pk));
+        s.push_str( &toml_section("v0_p2wpkh", &self.v0_p2wpkh));
+        s.push_str( &toml_section("v0_p2wsh", &self.v0_p2wsh));
+        s.push_str( &toml_section("p2sh", &self.p2sh));
+
+        s
+
     }
 }
 
@@ -240,7 +292,6 @@ struct Stats {
     amount_over_32 : usize,
     max_block_size: (u64, Option<Sha256dHash>),
     min_hash : Sha256dHash,
-
 }
 
 impl Stats {
@@ -293,5 +344,16 @@ mod test {
         let tuples = vec![("one", 1), ("two", 2), ("three", 3)];
         let m: HashMap<_, _> = tuples.into_iter().collect();
         println!("{:?}", m);
+    }
+
+    #[test]
+    fn test3() {
+        let mut b : bool = true;
+        let u = b as u32;
+        assert_eq!(u,1u32);
+        b = false;
+        let u = b as u32;
+        assert_eq!(u,0u32);
+
     }
 }
