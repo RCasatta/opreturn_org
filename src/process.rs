@@ -361,7 +361,7 @@ fn toml_section_hash(title : &str, value : &(u64,Option<Sha256dHash>)) -> String
     let mut s = String::new();
     s.push_str(&format!("\n[{}]\n", title ));
     s.push_str(&format!("hash={:?}\n", value.0 ) );
-    s.push_str(&format!("value={:?}\n", value.1 ) );
+    s.push_str(&format!("value={:?}\n", value.1.unwrap().be_hex_string() ) );
 
     s
 }
