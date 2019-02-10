@@ -169,12 +169,12 @@ impl Process {
 }
 
 struct ScriptType {
-    all: BTreeMap<String, u32>,
-    p2pkh: BTreeMap<String, u32>,
-    p2pk: BTreeMap<String, u32>,
-    v0_p2wpkh: BTreeMap<String, u32>,
-    v0_p2wsh: BTreeMap<String, u32>,
-    p2sh: BTreeMap<String, u32>,
+    all: BTreeMap<String, u64>,
+    p2pkh: BTreeMap<String, u64>,
+    p2pk: BTreeMap<String, u64>,
+    v0_p2wpkh: BTreeMap<String, u64>,
+    v0_p2wsh: BTreeMap<String, u64>,
+    p2sh: BTreeMap<String, u64>,
 }
 
 impl ScriptType {
@@ -205,15 +205,15 @@ impl ScriptType {
 }
 
 struct OpReturnData {
-    op_ret_per_month: BTreeMap<String, u32>,
-    op_ret_size: BTreeMap<String, u32>,  //pad with spaces usize of len up to 3
-    veriblock_per_month : BTreeMap<String,u32>,
+    op_ret_per_month: BTreeMap<String, u64>,
+    op_ret_size: BTreeMap<String, u64>,  //pad with spaces usize of len up to 3
+    veriblock_per_month : BTreeMap<String,u64>,
     op_ret_fee_per_month: BTreeMap<String, u64>,
     veriblock_fee_per_month: BTreeMap<String, u64>,
 
-    op_ret_per_proto: HashMap<String, u32>,
-    op_ret_per_proto_last_month: HashMap<String, u32>,
-    op_ret_per_proto_last_year: HashMap<String, u32>,
+    op_ret_per_proto: HashMap<String, u64>,
+    op_ret_per_proto_last_month: HashMap<String, u64>,
+    op_ret_per_proto_last_year: HashMap<String, u64>,
 
     month_ago: u32,
     year_ago: u32,
@@ -246,9 +246,11 @@ impl OpReturnData {
         s.push_str( &toml_section("op_ret_per_proto", &map_by_value(&self.op_ret_per_proto)) );
         s.push_str( &toml_section("op_ret_per_proto_last_month", &map_by_value(&self.op_ret_per_proto_last_month)) );
         s.push_str( &toml_section("op_ret_per_proto_last_year", &map_by_value(&self.op_ret_per_proto_last_year)) );
-        s.push_str( &toml_section("veriblock_per_month", &self.veriblock_per_month) );
+
         s.push_str( &toml_section_f64("op_ret_fee_per_month", &convert_sat_to_bitcoin(&self.op_ret_fee_per_month) ));
-        s.push_str( &toml_section_f64("veriblock_fee_per_month", &convert_sat_to_bitcoin(&self.veriblock_fee_per_month) ));
+
+        s.push_str( &toml_section("veriblock_per_month", &keep_from("201811".to_string(),&self.veriblock_per_month) ) );
+        s.push_str( &toml_section_f64("veriblock_fee_per_month", &convert_sat_to_bitcoin(&keep_from("201811".to_string(),&self.veriblock_fee_per_month) )) );
 
         let op_ret_fee_total : u64 = self.op_ret_fee_per_month.iter().map(|(_k,v)| v).sum();
         s.push_str(&format!("op_ret_fee_per_month = {}\n", (op_ret_fee_total as f64 / 100_000_000f64)));
@@ -260,16 +262,20 @@ impl OpReturnData {
     }
 }
 
+fn keep_from(yyyymm : String, map : &BTreeMap<String, u64>) -> BTreeMap<String, u64>{
+    map.clone().into_iter().skip_while(|(k,_)| k < &&yyyymm).collect()
+}
+
 fn convert_sat_to_bitcoin( map : &BTreeMap<String, u64>) ->  BTreeMap<String, f64> {
     map.iter().map(|(k,v)| (k.to_string(), (*v as f64 / 100_000_000f64) )).into_iter().collect()
 }
 
-fn toml_section(title : &str, map : &BTreeMap<String, u32>) -> String {
+fn toml_section(title : &str, map : &BTreeMap<String, u64>) -> String {
     let mut s = String::new();
     s.push_str(&format!("\n[{}]\n", title ));
     let labels : Vec<String> = map.keys().cloned().collect();
     s.push_str(&format!("labels={:?}\n", labels) );
-    let values : Vec<u32> = map.values().cloned().collect();
+    let values : Vec<u64> = map.values().cloned().collect();
     s.push_str(&format!("values={:?}\n", values ) );
     s
 }
@@ -285,9 +291,9 @@ fn toml_section_f64(title : &str, map : &BTreeMap<String, f64>) -> String {
     s
 }
 
-fn map_by_value(map : &HashMap<String,u32>) -> BTreeMap<String,u32> {
-    let mut tree : BTreeMap<String, u32> = BTreeMap::new();
-    let mut count_vec: Vec<(&String, &u32)> = map.iter().collect();
+fn map_by_value(map : &HashMap<String,u64>) -> BTreeMap<String,u64> {
+    let mut tree : BTreeMap<String, u64> = BTreeMap::new();
+    let mut count_vec: Vec<(&String, &u64)> = map.iter().collect();
     count_vec.sort_by(|a, b| b.1.cmp(a.1));
     for (key,value) in count_vec.iter().take(10) {
         tree.insert(key.to_string(),**value);
@@ -297,7 +303,7 @@ fn map_by_value(map : &HashMap<String,u32>) -> BTreeMap<String,u32> {
     tree
 }
 
-fn align (map1 : &mut BTreeMap<String,u32>, map2 : &mut BTreeMap<String,u32>) {
+fn align (map1 : &mut BTreeMap<String,u64>, map2 : &mut BTreeMap<String,u64>) {
     for key in map1.keys() {
         if let None = map2.get(key) {
             map2.insert(key.to_owned(),0);
