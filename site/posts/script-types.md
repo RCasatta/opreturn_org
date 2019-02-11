@@ -3,6 +3,7 @@ title: Script types
 layout: chart.liquid
 permalink: /{{ name }}
 description: Charts showing the script types per month.
+is_draft: true
 ---
 
 <canvas id="myChart"></canvas>
