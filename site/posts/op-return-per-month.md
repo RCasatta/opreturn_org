@@ -24,6 +24,7 @@ var myChart = new Chart(ctx, {
 });
 </script>
 
+<br>
 
 <canvas id="myChart2" width="100%"></canvas>
 <script>
@@ -43,3 +44,9 @@ var myChart2 = new Chart(ctx, {
     }
 });
 </script>
+<br>
+
+<div> Total btc spent on tx containing OP_RETURN: {{ site.data.op_return.totals.op_ret_fee }} BTC </div>
+
+<br>
+<br>

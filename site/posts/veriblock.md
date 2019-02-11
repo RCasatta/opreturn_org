@@ -23,7 +23,7 @@ var myChart = new Chart(ctx, {
     }
 });
 </script>
-<br><br>
+<br>
 
 <canvas id="myChart2" width="100%"></canvas>
 <script>
@@ -43,3 +43,9 @@ var myChart2 = new Chart(ctx, {
     }
 });
 </script>
+<br>
+
+<div> Total btc spent on veriblock tx: {{ site.data.op_return.totals.veriblock_fee }} BTC </div>
+
+<br>
+<br>

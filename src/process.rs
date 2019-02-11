@@ -252,11 +252,11 @@ impl OpReturnData {
         s.push_str( &toml_section("veriblock_per_month", &keep_from("201810".to_string(),&self.veriblock_per_month) ) );
         s.push_str( &toml_section_f64("veriblock_fee_per_month", &convert_sat_to_bitcoin(&keep_from("201810".to_string(),&self.veriblock_fee_per_month) )) );
 
+        s.push_str("\n[totals]\n");
         let op_ret_fee_total : u64 = self.op_ret_fee_per_month.iter().map(|(_k,v)| v).sum();
-        s.push_str(&format!("op_ret_fee_per_month = {}\n", (op_ret_fee_total as f64 / 100_000_000f64)));
-
+        s.push_str(&format!("op_ret_fee = {}\n", (op_ret_fee_total as f64 / 100_000_000f64)));
         let veriblock_fee_total : u64 = self.veriblock_fee_per_month.iter().map(|(_k,v)| v).sum();
-        s.push_str(&format!("veriblock_fee_total = {}\n", (veriblock_fee_total as f64 / 100_000_000f64)));
+        s.push_str(&format!("veriblock_fee = {}\n", (veriblock_fee_total as f64 / 100_000_000f64)));
 
         s
     }
@@ -276,7 +276,7 @@ fn toml_section(title : &str, map : &BTreeMap<String, u64>) -> String {
     let labels : Vec<String> = map.keys().cloned().collect();
     s.push_str(&format!("labels={:?}\n", labels) );
     let values : Vec<u64> = map.values().cloned().collect();
-    s.push_str(&format!("values={:?}\n", values ) );
+    s.push_str(&format!("values={:?}\n\n", values ) );
     s
 }
 
@@ -287,7 +287,7 @@ fn toml_section_f64(title : &str, map : &BTreeMap<String, f64>) -> String {
     let labels : Vec<String> = map.keys().cloned().collect();
     s.push_str(&format!("labels={:?}\n", labels) );
     let values : Vec<f64> = map.values().cloned().collect();
-    s.push_str(&format!("values={:?}\n", values ) );
+    s.push_str(&format!("values={:?}\n\n", values ) );
     s
 }
 
@@ -353,9 +353,10 @@ impl Stats {
         s.push_str(&toml_section_hash("max_weight_tx",&self.max_weight_tx));
         s.push_str(&toml_section_hash("max_block_size",&self.max_block_size));
 
+        s.push_str("\n[totals]\n");
         s.push_str(&format!("min_hash = {:?}\n", self.min_hash.be_hex_string()));
-        s.push_str(&format!("total_outputs = {}\n", self.total_outputs));
-        s.push_str(&format!("total_inputs = {}\n", self.total_inputs));
+        s.push_str(&format!("outputs = {}\n", self.total_outputs));
+        s.push_str(&format!("inputs = {}\n", self.total_inputs));
         s.push_str(&format!("amount_over_32 = {}\n", self.amount_over_32));
 
         s
