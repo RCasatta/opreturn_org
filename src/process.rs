@@ -249,8 +249,8 @@ impl OpReturnData {
 
         s.push_str( &toml_section_f64("op_ret_fee_per_month", &convert_sat_to_bitcoin(&self.op_ret_fee_per_month) ));
 
-        s.push_str( &toml_section("veriblock_per_month", &keep_from("201810".to_string(),&self.veriblock_per_month) ) );
-        s.push_str( &toml_section_f64("veriblock_fee_per_month", &convert_sat_to_bitcoin(&keep_from("201810".to_string(),&self.veriblock_fee_per_month) )) );
+        s.push_str( &toml_section("veriblock_per_month", &keep_from("201809".to_string(),&self.veriblock_per_month) ) );
+        s.push_str( &toml_section_f64("veriblock_fee_per_month", &convert_sat_to_bitcoin(&keep_from("201809".to_string(),&self.veriblock_fee_per_month) )) );
 
         s.push_str("\n[totals]\n");
         let op_ret_fee_total : u64 = self.op_ret_fee_per_month.iter().map(|(_k,v)| v).sum();
