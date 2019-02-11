@@ -263,7 +263,7 @@ impl OpReturnData {
 }
 
 fn keep_from(yyyymm : String, map : &BTreeMap<String, u64>) -> BTreeMap<String, u64>{
-    map.clone().into_iter().skip_while(|(k,_)| k < &&yyyymm).collect()
+    map.clone().into_iter().skip_while(|(k,_)| k < &yyyymm).collect()
 }
 
 fn convert_sat_to_bitcoin( map : &BTreeMap<String, u64>) ->  BTreeMap<String, f64> {
