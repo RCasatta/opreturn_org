@@ -33,7 +33,9 @@ fn main() {
     let path = PathBuf::from(env::var("BITCOIN_DIR").unwrap_or("~/.bitcoin/".to_string()));
     let blob_size = env::var("BLOB_CHANNEL_SIZE").unwrap_or("1".to_string()).parse::<usize>().unwrap_or(2);
     let blocks_size = env::var("BLOCKS_CHANNEL_SIZE").unwrap_or("100".to_string()).parse::<usize>().unwrap_or(200);
-    let db = DB::open_default(env::var("DB").unwrap_or("db".to_string())).unwrap();
+    let mut db_opts = rocksdb::Options::default();
+    db_opts.increase_parallelism(4);
+    let db = DB::open(&db_opts, env::var("DB").unwrap_or("db".to_string())).unwrap();
 
     let (send_blobs, receive_blobs) = sync_channel(blob_size);
     let mut read = Read::new(path, send_blobs);
