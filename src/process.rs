@@ -135,7 +135,7 @@ impl Process {
                 }
             }
             *data.op_ret_per_proto.entry(op_ret_proto.clone()).or_insert(0) += 1;
-            if op_ret_proto.starts_with("0004") {
+            if op_ret_proto.starts_with("00") && script_len == 80 {
                 *data.veriblock_per_month.entry(ym.clone()).or_insert(0) += 1;
                 *data.veriblock_fee_per_month.entry(ym.clone()).or_insert(0) += fee;
             }
