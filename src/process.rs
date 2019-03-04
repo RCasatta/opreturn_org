@@ -44,6 +44,7 @@ impl Process {
         let current_ym = format!("{}{:02}", now.year(), now.month());
         self.op_return_data.op_ret_per_month.remove(&current_ym);
         self.op_return_data.veriblock_per_month.remove(&current_ym);
+        self.op_return_data.veriblock_fee_per_month.remove(&current_ym);
         self.op_return_data.op_ret_fee_per_month.remove(&current_ym);
 
         let toml = self.op_return_data.to_toml();
@@ -249,8 +250,8 @@ impl OpReturnData {
 
         s.push_str( &toml_section_f64("op_ret_fee_per_month", &convert_sat_to_bitcoin(&self.op_ret_fee_per_month) ));
 
-        s.push_str( &toml_section("veriblock_per_month", &self.veriblock_per_month)  );
-        s.push_str( &toml_section_f64("veriblock_fee_per_month", &convert_sat_to_bitcoin(&self.veriblock_fee_per_month) ) );
+        s.push_str( &toml_section("veriblock_per_month", &keep_from("201809".to_string(),&self.veriblock_per_month) ) );
+        s.push_str( &toml_section_f64("veriblock_fee_per_month", &convert_sat_to_bitcoin(&keep_from("201809".to_string(),&self.veriblock_fee_per_month) )) );
 
         s.push_str("\n[totals]\n");
         let op_ret_fee_total : u64 = self.op_ret_fee_per_month.iter().map(|(_k,v)| v).sum();
