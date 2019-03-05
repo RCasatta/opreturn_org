@@ -1,20 +1,21 @@
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::SyncSender;
-use bitcoin::util::hash::Sha256dHash;
 use bitcoin::BitcoinHash;
 use std::collections::HashMap;
 use crate::BlockExtra;
+use bitcoin_hashes::sha256d;
+use bitcoin_hashes::hex::FromHex;
 
 pub struct Reorder {
     receiver: Receiver<Option<BlockExtra>>,
     sender: SyncSender<Option<BlockExtra>>,
     height: u32,
-    next: Sha256dHash,
+    next: sha256d::Hash,
     blocks : OutOfOrderBlocks,
 }
 
 struct OutOfOrderBlocks {
-    blocks: HashMap<Sha256dHash, BlockExtra>,  // hash, block
+    blocks: HashMap<sha256d::Hash, BlockExtra>,  // hash, block
 }
 
 impl OutOfOrderBlocks {
@@ -38,7 +39,7 @@ impl OutOfOrderBlocks {
         self.blocks.insert(hash, block_extra);
     }
 
-    fn exist_and_has_two_following(&mut self, hash: &Sha256dHash) -> Option<Sha256dHash> {
+    fn exist_and_has_two_following(&mut self, hash: &sha256d::Hash) -> Option<sha256d::Hash> {
         if let Some(block1) = self.blocks.get(hash)  {
             for next1 in block1.next.iter() {
                 if let Some(block2) = self.blocks.get(next1) {
@@ -53,7 +54,7 @@ impl OutOfOrderBlocks {
         None
     }
 
-    fn remove(&mut self, hash: &Sha256dHash) -> Option<BlockExtra> {
+    fn remove(&mut self, hash: &sha256d::Hash) -> Option<BlockExtra> {
         if let Some(next) = self.exist_and_has_two_following(hash) {
             let mut value = self.blocks.remove(hash).unwrap();
             if value.next.len()>1 {
@@ -78,7 +79,7 @@ impl Reorder {
             sender,
             receiver,
             height: 0,
-            next: Sha256dHash::from_hex("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f").unwrap(),
+            next: sha256d::Hash::from_hex("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f").unwrap(),
             blocks: OutOfOrderBlocks::new(),
         }
     }

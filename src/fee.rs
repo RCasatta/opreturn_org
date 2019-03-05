@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use rocksdb::DB;
 use rocksdb::WriteBatch;
 use rocksdb::WriteOptions;
-use bitcoin::util::hash::Sha256dHash;
 use bitcoin::consensus::serialize;
 use bitcoin::consensus::deserialize;
 use bitcoin::VarInt;
@@ -13,6 +12,8 @@ use bitcoin::BitcoinHash;
 use bitcoin::OutPoint;
 use bitcoin::Transaction;
 use crate::BlockExtra;
+use bitcoin_hashes::sha256d;
+use bitcoin_hashes::Hash;
 
 pub struct Fee {
     receiver : Receiver<Option<BlockExtra>>,
@@ -162,15 +163,15 @@ pub fn tx_fee(tx : &Transaction, outpoint_values : &HashMap<OutPoint, u64>) -> u
     input_total - output_total
 }
 
-fn output_key(txid : Sha256dHash, i : u64) -> Vec<u8> {
+fn output_key(txid : sha256d::Hash, i : u64) -> Vec<u8> {
     let mut v = vec![];
     v.push('o' as u8);
-    v.extend(serialize(&txid.into_hash64()));
+    v.extend(serialize(&txid.into_inner()[0..10]));
     v.extend(serialize(&VarInt(i)) );
     v
 }
 
-fn block_outpoint_values_key(hash : Sha256dHash) -> Vec<u8> {
+fn block_outpoint_values_key(hash : sha256d::Hash) -> Vec<u8> {
     let mut v = vec![];
     v.push('v' as u8);
     v.extend(serialize(&hash));

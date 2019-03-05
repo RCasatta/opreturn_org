@@ -10,8 +10,8 @@ use crate::reorder::Reorder;
 use crate::process::Process;
 use std::collections::HashMap;
 use bitcoin::Block;
-use bitcoin::util::hash::Sha256dHash;
 use bitcoin::OutPoint;
+use bitcoin_hashes::sha256d;
 
 mod fee;
 mod parse;
@@ -22,7 +22,7 @@ mod process;
 #[derive(Debug)]
 pub struct BlockExtra {
     pub block: Block,
-    pub next: Vec<Sha256dHash>, // reorg
+    pub next: Vec<sha256d::Hash>, // reorg
     pub size: u32,
     pub height: u32,
     pub out_of_order_size: usize,

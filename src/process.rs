@@ -8,8 +8,9 @@ use bitcoin::Script;
 use std::fs;
 use crate::fee::tx_fee;
 use bitcoin::Transaction;
-use bitcoin::util::hash::Sha256dHash;
 use bitcoin::util::hash::BitcoinHash;
+use bitcoin_hashes::sha256d;
+use bitcoin_hashes::hex::FromHex;
 
 pub struct Process {
     receiver : Receiver<Option<BlockExtra>>,
@@ -319,15 +320,15 @@ fn align (map1 : &mut BTreeMap<String,u64>, map2 : &mut BTreeMap<String,u64>) {
 }
 
 struct Stats {
-    max_outputs_per_tx : (u64, Option<Sha256dHash>),
-    min_weight_tx : (u64, Option<Sha256dHash>),
-    max_inputs_per_tx : (u64, Option<Sha256dHash>),
-    max_weight_tx : (u64, Option<Sha256dHash>),
+    max_outputs_per_tx : (u64, Option<sha256d::Hash>),
+    min_weight_tx : (u64, Option<sha256d::Hash>),
+    max_inputs_per_tx : (u64, Option<sha256d::Hash>),
+    max_weight_tx : (u64, Option<sha256d::Hash>),
     total_outputs : u64,
     total_inputs : u64,
     amount_over_32 : usize,
-    max_block_size: (u64, Option<Sha256dHash>),
-    min_hash : Sha256dHash,
+    max_block_size: (u64, Option<sha256d::Hash>),
+    min_hash : sha256d::Hash,
 }
 
 impl Stats {
@@ -341,7 +342,7 @@ impl Stats {
             total_inputs: 0u64,
             amount_over_32: 0usize,
             max_block_size : (0u64, None),
-            min_hash: Sha256dHash::from_hex("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f").unwrap(),
+            min_hash: sha256d::Hash::from_hex("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f").unwrap(),
         }
     }
 
@@ -355,7 +356,7 @@ impl Stats {
         s.push_str(&toml_section_hash("max_block_size",&self.max_block_size));
 
         s.push_str("\n[totals]\n");
-        s.push_str(&format!("min_hash = {:?}\n", self.min_hash.be_hex_string()));
+        s.push_str(&format!("min_hash = {:?}\n", self.min_hash));
         s.push_str(&format!("outputs = {}\n", self.total_outputs));
         s.push_str(&format!("inputs = {}\n", self.total_inputs));
         s.push_str(&format!("amount_over_32 = {}\n", self.amount_over_32));
@@ -365,11 +366,11 @@ impl Stats {
 
 }
 
-fn toml_section_hash(title : &str, value : &(u64,Option<Sha256dHash>)) -> String {
+fn toml_section_hash(title : &str, value : &(u64,Option<sha256d::Hash>)) -> String {
     let mut s = String::new();
     s.push_str(&format!("\n[{}]\n", title ));
     s.push_str(&format!("hash={:?}\n", value.0 ) );
-    s.push_str(&format!("value={:?}\n\n", value.1.unwrap().be_hex_string() ) );
+    s.push_str(&format!("value={:?}\n\n", value.1.unwrap() ) );
 
     s
 }
