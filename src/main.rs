@@ -35,6 +35,7 @@ fn main() {
     let blocks_size = env::var("BLOCKS_CHANNEL_SIZE").unwrap_or("100".to_string()).parse::<usize>().unwrap_or(200);
     let mut db_opts = rocksdb::Options::default();
     db_opts.increase_parallelism(4);
+    db_opts.create_if_missing(true);
     let db = DB::open(&db_opts, env::var("DB").unwrap_or("db".to_string())).unwrap();
 
     let (send_blobs, receive_blobs) = sync_channel(blob_size);
