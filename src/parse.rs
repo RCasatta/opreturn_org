@@ -60,7 +60,7 @@ fn parse_blocks(blob: Vec<u8>) -> Vec<BlockExtra> {
         };
         let size = u32::consensus_decode(&mut cursor).expect("a");
         let start = cursor.position() as usize;
-        cursor.seek(SeekFrom::Current(size as i64)).expect("failed to seek forward");
+        cursor.seek(SeekFrom::Current(i64::from(size))).expect("failed to seek forward");
         let end = cursor.position() as usize;
 
         match deserialize(&blob[start..end]) {

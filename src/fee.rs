@@ -98,7 +98,7 @@ impl Fee {
         let mut index = 1u32;
         for tx in block.txdata.iter().skip(1) {
             for input in tx.input.iter() {
-                let key = output_key(input.previous_output.txid, input.previous_output.vout as u64);
+                let key = output_key(input.previous_output.txid, u64::from(input.previous_output.vout));
                 keys_index.push((key,index));
                 index += 1;
             }
@@ -165,7 +165,7 @@ pub fn tx_fee(tx : &Transaction, outpoint_values : &HashMap<OutPoint, u64>) -> u
 
 fn output_key(txid : sha256d::Hash, i : u64) -> Vec<u8> {
     let mut v = vec![];
-    v.push('o' as u8);
+    v.push(b'o');
     v.extend(serialize(&txid.into_inner()[0..10]));
     v.extend(serialize(&VarInt(i)) );
     v
@@ -173,7 +173,7 @@ fn output_key(txid : sha256d::Hash, i : u64) -> Vec<u8> {
 
 fn block_outpoint_values_key(hash : sha256d::Hash) -> Vec<u8> {
     let mut v = vec![];
-    v.push('v' as u8);
+    v.push(b'v');
     v.extend(serialize(&hash));
     v
 }

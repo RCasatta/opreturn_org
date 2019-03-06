@@ -86,16 +86,16 @@ impl Process {
         }
         let hash = block.block.header.bitcoin_hash();
         if self.stats.min_hash > hash {
-            self.stats.min_hash = hash.clone();
+            self.stats.min_hash = hash;
         }
-        let size = block.size as u64;
+        let size = u64::from(block.size);
         if self.stats.max_block_size.0 < size {
             self.stats.max_block_size = (size, Some(hash));
         }
     }
 
     fn process_output_script(&mut self, script: &Script, time: u32) {
-        let date = Utc.timestamp(time as i64, 0);
+        let date = Utc.timestamp(i64::from(time), 0);
         let ym = format!("{}{:02}", date.year(), date.month());
         *self.script_type.all.entry(ym.clone()).or_insert(0) += 1;
         if script.is_p2pkh() {
@@ -115,7 +115,7 @@ impl Process {
         let script_bytes = op_return_script.as_bytes();
         let script_hex = hex::encode(script_bytes);
         let script_len = script_bytes.len();
-        let date = Utc.timestamp(time as i64, 0);
+        let date = Utc.timestamp(i64::from(time), 0);
         let ym = format!("{}{:02}", date.year(), date.month());
         let data = &mut self.op_return_data;
 
@@ -152,18 +152,18 @@ impl Process {
         self.stats.total_outputs += outputs as u64;
         self.stats.total_inputs += inputs as u64;
         if self.stats.max_outputs_per_tx.0 < outputs {
-            self.stats.max_outputs_per_tx = (outputs, Some(txid.clone()));
+            self.stats.max_outputs_per_tx = (outputs, Some(txid));
         }
         if self.stats.max_inputs_per_tx.0 < inputs {
-            self.stats.max_inputs_per_tx = (inputs, Some(txid.clone()));
+            self.stats.max_inputs_per_tx = (inputs, Some(txid));
         }
         if self.stats.max_weight_tx.0 < weight {
-            self.stats.max_weight_tx = (weight, Some(txid.clone()));
+            self.stats.max_weight_tx = (weight, Some(txid));
         }
         if self.stats.min_weight_tx.0 > weight {
-            self.stats.min_weight_tx = (weight, Some(txid.clone()));
+            self.stats.min_weight_tx = (weight, Some(txid));
         }
-        let over_32 = tx.output.iter().filter(|o| o.value > 0xffffffff).count();
+        let over_32 = tx.output.iter().filter(|o| o.value > 0xffff_ffff).count();
         if over_32 > 0 {
             self.stats.amount_over_32 += over_32;
         }
@@ -265,11 +265,11 @@ impl OpReturnData {
 }
 
 fn keep_from(yyyymm : String, map : &BTreeMap<String, u64>) -> BTreeMap<String, u64>{
-    map.clone().into_iter().skip_while(|(k,_)| k < &yyyymm).collect()
+    map.clone().into_iter().skip_while(|(k,_)| *k < yyyymm).collect()
 }
 
 fn convert_sat_to_bitcoin( map : &BTreeMap<String, u64>) ->  BTreeMap<String, f64> {
-    map.iter().map(|(k,v)| (k.to_string(), (*v as f64 / 100_000_000f64) )).into_iter().collect()
+    map.iter().map(|(k,v)| (k.to_string(), (*v as f64 / 100_000_000f64) )).collect()
 }
 
 fn toml_section(title : &str, map : &BTreeMap<String, u64>) -> String {
@@ -307,13 +307,13 @@ fn map_by_value(map : &HashMap<String,u64>) -> BTreeMap<String,u64> {
 
 fn align (map1 : &mut BTreeMap<String,u64>, map2 : &mut BTreeMap<String,u64>) {
     for key in map1.keys() {
-        if let None = map2.get(key) {
+        if map2.get(key).is_none() {
             map2.insert(key.to_owned(),0);
         }
     }
 
     for key in map2.keys() {
-        if let None = map1.get(key) {
+        if map1.get(key).is_none() {
             map1.insert(key.to_owned(),0);
         }
     }

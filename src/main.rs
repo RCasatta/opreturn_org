@@ -30,13 +30,13 @@ pub struct BlockExtra {
 }
 
 fn main() {
-    let path = PathBuf::from(env::var("BITCOIN_DIR").unwrap_or("~/.bitcoin/".to_string()));
-    let blob_size = env::var("BLOB_CHANNEL_SIZE").unwrap_or("1".to_string()).parse::<usize>().unwrap_or(2);
-    let blocks_size = env::var("BLOCKS_CHANNEL_SIZE").unwrap_or("100".to_string()).parse::<usize>().unwrap_or(200);
+    let path = PathBuf::from(env::var("BITCOIN_DIR").unwrap_or_else(|_| "~/.bitcoin/".into()));
+    let blob_size = env::var("BLOB_CHANNEL_SIZE").unwrap_or_else(|_| "1".into()).parse::<usize>().unwrap_or(2);
+    let blocks_size = env::var("BLOCKS_CHANNEL_SIZE").unwrap_or_else(|_|"100".into()).parse::<usize>().unwrap_or(200);
     let mut db_opts = rocksdb::Options::default();
     db_opts.increase_parallelism(4);
     db_opts.create_if_missing(true);
-    let db = DB::open(&db_opts, env::var("DB").unwrap_or("db".to_string())).unwrap();
+    let db = DB::open(&db_opts, env::var("DB").unwrap_or_else(|_|"db".into())).unwrap();
 
     let (send_blobs, receive_blobs) = sync_channel(blob_size);
     let mut read = Read::new(path, send_blobs);

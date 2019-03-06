@@ -85,7 +85,7 @@ impl Reorder {
     }
 
     fn send(&mut self, mut block_extra : BlockExtra) {
-        self.next = block_extra.next[0].clone();
+        self.next = block_extra.next[0];
         block_extra.height = self.height;
         self.sender.send(Some(block_extra)).expect("reorder: cannot send block");
         self.height += 1;
