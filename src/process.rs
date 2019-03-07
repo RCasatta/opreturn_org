@@ -356,7 +356,7 @@ impl Stats {
         s.push_str(&toml_section_hash("max_block_size",&self.max_block_size));
 
         s.push_str("\n[totals]\n");
-        s.push_str(&format!("min_hash = {:?}\n", self.min_hash));
+        s.push_str(&format!("min_hash = \"{:?}\"\n", self.min_hash));
         s.push_str(&format!("outputs = {}\n", self.total_outputs));
         s.push_str(&format!("inputs = {}\n", self.total_inputs));
         s.push_str(&format!("amount_over_32 = {}\n", self.amount_over_32));
@@ -369,8 +369,8 @@ impl Stats {
 fn toml_section_hash(title : &str, value : &(u64,Option<sha256d::Hash>)) -> String {
     let mut s = String::new();
     s.push_str(&format!("\n[{}]\n", title ));
-    s.push_str(&format!("hash={:?}\n", value.0 ) );
-    s.push_str(&format!("value={:?}\n\n", value.1.unwrap() ) );
+    s.push_str(&format!("hash=\"{:?}\"\n", value.1.unwrap() ) );
+    s.push_str(&format!("value={:?}\n\n", value.0 ) );
 
     s
 }
