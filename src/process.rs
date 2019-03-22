@@ -11,6 +11,7 @@ use bitcoin::Transaction;
 use bitcoin::util::hash::BitcoinHash;
 use bitcoin_hashes::sha256d;
 use bitcoin_hashes::hex::FromHex;
+use std::collections::HashSet;
 
 pub struct Process {
     receiver : Receiver<Option<BlockExtra>>,
@@ -75,12 +76,18 @@ impl Process {
     }
 
     fn process_block(&mut self, block: BlockExtra) {
+        let tx_hashes: HashSet<sha256d::Hash> = block.block.txdata.iter().map(|tx| tx.txid() ).collect();
         for tx in block.block.txdata {
             for output in tx.output.iter() {
                 if output.script_pubkey.is_op_return() {
                     self.process_op_return_script(&output.script_pubkey, block.block.header.time, tx_fee(&tx, &block.outpoint_values));
                 }
                 self.process_output_script(&output.script_pubkey, block.block.header.time);
+            }
+            for input in tx.input.iter() {
+                if tx_hashes.contains(&input.previous_output.txid) {
+                    self.stats.total_spent_in_block += 1;
+                }
             }
             self.process_stats(&tx);
         }
@@ -326,6 +333,7 @@ struct Stats {
     max_weight_tx : (u64, Option<sha256d::Hash>),
     total_outputs : u64,
     total_inputs : u64,
+    total_spent_in_block : u64,
     amount_over_32 : usize,
     max_block_size: (u64, Option<sha256d::Hash>),
     min_hash : sha256d::Hash,
@@ -341,6 +349,7 @@ impl Stats {
             total_outputs: 0u64,
             total_inputs: 0u64,
             amount_over_32: 0usize,
+            total_spent_in_block: 0u64,
             max_block_size : (0u64, None),
             min_hash: sha256d::Hash::from_hex("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f").unwrap(),
         }
@@ -360,6 +369,7 @@ impl Stats {
         s.push_str(&format!("outputs = {}\n", self.total_outputs));
         s.push_str(&format!("inputs = {}\n", self.total_inputs));
         s.push_str(&format!("amount_over_32 = {}\n", self.amount_over_32));
+        s.push_str(&format!("total_spent_in_block = {}\n", self.total_spent_in_block));
 
         s
     }
