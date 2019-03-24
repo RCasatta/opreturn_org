@@ -77,16 +77,22 @@ impl Process {
     }
 
     fn process_block(&mut self, block: BlockExtra) {
+        let time = block.block.header.time;
+        let date = Utc.timestamp(i64::from(time), 0);
+        let ym = format!("{}{:02}", date.year(), date.month());
+
         let tx_hashes: HashSet<sha256d::Hash> = block.block.txdata.iter().map(|tx| tx.txid() ).collect();
         for tx in block.block.txdata {
             for output in tx.output.iter() {
                 if output.script_pubkey.is_op_return() {
-                    self.process_op_return_script(&output.script_pubkey, block.block.header.time, tx_fee(&tx, &block.outpoint_values));
+                    self.process_op_return_script(&output.script_pubkey, time, ym.clone(), tx_fee(&tx, &block.outpoint_values));
                 }
-                self.process_output_script(&output.script_pubkey, block.block.header.time);
+                self.process_output_script(&output.script_pubkey, ym.clone());
 
                 self.stats.total_bytes_output_value_bitcoin_varint += VarInt(output.value).encoded_length();
                 self.stats.total_bytes_output_value_varint += encoded_length_7bit_varint(output.value);
+                *self.stats.total_spent_in_block_per_month.entry(ym.clone()).or_insert(0) += 1;
+
             }
             for input in tx.input.iter() {
                 if tx_hashes.contains(&input.previous_output.txid) {
@@ -105,9 +111,8 @@ impl Process {
         }
     }
 
-    fn process_output_script(&mut self, script: &Script, time: u32) {
-        let date = Utc.timestamp(i64::from(time), 0);
-        let ym = format!("{}{:02}", date.year(), date.month());
+    fn process_output_script(&mut self, script: &Script, ym: String) {
+
         *self.script_type.all.entry(ym.clone()).or_insert(0) += 1;
         if script.is_p2pkh() {
             *self.script_type.p2pkh.entry(ym).or_insert(0) += 1;
@@ -122,12 +127,10 @@ impl Process {
         }
     }
 
-    fn process_op_return_script(&mut self, op_return_script: &Script, time: u32, fee: u64) {
+    fn process_op_return_script(&mut self, op_return_script: &Script, time: u32,  ym: String, fee: u64) {
         let script_bytes = op_return_script.as_bytes();
         let script_hex = hex::encode(script_bytes);
         let script_len = script_bytes.len();
-        let date = Utc.timestamp(i64::from(time), 0);
-        let ym = format!("{}{:02}", date.year(), date.month());
         let data = &mut self.op_return_data;
 
         *data.op_ret_size.entry(format!("{:>3}", script_len)).or_insert(0) += 1;
@@ -275,6 +278,12 @@ impl OpReturnData {
     }
 }
 
+fn _init_months() {
+    // TODO from 200901 to now
+    // index 200901 = 0, 200902 = 1 ...
+    // BTreeMap become Vec...
+}
+
 fn keep_from(yyyymm : String, map : &BTreeMap<String, u64>) -> BTreeMap<String, u64>{
     map.clone().into_iter().skip_while(|(k,_)| *k < yyyymm).collect()
 }
@@ -337,10 +346,11 @@ struct Stats {
     max_weight_tx : (u64, Option<sha256d::Hash>),
     total_outputs : u64,
     total_inputs : u64,
-    total_spent_in_block : u64,
     amount_over_32 : usize,
     max_block_size: (u64, Option<sha256d::Hash>),
     min_hash : sha256d::Hash,
+    total_spent_in_block : u64,
+    total_spent_in_block_per_month: BTreeMap<String, u64>,
     total_bytes_output_value_varint : u64,
     total_bytes_output_value_bitcoin_varint : u64,
 }
@@ -360,6 +370,7 @@ impl Stats {
             min_hash: sha256d::Hash::from_hex("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f").unwrap(),
             total_bytes_output_value_varint: 0u64,
             total_bytes_output_value_bitcoin_varint: 0u64,
+            total_spent_in_block_per_month: BTreeMap::new(),
         }
     }
 
@@ -382,6 +393,9 @@ impl Stats {
         s.push_str(&format!("bytes_output_value = {}\n", self.total_outputs*8));
         s.push_str(&format!("bytes_output_value_bitcoin_varint = {}\n", self.total_bytes_output_value_bitcoin_varint));
         s.push_str(&format!("bytes_output_value_varint = {}\n", self.total_bytes_output_value_varint));
+
+        s.push_str("\n\n");
+        s.push_str( &toml_section("total_spent_in_block_per_month", &self.total_spent_in_block_per_month) );
 
         s
     }
