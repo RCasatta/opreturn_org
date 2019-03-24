@@ -12,6 +12,7 @@ use bitcoin::util::hash::BitcoinHash;
 use bitcoin_hashes::sha256d;
 use bitcoin_hashes::hex::FromHex;
 use std::collections::HashSet;
+use bitcoin::VarInt;
 
 pub struct Process {
     receiver : Receiver<Option<BlockExtra>>,
@@ -83,6 +84,9 @@ impl Process {
                     self.process_op_return_script(&output.script_pubkey, block.block.header.time, tx_fee(&tx, &block.outpoint_values));
                 }
                 self.process_output_script(&output.script_pubkey, block.block.header.time);
+
+                self.stats.total_bytes_output_value_bitcoin_varint += VarInt(output.value).encoded_length();
+                self.stats.total_bytes_output_value_varint += encoded_length_7bit_varint(output.value);
             }
             for input in tx.input.iter() {
                 if tx_hashes.contains(&input.previous_output.txid) {
@@ -337,6 +341,8 @@ struct Stats {
     amount_over_32 : usize,
     max_block_size: (u64, Option<sha256d::Hash>),
     min_hash : sha256d::Hash,
+    total_bytes_output_value_varint : u64,
+    total_bytes_output_value_bitcoin_varint : u64,
 }
 
 impl Stats {
@@ -352,6 +358,8 @@ impl Stats {
             total_spent_in_block: 0u64,
             max_block_size : (0u64, None),
             min_hash: sha256d::Hash::from_hex("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f").unwrap(),
+            total_bytes_output_value_varint: 0u64,
+            total_bytes_output_value_bitcoin_varint: 0u64,
         }
     }
 
@@ -371,6 +379,10 @@ impl Stats {
         s.push_str(&format!("amount_over_32 = {}\n", self.amount_over_32));
         s.push_str(&format!("total_spent_in_block = {}\n", self.total_spent_in_block));
 
+        s.push_str(&format!("bytes_output_value = {}\n", self.total_outputs*8));
+        s.push_str(&format!("bytes_output_value_bitcoin_varint = {}\n", self.total_bytes_output_value_bitcoin_varint));
+        s.push_str(&format!("bytes_output_value_varint = {}\n", self.total_bytes_output_value_varint));
+
         s
     }
 
@@ -385,9 +397,31 @@ fn toml_section_hash(title : &str, value : &(u64,Option<sha256d::Hash>)) -> Stri
     s
 }
 
+pub fn encoded_length_7bit_varint(mut value: u64) -> u64 {
+    let mut bytes = 1;
+    loop {
+        if value <=  0x7F {
+            return bytes;
+        }
+        bytes += 1;
+        value >>= 7;
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::collections::HashMap;
+    use crate::process::encoded_length_7bit_varint;
+
+    #[test]
+    fn test1() {
+        assert_eq!( encoded_length_7bit_varint(127), 1);
+        assert_eq!( encoded_length_7bit_varint(128), 2);
+        assert_eq!( encoded_length_7bit_varint(1_270), 2);
+        assert_eq!( encoded_length_7bit_varint(111_270), 3);
+        assert_eq!( encoded_length_7bit_varint(2_097_151), 3);
+        assert_eq!( encoded_length_7bit_varint(2_097_152), 4);
+    }
 
     #[test]
     fn test2() {
@@ -404,6 +438,5 @@ mod test {
         b = false;
         let u = b as u32;
         assert_eq!(u,0u32);
-
     }
 }
