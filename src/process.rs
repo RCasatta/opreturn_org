@@ -13,12 +13,51 @@ use bitcoin_hashes::sha256d;
 use bitcoin_hashes::hex::FromHex;
 use std::collections::HashSet;
 use bitcoin::VarInt;
+use chrono::DateTime;
 
 pub struct Process {
     receiver : Receiver<Option<BlockExtra>>,
     op_return_data: OpReturnData,
     stats: Stats,
     script_type: ScriptType,
+}
+
+struct OpReturnData {
+    op_ret_per_month: BTreeMap<String, u64>,
+    op_ret_size: BTreeMap<String, u64>,  //pad with spaces usize of len up to 3
+    veriblock_per_month : BTreeMap<String,u64>,
+    op_ret_fee_per_month: BTreeMap<String, u64>,
+    veriblock_fee_per_month: BTreeMap<String, u64>,
+    op_ret_per_proto: HashMap<String, u64>,
+    op_ret_per_proto_last_month: HashMap<String, u64>,
+    op_ret_per_proto_last_year: HashMap<String, u64>,
+    month_ago: u32,
+    year_ago: u32,
+}
+
+struct Stats {
+    max_outputs_per_tx : (u64, Option<sha256d::Hash>),
+    min_weight_tx : (u64, Option<sha256d::Hash>),
+    max_inputs_per_tx : (u64, Option<sha256d::Hash>),
+    max_weight_tx : (u64, Option<sha256d::Hash>),
+    total_outputs : u64,
+    total_inputs : u64,
+    amount_over_32 : usize,
+    max_block_size: (u64, Option<sha256d::Hash>),
+    min_hash : sha256d::Hash,
+    total_spent_in_block : u64,
+    total_spent_in_block_per_month: BTreeMap<String, u64>,
+    total_bytes_output_value_varint : u64,
+    total_bytes_output_value_bitcoin_varint : u64,
+}
+
+struct ScriptType {
+    all: BTreeMap<String, u64>,
+    p2pkh: BTreeMap<String, u64>,
+    p2pk: BTreeMap<String, u64>,
+    v0_p2wpkh: BTreeMap<String, u64>,
+    v0_p2wsh: BTreeMap<String, u64>,
+    p2sh: BTreeMap<String, u64>,
 }
 
 impl Process {
@@ -91,12 +130,12 @@ impl Process {
 
                 self.stats.total_bytes_output_value_bitcoin_varint += VarInt(output.value).encoded_length();
                 self.stats.total_bytes_output_value_varint += encoded_length_7bit_varint(output.value);
-                *self.stats.total_spent_in_block_per_month.entry(ym.clone()).or_insert(0) += 1;
 
             }
             for input in tx.input.iter() {
                 if tx_hashes.contains(&input.previous_output.txid) {
                     self.stats.total_spent_in_block += 1;
+                    *self.stats.total_spent_in_block_per_month.entry(ym.clone()).or_insert(0) += 1;
                 }
             }
             self.process_stats(&tx);
@@ -184,15 +223,6 @@ impl Process {
     }
 }
 
-struct ScriptType {
-    all: BTreeMap<String, u64>,
-    p2pkh: BTreeMap<String, u64>,
-    p2pk: BTreeMap<String, u64>,
-    v0_p2wpkh: BTreeMap<String, u64>,
-    v0_p2wsh: BTreeMap<String, u64>,
-    p2sh: BTreeMap<String, u64>,
-}
-
 impl ScriptType {
     fn new() -> Self {
         ScriptType {
@@ -220,20 +250,6 @@ impl ScriptType {
     }
 }
 
-struct OpReturnData {
-    op_ret_per_month: BTreeMap<String, u64>,
-    op_ret_size: BTreeMap<String, u64>,  //pad with spaces usize of len up to 3
-    veriblock_per_month : BTreeMap<String,u64>,
-    op_ret_fee_per_month: BTreeMap<String, u64>,
-    veriblock_fee_per_month: BTreeMap<String, u64>,
-
-    op_ret_per_proto: HashMap<String, u64>,
-    op_ret_per_proto_last_month: HashMap<String, u64>,
-    op_ret_per_proto_last_year: HashMap<String, u64>,
-
-    month_ago: u32,
-    year_ago: u32,
-}
 
 impl OpReturnData {
     fn new() -> OpReturnData {
@@ -339,21 +355,6 @@ fn align (map1 : &mut BTreeMap<String,u64>, map2 : &mut BTreeMap<String,u64>) {
     }
 }
 
-struct Stats {
-    max_outputs_per_tx : (u64, Option<sha256d::Hash>),
-    min_weight_tx : (u64, Option<sha256d::Hash>),
-    max_inputs_per_tx : (u64, Option<sha256d::Hash>),
-    max_weight_tx : (u64, Option<sha256d::Hash>),
-    total_outputs : u64,
-    total_inputs : u64,
-    amount_over_32 : usize,
-    max_block_size: (u64, Option<sha256d::Hash>),
-    min_hash : sha256d::Hash,
-    total_spent_in_block : u64,
-    total_spent_in_block_per_month: BTreeMap<String, u64>,
-    total_bytes_output_value_varint : u64,
-    total_bytes_output_value_bitcoin_varint : u64,
-}
 
 impl Stats {
     fn new() -> Self {
@@ -422,10 +423,29 @@ pub fn encoded_length_7bit_varint(mut value: u64) -> u64 {
     }
 }
 
+
+/// returns
+fn _month_index(date: DateTime<Utc>) -> usize {
+    return (date.year() as usize - 2009) * 12 + (date.month() as usize - 1)
+}
+
 #[cfg(test)]
 mod test {
     use std::collections::HashMap;
     use crate::process::encoded_length_7bit_varint;
+    use crate::process::month_index;
+    use chrono::Utc;
+    use chrono::offset::TimeZone;
+
+    #[test]
+    fn test0() {
+        let date = Utc.timestamp(1230768000i64, 0);
+        assert_eq!(0, month_index(date));
+        let date = Utc.timestamp(1262304000i64, 0);
+        assert_eq!(12, month_index(date));
+
+
+    }
 
     #[test]
     fn test1() {
