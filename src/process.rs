@@ -108,6 +108,7 @@ impl Process {
         align(&mut self.script_type.all, &mut self.script_type.p2sh);
         align(&mut self.script_type.all, &mut self.script_type.v0_p2wpkh);
         align(&mut self.script_type.all, &mut self.script_type.v0_p2wsh);
+        align(&mut self.script_type.all, &mut self.stats.total_spent_in_block_per_month);
         let toml = self.script_type.to_toml();
         println!("{}", toml);
         fs::write("site/_data/script_type.toml", toml).expect("Unable to write file");
