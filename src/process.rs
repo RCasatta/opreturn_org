@@ -93,6 +93,7 @@ impl Process {
         println!("{}", toml);
         fs::write("site/_data/op_return.toml", toml).expect("Unable to write file");
 
+        self.stats.total_spent_in_block_per_month.remove(&current_ym);
         let toml = self.stats.to_toml();
         println!("{}", toml);
         fs::write("site/_data/stats.toml", toml).expect("Unable to w rite file");
