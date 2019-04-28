@@ -43,12 +43,15 @@ struct Stats {
     total_outputs : u64,
     total_inputs : u64,
     amount_over_32 : usize,
+    rounded_amount : u64,
     max_block_size: (u64, Option<sha256d::Hash>),
     min_hash : sha256d::Hash,
     total_spent_in_block : u64,
     total_spent_in_block_per_month: BTreeMap<String, u64>,
     total_bytes_output_value_varint : u64,
+    total_bytes_output_value_compressed_varint : u64,
     total_bytes_output_value_bitcoin_varint : u64,
+    total_bytes_output_value_compressed_bitcoin_varint : u64,
 }
 
 struct ScriptType {
@@ -132,6 +135,10 @@ impl Process {
 
                 self.stats.total_bytes_output_value_bitcoin_varint += VarInt(output.value).encoded_length();
                 self.stats.total_bytes_output_value_varint += encoded_length_7bit_varint(output.value);
+                let compressed = compress_amount(output.value);
+                self.stats.total_bytes_output_value_compressed_bitcoin_varint += VarInt(compressed).encoded_length();
+                self.stats.total_bytes_output_value_compressed_varint += encoded_length_7bit_varint(compressed);
+
 
             }
             for input in tx.input.iter() {
@@ -218,10 +225,9 @@ impl Process {
         if self.stats.min_weight_tx.0 > weight {
             self.stats.min_weight_tx = (weight, Some(txid));
         }
-        let over_32 = tx.output.iter().filter(|o| o.value > 0xffff_ffff).count();
-        if over_32 > 0 {
-            self.stats.amount_over_32 += over_32;
-        }
+
+        self.stats.amount_over_32 += tx.output.iter().filter(|o| o.value > 0xffff_ffff).count();
+        self.stats.rounded_amount += tx.output.iter().filter(|o| (o.value % 1000) == 0).count() as u64;
     }
 }
 
@@ -368,11 +374,14 @@ impl Stats {
             total_outputs: 0u64,
             total_inputs: 0u64,
             amount_over_32: 0usize,
+            rounded_amount: 0u64,
             total_spent_in_block: 0u64,
             max_block_size : (0u64, None),
             min_hash: sha256d::Hash::from_hex("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f").unwrap(),
             total_bytes_output_value_varint: 0u64,
+            total_bytes_output_value_compressed_varint: 0u64,
             total_bytes_output_value_bitcoin_varint: 0u64,
+            total_bytes_output_value_compressed_bitcoin_varint: 0u64,
             total_spent_in_block_per_month: BTreeMap::new(),
         }
     }
@@ -391,18 +400,20 @@ impl Stats {
         s.push_str(&format!("outputs = {}\n", self.total_outputs));
         s.push_str(&format!("inputs = {}\n", self.total_inputs));
         s.push_str(&format!("amount_over_32 = {}\n", self.amount_over_32));
+        s.push_str(&format!("rounded_amount = {}\n", self.rounded_amount));
         s.push_str(&format!("total_spent_in_block = {}\n", self.total_spent_in_block));
 
         s.push_str(&format!("bytes_output_value = {}\n", self.total_outputs*8));
         s.push_str(&format!("bytes_output_value_bitcoin_varint = {}\n", self.total_bytes_output_value_bitcoin_varint));
         s.push_str(&format!("bytes_output_value_varint = {}\n", self.total_bytes_output_value_varint));
+        s.push_str(&format!("bytes_output_value_compressed_bitcoin_varint = {}\n", self.total_bytes_output_value_compressed_bitcoin_varint));
+        s.push_str(&format!("bytes_output_value_compressed_varint = {}\n", self.total_bytes_output_value_compressed_varint));
 
         s.push_str("\n\n");
         s.push_str( &toml_section("total_spent_in_block_per_month", &self.total_spent_in_block_per_month) );
 
         s
     }
-
 }
 
 fn toml_section_hash(title : &str, value : &(u64,Option<sha256d::Hash>)) -> String {
@@ -425,10 +436,65 @@ pub fn encoded_length_7bit_varint(mut value: u64) -> u64 {
     }
 }
 
+pub fn compress_amount(n: u64) -> u64 {
+    let mut n = n;
+    if n == 0 {
+        return 0;
+    }
+    let mut e = 0u64;
+    loop {
+        if (n % 10) != 0 || e >= 9 {
+            break;
+        }
+        n /= 10;
+        e += 1;
+    }
+    if e < 9 {
+        let d = n % 10;
+        assert!(d >= 1 && d <= 9);
+        n /= 10;
+        1 + (n * 9 + d - 1) * 10 + e
+    } else {
+        1 + ((n - 1) * 10) + 9
+    }
+}
+
+pub fn decompress_amount(x: u64) -> u64 {
+    if x == 0 {
+        return 0;
+    }
+    let mut x = x;
+    x -= 1;
+    let mut e = x % 10;
+    x /= 10;
+    let mut n ;
+    if e < 9 {
+        let d = (x % 9) + 1;
+        x /= 9;
+        n = x * 10 + d;
+    } else {
+        n = x + 1;
+    }
+    loop {
+        if e == 0 {
+            break;
+        }
+        n *= 10;
+        e -= 1;
+    }
+    n
+}
+
 
 /// returns
-fn _month_index(date: DateTime<Utc>) -> usize {
+fn month_index(date: DateTime<Utc>) -> usize {
     return (date.year() as usize - 2009) * 12 + (date.month() as usize - 1)
+}
+
+fn index_month(index: usize) -> String {
+    let year = 2009 + index / 12;
+    let month = (index % 12) + 1;
+    format!("{:04}{:02}", year, month)
 }
 
 #[cfg(test)]
@@ -438,15 +504,22 @@ mod test {
     use crate::process::month_index;
     use chrono::Utc;
     use chrono::offset::TimeZone;
+    use crate::process::index_month;
+    use crate::process::decompress_amount;
+    use crate::process::compress_amount;
 
     #[test]
     fn test0() {
         let date = Utc.timestamp(1230768000i64, 0);
         assert_eq!(0, month_index(date));
+        assert_eq!("200901", index_month(0));
         let date = Utc.timestamp(1262304000i64, 0);
         assert_eq!(12, month_index(date));
-
-
+        assert_eq!("200912", index_month(11));
+        assert_eq!("201001", index_month(12));
+        /*for i in 0..200 {
+            assert_eq!(i, month_index(index_month(i)));
+        }*/
     }
 
     #[test]
@@ -474,5 +547,17 @@ mod test {
         b = false;
         let u = b as u32;
         assert_eq!(u,0u32);
+    }
+
+    #[test]
+    fn test4() {
+        let i = 10_000_000_000;
+        let compressed = compress_amount(i);
+        println!("compressed: {}", compressed);
+        assert_eq!(i, decompress_amount(compressed));
+
+        for i in 0..std::u64::MAX {
+            assert_eq!(i, decompress_amount(compress_amount(i)));
+        }
     }
 }
