@@ -20,6 +20,8 @@ pub struct Process {
     op_return_data: OpReturnData,
     stats: Stats,
     script_type: ScriptType,
+    // previous_hashes: VecDeque<HashSet<sha256d::Hash>>,
+
 }
 
 struct OpReturnData {
@@ -52,6 +54,7 @@ struct Stats {
     total_bytes_output_value_compressed_varint : u64,
     total_bytes_output_value_bitcoin_varint : u64,
     total_bytes_output_value_compressed_bitcoin_varint : u64,
+    rounded_amount_per_month: Vec<u64>,
 }
 
 struct ScriptType {
@@ -138,8 +141,6 @@ impl Process {
                 let compressed = compress_amount(output.value);
                 self.stats.total_bytes_output_value_compressed_bitcoin_varint += VarInt(compressed).encoded_length();
                 self.stats.total_bytes_output_value_compressed_varint += encoded_length_7bit_varint(compressed);
-
-
             }
             for input in tx.input.iter() {
                 if tx_hashes.contains(&input.previous_output.txid) {
@@ -147,6 +148,8 @@ impl Process {
                     *self.stats.total_spent_in_block_per_month.entry(ym.clone()).or_insert(0) += 1;
                 }
             }
+            let rounded_amount = tx.output.iter().filter(|o| (o.value % 1000) == 0).count() as u64;
+            self.stats.rounded_amount_per_month[date_index(date)] += rounded_amount;
             self.process_stats(&tx);
         }
         let hash = block.block.header.bitcoin_hash();
@@ -302,12 +305,6 @@ impl OpReturnData {
     }
 }
 
-fn _init_months() {
-    // TODO from 200901 to now
-    // index 200901 = 0, 200902 = 1 ...
-    // BTreeMap become Vec...
-}
-
 fn keep_from(yyyymm : String, map : &BTreeMap<String, u64>) -> BTreeMap<String, u64>{
     map.clone().into_iter().skip_while(|(k,_)| *k < yyyymm).collect()
 }
@@ -326,6 +323,14 @@ fn toml_section(title : &str, map : &BTreeMap<String, u64>) -> String {
     s
 }
 
+fn toml_section_vec(title : &str, vec: &Vec<u64>) -> String {
+    let mut s = String::new();
+    s.push_str(&format!("\n[{}]\n", title ));
+    let labels : Vec<String> = vec.iter().enumerate().map(|el| index_month(el.0) ).collect();
+    s.push_str(&format!("labels={:?}\n", labels) );
+    s.push_str(&format!("values={:?}\n\n", vec ) );
+    s
+}
 
 fn toml_section_f64(title : &str, map : &BTreeMap<String, f64>) -> String {
     let mut s = String::new();
@@ -383,6 +388,7 @@ impl Stats {
             total_bytes_output_value_bitcoin_varint: 0u64,
             total_bytes_output_value_compressed_bitcoin_varint: 0u64,
             total_spent_in_block_per_month: BTreeMap::new(),
+            rounded_amount_per_month: vec![0; date_index(Utc::now())],
         }
     }
 
@@ -411,6 +417,9 @@ impl Stats {
 
         s.push_str("\n\n");
         s.push_str( &toml_section("total_spent_in_block_per_month", &self.total_spent_in_block_per_month) );
+
+        s.push_str("\n\n");
+        s.push_str( &toml_section_vec("rounded_amount_per_month", &self.rounded_amount_per_month) );
 
         s
     }
@@ -487,7 +496,7 @@ pub fn decompress_amount(x: u64) -> u64 {
 
 
 /// returns
-fn month_index(date: DateTime<Utc>) -> usize {
+fn date_index(date: DateTime<Utc>) -> usize {
     return (date.year() as usize - 2009) * 12 + (date.month() as usize - 1)
 }
 
@@ -497,11 +506,16 @@ fn index_month(index: usize) -> String {
     format!("{:04}{:02}", year, month)
 }
 
+fn month_date(yyyymm: String) -> DateTime<Utc> {
+    let year: i32 = yyyymm[0..4].parse().unwrap();
+    let month: u32 = yyyymm[4..6].parse().unwrap();
+    Utc.ymd(year, month, 1).and_hms(0,0,0)
+}
+
 #[cfg(test)]
 mod test {
     use std::collections::HashMap;
-    use crate::process::encoded_length_7bit_varint;
-    use crate::process::month_index;
+    use crate::process::{encoded_length_7bit_varint, date_index, month_date};
     use chrono::Utc;
     use chrono::offset::TimeZone;
     use crate::process::index_month;
@@ -511,15 +525,15 @@ mod test {
     #[test]
     fn test0() {
         let date = Utc.timestamp(1230768000i64, 0);
-        assert_eq!(0, month_index(date));
+        assert_eq!(0, date_index(date));
         assert_eq!("200901", index_month(0));
         let date = Utc.timestamp(1262304000i64, 0);
-        assert_eq!(12, month_index(date));
+        assert_eq!(12, date_index(date));
         assert_eq!("200912", index_month(11));
         assert_eq!("201001", index_month(12));
-        /*for i in 0..200 {
-            assert_eq!(i, month_index(index_month(i)));
-        }*/
+        for i in 0..2000 {
+            assert_eq!(i, date_index( month_date(index_month(i))));
+        }
     }
 
     #[test]
