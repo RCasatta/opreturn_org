@@ -388,7 +388,7 @@ impl Stats {
             total_bytes_output_value_bitcoin_varint: 0u64,
             total_bytes_output_value_compressed_bitcoin_varint: 0u64,
             total_spent_in_block_per_month: BTreeMap::new(),
-            rounded_amount_per_month: vec![0; date_index(Utc::now())],
+            rounded_amount_per_month: vec![0; month_array_len()],
         }
     }
 
@@ -494,8 +494,6 @@ pub fn decompress_amount(x: u64) -> u64 {
     n
 }
 
-
-/// returns
 fn date_index(date: DateTime<Utc>) -> usize {
     return (date.year() as usize - 2009) * 12 + (date.month() as usize - 1)
 }
@@ -510,6 +508,10 @@ fn month_date(yyyymm: String) -> DateTime<Utc> {
     let year: i32 = yyyymm[0..4].parse().unwrap();
     let month: u32 = yyyymm[4..6].parse().unwrap();
     Utc.ymd(year, month, 1).and_hms(0,0,0)
+}
+
+fn month_array_len() -> usize {
+    date_index(Utc::now()) + 1
 }
 
 #[cfg(test)]
