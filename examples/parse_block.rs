@@ -37,23 +37,30 @@ fn main() {
                 eprintln!("script_sig {:?}",input.script_sig );
                 let previous_output = previous_tx.output.get(input.previous_output.vout as usize).unwrap();
                 eprintln!("script_pubkey {:?}",previous_output.script_pubkey);
-                scripts.insert(previous_output.script_pubkey);
+                scripts.insert(previous_output.script_pubkey.clone());
                 eprintln!("script_pubkey_hex {:?}", hex::encode(previous_output.script_pubkey.as_bytes() ));
             }
         }
     }
+    let mut count_p2pkh = 0;
     for tx in block.txdata.iter_mut() {
         for output in tx.output.iter_mut() {
             if scripts.contains( &output.script_pubkey) {
-                if output.script_pubkey.is_p2pk() {
-                    let new_script = vec![];
-                    new_script.extend_from_slice(output.script_pubkey[0])
+                if output.script_pubkey.is_p2pkh() {
+                    count_p2pkh += 1;
+                    let mut new_script = vec![];
+                    new_script.extend_from_slice(output.script_pubkey.as_bytes());
+                    for i in 3..23 {
+                        new_script[i] = 0;
+                    }
+                    eprintln!("rep script_pubkey_hex {:?} {:?}", hex::encode(output.script_pubkey.as_bytes() ), hex::encode(&new_script ));
+                    output.script_pubkey = Script::from( new_script);
                 }
             }
         }
     }
 
-    eprintln!("block: {} txs: {} total: {}", block.header.bitcoin_hash(), txs.len(), counter);
+    eprintln!("block: {} txs: {} total: {} p2pkh: {}", block.header.bitcoin_hash(), txs.len(), counter, count_p2pkh);
 
     let result = serialize(&block);
     io::stdout().write(&result);
