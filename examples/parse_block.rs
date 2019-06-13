@@ -1,12 +1,12 @@
 extern crate bitcoin;
 
-use std::io;
-use std::io::{Read, Write};
-use bitcoin::{Block, OutPoint, Transaction, Script};
 use bitcoin::consensus::{deserialize, serialize};
 use bitcoin::util::hash::BitcoinHash;
-use std::collections::{HashSet, HashMap};
+use bitcoin::{Block, Script, Transaction, VarInt};
 use bitcoin_hashes::sha256d;
+use std::collections::{HashMap, HashSet};
+use std::io;
+use std::io::{Read, Write};
 
 fn main() {
     let mut buffer = [0u8; 200_000];
@@ -23,15 +23,28 @@ fn main() {
     let mut block: Block = deserialize(&all).unwrap();
     eprintln!("block hash {:?}", block.header.bitcoin_hash());
 
-    let txs: HashMap<sha256d::Hash, Transaction> = block.txdata.iter().map(|tx| (tx.txid(), tx.clone()) ).collect();
+    let txs: HashMap<sha256d::Hash, (usize,Transaction)> = block
+        .txdata
+        .iter()
+        .enumerate()
+        .map(|(i,tx)| (tx.txid(), (i, tx.clone())))
+        .collect();
+    let inputs_per_tx: Vec<usize> = block.txdata.iter().map(|tx| tx.input.len()).collect();
     let mut scripts: HashSet<Script> = HashSet::new();
     let mut counter = 0usize;
+    let mut distances = vec![];
     eprintln!("block tx hashes {:?}", txs.len());
-    for tx in block.txdata.iter_mut() {
+    for (j, tx) in block.txdata.iter_mut().enumerate() {
         let hash = tx.txid();
-        for input in tx.input.iter_mut() {
-            if let Some(previous_tx) = txs.get(&input.previous_output.txid) {
-                eprintln!("tx {} has prevout hash {} in current block ", hash, &input.previous_output.txid);
+        for (k,input) in tx.input.iter_mut().enumerate() {
+            if let Some((i,previous_tx)) = txs.get(&input.previous_output.txid) {
+                let inputs_distance: usize = inputs_per_tx[*i+1..j].iter().sum::<usize>() + k;
+                distances.push(VarInt(inputs_distance as u64));
+                eprintln!(
+                    "tx {} #{} has prevout hash {} #{} in current block, inputs_distance: {}",
+                    hash,j, &input.previous_output.txid,i, inputs_distance
+                );
+                assert!(j>*i);
                 counter += 1;
                 input.previous_output.txid = Default::default();
                 eprintln!("script_sig {:?}",input.script_sig );
@@ -60,8 +73,18 @@ fn main() {
         }
     }
 
-    eprintln!("block: {} txs: {} total: {} p2pkh: {}", block.header.bitcoin_hash(), txs.len(), counter, count_p2pkh);
+    eprintln!("{:?}", inputs_per_tx);
+
+    eprintln!(
+        "block: {} txs: {} total: {}",
+        block.header.bitcoin_hash(),
+        txs.len(),
+        counter
+    );
 
     let result = serialize(&block);
-    io::stdout().write(&result);
+    io::stdout().write(&result).expect("cannot print to stdout");
+    let result = serialize(&distances);
+    io::stdout().write(&result).expect("cannot print to stdout");
+
 }

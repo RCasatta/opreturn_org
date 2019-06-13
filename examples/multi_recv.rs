@@ -1,10 +1,10 @@
 use std::sync::mpsc::sync_channel;
-use std::sync::Mutex;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::thread;
 
 fn main() {
-    let (send,receive) = sync_channel(2);
+    let (send, receive) = sync_channel(2);
     let rec = Arc::new(Mutex::new(receive));
 
     let mut handles = vec![];
@@ -30,5 +30,4 @@ fn main() {
             None => break,
         }
     }
-
 }

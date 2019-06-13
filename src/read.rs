@@ -1,6 +1,6 @@
+use std::fs;
 use std::path::PathBuf;
 use std::sync::mpsc::SyncSender;
-use std::fs;
 
 pub struct Read {
     path: PathBuf,
@@ -8,18 +8,16 @@ pub struct Read {
 }
 
 impl Read {
-    pub fn new(path : PathBuf, sender : SyncSender<Option<Vec<u8>>>) -> Self {
-        Read {
-            path,
-            sender,
-        }
+    pub fn new(path: PathBuf, sender: SyncSender<Option<Vec<u8>>>) -> Self {
+        Read { path, sender }
     }
 
     pub fn start(&mut self) {
         self.path.push("blocks");
         self.path.push("blk*.dat");
         println!("listing block files at {:?}", self.path);
-        let mut paths: Vec<PathBuf> = glob::glob(self.path.to_str().unwrap()).unwrap()
+        let mut paths: Vec<PathBuf> = glob::glob(self.path.to_str().unwrap())
+            .unwrap()
             .map(|r| r.unwrap())
             .collect();
         paths.sort();
@@ -29,11 +27,8 @@ impl Read {
             let len = blob.len();
             println!("read {} of {:?}", len, path);
             self.sender.send(Some(blob)).expect("cannot send");
-
         }
         self.sender.send(None).expect("cannot send");
         println!("ending  reader");
     }
 }
-
-

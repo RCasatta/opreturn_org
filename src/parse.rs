@@ -1,25 +1,25 @@
+use crate::BlockExtra;
+use bitcoin::consensus::deserialize;
+use bitcoin::consensus::Decodable;
+use bitcoin::network::constants::Network;
+use std::collections::HashMap;
+use std::io::Cursor;
+use std::io::Seek;
+use std::io::SeekFrom;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::SyncSender;
-use bitcoin::consensus::deserialize;
-use std::io::Cursor;
-use std::io::SeekFrom;
-use bitcoin::network::constants::Network;
-use bitcoin::consensus::Decodable;
-use std::io::Seek;
-use crate::BlockExtra;
-use std::collections::HashMap;
 
 pub struct Parse {
-    receiver : Receiver<Option<Vec<u8>>>,
-    sender : SyncSender<Option<BlockExtra>>,
+    receiver: Receiver<Option<Vec<u8>>>,
+    sender: SyncSender<Option<BlockExtra>>,
 }
 
 impl Parse {
-    pub fn new(receiver : Receiver<Option<Vec<u8>>>, sender : SyncSender<Option<BlockExtra>> ) -> Parse {
-        Parse {
-            sender,
-            receiver,
-        }
+    pub fn new(
+        receiver: Receiver<Option<Vec<u8>>>,
+        sender: SyncSender<Option<BlockExtra>>,
+    ) -> Parse {
+        Parse { sender, receiver }
     }
 
     pub fn start(&mut self) {
@@ -32,9 +32,11 @@ impl Parse {
                     total_blocks += blocks_vec.len();
                     println!("received {} total {}", blocks_vec.len(), total_blocks);
                     for block in blocks_vec {
-                        self.sender.send(Some(block)).expect("parse: cannot send block");
+                        self.sender
+                            .send(Some(block))
+                            .expect("parse: cannot send block");
                     }
-                },
+                }
                 None => break,
             }
         }
@@ -52,7 +54,9 @@ fn parse_blocks(blob: Vec<u8>) -> Vec<BlockExtra> {
         match u32::consensus_decode(&mut cursor) {
             Ok(value) => {
                 if magic != value {
-                    cursor.seek(SeekFrom::Current(-3)).expect("failed to seek back");
+                    cursor
+                        .seek(SeekFrom::Current(-3))
+                        .expect("failed to seek back");
                     continue;
                 }
             }
@@ -60,12 +64,21 @@ fn parse_blocks(blob: Vec<u8>) -> Vec<BlockExtra> {
         };
         let size = u32::consensus_decode(&mut cursor).expect("a");
         let start = cursor.position() as usize;
-        cursor.seek(SeekFrom::Current(i64::from(size))).expect("failed to seek forward");
+        cursor
+            .seek(SeekFrom::Current(i64::from(size)))
+            .expect("failed to seek forward");
         let end = cursor.position() as usize;
 
         match deserialize(&blob[start..end]) {
-            Ok(block) => blocks.push(BlockExtra {block, size, height: 0, next: vec![], outpoint_values: HashMap::new(), out_of_order_size: 0}),
-            Err(e) => eprintln!("error block parsing {:?}", e ),
+            Ok(block) => blocks.push(BlockExtra {
+                block,
+                size,
+                height: 0,
+                next: vec![],
+                outpoint_values: HashMap::new(),
+                out_of_order_size: 0,
+            }),
+            Err(e) => eprintln!("error block parsing {:?}", e),
         }
     }
     blocks
