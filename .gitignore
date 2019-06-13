@@ -9,3 +9,5 @@ Cargo.lock
 /db/
 site/_site
 site/_data
+*.swp
+*~
