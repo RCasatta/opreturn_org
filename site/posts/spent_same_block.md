@@ -3,7 +3,6 @@ title: Spent in the same block
 layout: chart.liquid
 permalink: /{{ name }}
 description: Charts showing the number of inputs which use an output created in the same block (per month).
-is_draft: true
 ---
 
 <canvas id="myChart"></canvas>
