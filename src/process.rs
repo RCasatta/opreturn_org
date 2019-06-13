@@ -87,8 +87,6 @@ impl Process {
         }
 
         //remove current month
-        let now = Utc::now();
-        let current_ym = format!("{}{:02}", now.year(), now.month());
         self.op_return_data.op_ret_per_month.pop();
         self.op_return_data.veriblock_per_month.pop();
         self.op_return_data.veriblock_fee_per_month.pop();
@@ -530,6 +528,7 @@ pub fn compress_amount(n: u64) -> u64 {
     }
 }
 
+#[cfg(test)]
 pub fn decompress_amount(x: u64) -> u64 {
     if x == 0 {
         return 0;
@@ -566,6 +565,7 @@ fn index_month(index: usize) -> String {
     format!("{:04}{:02}", year, month)
 }
 
+#[cfg(test)]
 fn month_date(yyyymm: String) -> DateTime<Utc> {
     let year: i32 = yyyymm[0..4].parse().unwrap();
     let month: u32 = yyyymm[4..6].parse().unwrap();
