@@ -63,6 +63,7 @@ struct ScriptType {
     v0_p2wpkh: Vec<u64>,
     v0_p2wsh: Vec<u64>,
     p2sh: Vec<u64>,
+    other: Vec<u64>,
 }
 
 impl Process {
@@ -86,11 +87,16 @@ impl Process {
             }
         }
 
-        //remove current month
+        //remove current month and cut initial months if not significant
         self.op_return_data.op_ret_per_month.pop();
-        self.op_return_data.veriblock_per_month.pop();
-        self.op_return_data.veriblock_fee_per_month.pop();
+        self.op_return_data.op_ret_per_month = self.op_return_data.op_ret_per_month[month_index("201501".to_string())..].to_vec();
         self.op_return_data.op_ret_fee_per_month.pop();
+        self.op_return_data.op_ret_fee_per_month = self.op_return_data.op_ret_fee_per_month[month_index("201501".to_string())..].to_vec();
+        self.op_return_data.op_ret_fee_per_month.pop();
+        self.op_return_data.veriblock_per_month.pop();
+        self.op_return_data.veriblock_per_month = self.op_return_data.veriblock_per_month[month_index("201807".to_string())..].to_vec();
+        self.op_return_data.veriblock_fee_per_month.pop();
+        self.op_return_data.veriblock_fee_per_month = self.op_return_data.veriblock_fee_per_month[month_index("201807".to_string())..].to_vec();
 
         let toml = self.op_return_data.to_toml();
         println!("{}", toml);
@@ -107,6 +113,7 @@ impl Process {
         self.script_type.p2sh.pop();
         self.script_type.v0_p2wpkh.pop();
         self.script_type.v0_p2wsh.pop();
+        self.script_type.other.pop();
         let toml = self.script_type.to_toml();
         println!("{}", toml);
         fs::write("site/_data/script_type.toml", toml).expect("Unable to write file");
@@ -176,6 +183,8 @@ impl Process {
             self.script_type.v0_p2wsh[index] += 1;
         } else if script.is_p2sh() {
             self.script_type.p2sh[index] += 1;
+        } else {
+            self.script_type.other[index] += 1;
         }
     }
 
@@ -264,6 +273,7 @@ impl ScriptType {
             v0_p2wpkh: vec![0; month_array_len()],
             v0_p2wsh: vec![0; month_array_len()],
             p2sh: vec![0; month_array_len()],
+            other: vec![0; month_array_len()],
         }
     }
 
@@ -276,6 +286,7 @@ impl ScriptType {
         s.push_str(&toml_section_vec("v0_p2wpkh", &self.v0_p2wpkh));
         s.push_str(&toml_section_vec("v0_p2wsh", &self.v0_p2wsh));
         s.push_str(&toml_section_vec("p2sh", &self.p2sh));
+        s.push_str(&toml_section_vec("other", &self.other));
 
         s
     }
@@ -329,7 +340,7 @@ impl OpReturnData {
 
         s.push_str(&toml_section_vec(
             "veriblock_per_month",
-            &self.veriblock_per_month[40..].to_vec(),
+            &self.veriblock_per_month.to_vec(),
         ));
         s.push_str(&toml_section_vec_f64(
             "veriblock_fee_per_month",
@@ -565,11 +576,14 @@ fn index_month(index: usize) -> String {
     format!("{:04}{:02}", year, month)
 }
 
-#[cfg(test)]
 fn month_date(yyyymm: String) -> DateTime<Utc> {
     let year: i32 = yyyymm[0..4].parse().unwrap();
     let month: u32 = yyyymm[4..6].parse().unwrap();
     Utc.ymd(year, month, 1).and_hms(0, 0, 0)
+}
+
+fn month_index(yyyymm: String) -> usize {
+    date_index(month_date(yyyymm))
 }
 
 fn month_array_len() -> usize {
