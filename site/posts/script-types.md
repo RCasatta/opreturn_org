@@ -15,7 +15,6 @@ var v0_p2wpkh = {{ site.data.script_type.v0_p2wpkh.values | join: "," | prepend:
 var v0_p2wsh = {{ site.data.script_type.v0_p2wsh.values | join: "," | prepend: "[" | append: "]"}};
 var p2sh = {{ site.data.script_type.p2sh.values | join: "," | prepend: "[" | append: "]"}};
 var other = {{ site.data.script_type.other.values | join: "," | prepend: "[" | append: "]"}};
-
 var ctx = document.getElementById("myChart").getContext('2d');
 var myChart = new Chart(ctx, {
     type: 'line',
@@ -67,8 +66,8 @@ var myChart = new Chart(ctx, {
         {
             label: 'other',
             data: other,
-            backgroundColor: window.chartColors.purple,
-            borderColor: window.chartColors.purple,
+            backgroundColor: window.chartColors.orange,
+            borderColor: window.chartColors.orange,
             fill: false,
         }
         ]
