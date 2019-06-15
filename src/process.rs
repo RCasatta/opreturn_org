@@ -280,13 +280,13 @@ impl ScriptType {
     fn to_toml(&self) -> String {
         let mut s = String::new();
 
-        s.push_str(&toml_section_vec("all", &self.all));
-        s.push_str(&toml_section_vec("p2pkh", &self.p2pkh));
-        s.push_str(&toml_section_vec("p2pk", &self.p2pk));
-        s.push_str(&toml_section_vec("v0_p2wpkh", &self.v0_p2wpkh));
-        s.push_str(&toml_section_vec("v0_p2wsh", &self.v0_p2wsh));
-        s.push_str(&toml_section_vec("p2sh", &self.p2sh));
-        s.push_str(&toml_section_vec("other", &self.other));
+        s.push_str(&toml_section_vec("all", &self.all, None));
+        s.push_str(&toml_section_vec("p2pkh", &self.p2pkh, None));
+        s.push_str(&toml_section_vec("p2pk", &self.p2pk, None));
+        s.push_str(&toml_section_vec("v0_p2wpkh", &self.v0_p2wpkh, None));
+        s.push_str(&toml_section_vec("v0_p2wsh", &self.v0_p2wsh, None));
+        s.push_str(&toml_section_vec("p2sh", &self.p2sh, None));
+        s.push_str(&toml_section_vec("other", &self.other, None));
 
         s
     }
@@ -318,6 +318,7 @@ impl OpReturnData {
         s.push_str(&toml_section_vec(
             "op_ret_per_month",
             &self.op_ret_per_month,
+                 Some(month_index("201501".to_string()))
         ));
         s.push_str(&toml_section("op_ret_size", &self.op_ret_size));
         s.push_str(&toml_section(
@@ -336,15 +337,21 @@ impl OpReturnData {
         s.push_str(&toml_section_vec_f64(
             "op_ret_fee_per_month",
             &convert_sat_to_bitcoin(&self.op_ret_fee_per_month),
+            Some(month_index("201501".to_string()))
+
         ));
 
         s.push_str(&toml_section_vec(
             "veriblock_per_month",
             &self.veriblock_per_month.to_vec(),
+            Some(month_index("201807".to_string()))
+
         ));
         s.push_str(&toml_section_vec_f64(
             "veriblock_fee_per_month",
             &convert_sat_to_bitcoin(&self.veriblock_fee_per_month),
+            Some(month_index("201807".to_string()))
+
         ));
 
         s.push_str("\n[totals]\n");
@@ -367,19 +374,19 @@ fn convert_sat_to_bitcoin(map: &Vec<u64>) -> Vec<f64> {
     map.iter().map(|v| *v as f64 / 100_000_000f64).collect()
 }
 
-fn toml_section_vec_f64(title: &str, vec: &Vec<f64>) -> String {
+fn toml_section_vec_f64(title: &str, vec: &Vec<f64>, shift: Option<usize>) -> String {
     let mut s = String::new();
     s.push_str(&format!("\n[{}]\n", title));
-    let labels: Vec<String> = vec.iter().enumerate().map(|el| index_month(el.0)).collect();
+    let labels: Vec<String> = vec.iter().enumerate().map(|el| index_month(el.0)+ shift.unwrap_or(0)).collect();
     s.push_str(&format!("labels={:?}\n", labels));
     s.push_str(&format!("values={:?}\n\n", vec));
     s
 }
 
-fn toml_section_vec(title: &str, vec: &Vec<u64>) -> String {
+fn toml_section_vec(title: &str, vec: &Vec<u64>, shift: Option<usize>) -> String {
     let mut s = String::new();
     s.push_str(&format!("\n[{}]\n", title));
-    let labels: Vec<String> = vec.iter().enumerate().map(|el| index_month(el.0)).collect();
+    let labels: Vec<String> = vec.iter().enumerate().map(|el| index_month(el.0) + shift.unwrap_or(0) ).collect();
     s.push_str(&format!("labels={:?}\n", labels));
     s.push_str(&format!("values={:?}\n\n", vec));
     s
@@ -484,12 +491,14 @@ impl Stats {
         s.push_str(&toml_section_vec(
             "total_spent_in_block_per_month",
             &self.total_spent_in_block_per_month,
+                 None,
         ));
 
         s.push_str("\n\n");
         s.push_str(&toml_section_vec(
             "rounded_amount_per_month",
             &self.rounded_amount_per_month,
+                 None,
         ));
 
         s
