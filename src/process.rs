@@ -377,7 +377,7 @@ fn convert_sat_to_bitcoin(map: &Vec<u64>) -> Vec<f64> {
 fn toml_section_vec_f64(title: &str, vec: &Vec<f64>, shift: Option<usize>) -> String {
     let mut s = String::new();
     s.push_str(&format!("\n[{}]\n", title));
-    let labels: Vec<String> = vec.iter().enumerate().map(|el| index_month(el.0)+ shift.unwrap_or(0)).collect();
+    let labels: Vec<String> = vec.iter().enumerate().map(|el| index_month(el.0+ shift.unwrap_or(0))).collect();
     s.push_str(&format!("labels={:?}\n", labels));
     s.push_str(&format!("values={:?}\n\n", vec));
     s
@@ -386,7 +386,7 @@ fn toml_section_vec_f64(title: &str, vec: &Vec<f64>, shift: Option<usize>) -> St
 fn toml_section_vec(title: &str, vec: &Vec<u64>, shift: Option<usize>) -> String {
     let mut s = String::new();
     s.push_str(&format!("\n[{}]\n", title));
-    let labels: Vec<String> = vec.iter().enumerate().map(|el| index_month(el.0) + shift.unwrap_or(0) ).collect();
+    let labels: Vec<String> = vec.iter().enumerate().map(|el| index_month(el.0+ shift.unwrap_or(0) ) ).collect();
     s.push_str(&format!("labels={:?}\n", labels));
     s.push_str(&format!("values={:?}\n\n", vec));
     s
