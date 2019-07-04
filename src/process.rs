@@ -14,6 +14,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::sync::mpsc::Receiver;
 use time::Duration;
+use std::time::Instant;
 
 pub struct Process {
     receiver: Receiver<Option<BlockExtra>>,
@@ -77,11 +78,14 @@ impl Process {
     }
 
     pub fn start(&mut self) {
+        let mut busy_time = 0u128;
         loop {
             let received = self.receiver.recv().expect("cannot receive fee block");
             match received {
                 Some(block) => {
+                    let now = Instant::now();
                     self.process_block(block);
+                    busy_time = busy_time + now.elapsed().as_nanos();
                 }
                 None => break,
             }
@@ -119,7 +123,7 @@ impl Process {
         println!("{}", toml);
         fs::write("site/_data/script_type.toml", toml).expect("Unable to write file");
 
-        println!("ending processer");
+        println!("ending processer, busy_time: {}", (busy_time / 1_000_000_000) );
     }
 
     fn process_block(&mut self, block: BlockExtra) {

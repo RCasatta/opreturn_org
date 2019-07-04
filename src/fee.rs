@@ -14,6 +14,7 @@ use rocksdb::DB;
 use std::collections::HashMap;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::SyncSender;
+use std::time::Instant;
 
 pub struct Fee {
     receiver: Receiver<Option<BlockExtra>>,
@@ -40,11 +41,12 @@ impl Fee {
 impl Fee {
     pub fn start(&mut self) {
         println!("starting fee processer");
-
+        let mut busy_time = 0u128;
         let mut total_txs = 0u64;
         let mut found_values = 0u32;
         loop {
             let received = self.receiver.recv().expect("cannot get segwit");
+            let now = Instant::now();
             match received {
                 Some(mut block_extra) => {
                     total_txs += block_extra.block.txdata.len() as u64;
@@ -80,6 +82,7 @@ impl Fee {
                              found_values,
                              block_extra.out_of_order_size,
                     );
+                    busy_time = busy_time + now.elapsed().as_nanos();
                     self.sender
                         .send(Some(block_extra))
                         .expect("fee: cannot send");
@@ -89,8 +92,8 @@ impl Fee {
         }
         self.sender.send(None).expect("fee: cannot send none");
         println!(
-            "ending fee processer total tx {}, output values found: {}",
-            total_txs, found_values
+            "ending fee processer total tx {}, output values found: {}, busy_time: {}",
+            total_txs, found_values, busy_time / 1_000_000_000
         );
     }
 }
