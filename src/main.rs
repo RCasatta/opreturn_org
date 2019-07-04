@@ -37,7 +37,7 @@ fn main() {
     let blob_size = env::var("BLOB_CHANNEL_SIZE")
         .unwrap_or("1".to_string())
         .parse::<usize>()
-        .unwrap_or(2);
+        .unwrap_or(1);
     let blocks_size = env::var("BLOCKS_CHANNEL_SIZE")
         .unwrap_or("100".to_string())
         .parse::<usize>()

@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 use std::sync::mpsc::SyncSender;
+use std::time::Instant;
 
 pub struct Read {
     path: PathBuf,
@@ -22,13 +23,16 @@ impl Read {
             .collect();
         paths.sort();
         println!("There are {} block files", paths.len());
+        let mut busy_time = 0u128;
         for path in paths.iter() {
+            let now = Instant::now();
             let blob = fs::read(path).unwrap_or_else(|_| panic!("failed to read {:?}", path));
             let len = blob.len();
             println!("read {} of {:?}", len, path);
+            busy_time = busy_time + now.elapsed().as_nanos();
             self.sender.send(Some(blob)).expect("cannot send");
         }
         self.sender.send(None).expect("cannot send");
-        println!("ending  reader");
+        println!("ending reader, busy time: {}s", (busy_time/1_000_000_000) );
     }
 }

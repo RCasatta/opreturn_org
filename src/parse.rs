@@ -8,6 +8,7 @@ use std::io::Seek;
 use std::io::SeekFrom;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::SyncSender;
+use std::time::Instant;
 
 pub struct Parse {
     receiver: Receiver<Option<Vec<u8>>>,
@@ -24,13 +25,17 @@ impl Parse {
 
     pub fn start(&mut self) {
         let mut total_blocks = 0usize;
+
+        let mut busy_time = 0u128;
         loop {
             let received = self.receiver.recv().expect("cannot receive blob");
+            let now = Instant::now();
             match received {
                 Some(blob) => {
                     let blocks_vec = parse_blocks(blob);
                     total_blocks += blocks_vec.len();
                     println!("received {} total {}", blocks_vec.len(), total_blocks);
+                    busy_time = busy_time + now.elapsed().as_nanos();
                     for block in blocks_vec {
                         self.sender
                             .send(Some(block))
@@ -41,7 +46,7 @@ impl Parse {
             }
         }
         self.sender.send(None).expect("parse: cannot send None");
-        println!("ending parser");
+        println!("ending parser, busy time: {}s", (busy_time / 1_000_000_000));
     }
 }
 
