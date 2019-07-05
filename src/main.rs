@@ -7,7 +7,7 @@ use bitcoin::Block;
 use bitcoin::OutPoint;
 use bitcoin_hashes::sha256d;
 use rocksdb::DB;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::path::PathBuf;
 use std::sync::mpsc::sync_channel;
@@ -27,6 +27,7 @@ pub struct BlockExtra {
     pub height: u32,
     pub out_of_order_size: usize,
     pub outpoint_values: HashMap<OutPoint, u64>,
+    pub tx_hashes: HashSet<sha256d::Hash>
 }
 
 fn main() {

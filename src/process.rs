@@ -10,7 +10,6 @@ use chrono::DateTime;
 use chrono::{Datelike, TimeZone, Utc};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::fs;
 use std::sync::mpsc::Receiver;
 use time::Duration;
@@ -131,8 +130,6 @@ impl Process {
         let date = Utc.timestamp(i64::from(time), 0);
         let index = date_index(date);
 
-        let tx_hashes: HashSet<sha256d::Hash> =
-            block.block.txdata.iter().map(|tx| tx.txid()).collect();
         for tx in block.block.txdata {
             for output in tx.output.iter() {
                 if output.script_pubkey.is_op_return() {
@@ -157,7 +154,7 @@ impl Process {
                     encoded_length_7bit_varint(compressed);
             }
             for input in tx.input.iter() {
-                if tx_hashes.contains(&input.previous_output.txid) {
+                if block.tx_hashes.contains(&input.previous_output.txid) {
                     self.stats.total_spent_in_block += 1;
                     self.stats.total_spent_in_block_per_month[date_index(date)] += 1;
                 }

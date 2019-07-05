@@ -9,6 +9,9 @@ use std::io::SeekFrom;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::SyncSender;
 use std::time::Instant;
+use bitcoin_hashes::sha256d;
+use std::collections::HashSet;
+use bitcoin::Block;
 
 pub struct Parse {
     receiver: Receiver<Option<Vec<u8>>>,
@@ -74,15 +77,19 @@ fn parse_blocks(blob: Vec<u8>) -> Vec<BlockExtra> {
             .expect("failed to seek forward");
         let end = cursor.position() as usize;
 
-        match deserialize(&blob[start..end]) {
-            Ok(block) => blocks.push(BlockExtra {
-                block,
-                size,
-                height: 0,
-                next: vec![],
-                outpoint_values: HashMap::new(),
-                out_of_order_size: 0,
-            }),
+        match deserialize::<Block>(&blob[start..end]) {
+            Ok(block) => {
+                let tx_hashes: HashSet<sha256d::Hash> = block.txdata.iter().map(|tx| tx.txid()).collect();
+                blocks.push(BlockExtra {
+                    block,
+                    size,
+                    height: 0,
+                    next: vec![],
+                    outpoint_values: HashMap::new(),
+                    out_of_order_size: 0,
+                    tx_hashes,
+                })
+            },
             Err(e) => eprintln!("error block parsing {:?}", e),
         }
     }
