@@ -152,15 +152,17 @@ impl Process {
                     VarInt(compressed).encoded_length();
                 self.stats.total_bytes_output_value_compressed_varint +=
                     encoded_length_7bit_varint(compressed);
+                if (output.value % 1000) == 0 {
+                    self.stats.rounded_amount_per_month[index] += 1;
+                    self.stats.rounded_amount += 1;
+                }
             }
             for input in tx.input.iter() {
                 if block.tx_hashes.contains(&input.previous_output.txid) {
                     self.stats.total_spent_in_block += 1;
-                    self.stats.total_spent_in_block_per_month[date_index(date)] += 1;
+                    self.stats.total_spent_in_block_per_month[index] += 1;
                 }
             }
-            let rounded_amount = tx.output.iter().filter(|o| (o.value % 1000) == 0).count() as u64;
-            self.stats.rounded_amount_per_month[date_index(date)] += rounded_amount;
             self.process_stats(&tx);
         }
         let hash = block.block.header.bitcoin_hash();
@@ -261,8 +263,6 @@ impl Process {
         }
 
         self.stats.amount_over_32 += tx.output.iter().filter(|o| o.value > 0xffff_ffff).count();
-        self.stats.rounded_amount +=
-            tx.output.iter().filter(|o| (o.value % 1000) == 0).count() as u64;
     }
 }
 

@@ -3,8 +3,7 @@ use crate::parse::Parse;
 use crate::process::Process;
 use crate::read::Read;
 use crate::reorder::Reorder;
-use bitcoin::Block;
-use bitcoin::OutPoint;
+use bitcoin::{Block, OutPoint, TxOut};
 use bitcoin_hashes::sha256d;
 use rocksdb::DB;
 use std::collections::{HashMap, HashSet};
@@ -26,23 +25,20 @@ pub struct BlockExtra {
     pub size: u32,
     pub height: u32,
     pub out_of_order_size: usize,
-    pub outpoint_values: HashMap<OutPoint, u64>,
+    pub outpoint_values: HashMap<OutPoint, TxOut>,
     pub tx_hashes: HashSet<sha256d::Hash>
 }
 
 fn main() {
-    //count varint for every amount
-    //count prevout in the same block
-
     let path = PathBuf::from(env::var("BITCOIN_DIR").unwrap_or("~/.bitcoin/".to_string()));
     let blob_size = env::var("BLOB_CHANNEL_SIZE")
         .unwrap_or("1".to_string())
         .parse::<usize>()
         .unwrap_or(1);
     let blocks_size = env::var("BLOCKS_CHANNEL_SIZE")
-        .unwrap_or("100".to_string())
+        .unwrap_or("10".to_string())
         .parse::<usize>()
-        .unwrap_or(200);
+        .unwrap_or(10);
     let mut db_opts = rocksdb::Options::default();
     db_opts.increase_parallelism(4);
     db_opts.create_if_missing(true);

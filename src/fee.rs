@@ -1,11 +1,6 @@
 use crate::BlockExtra;
-use bitcoin::consensus::deserialize;
-use bitcoin::consensus::serialize;
-use bitcoin::BitcoinHash;
-use bitcoin::Block;
-use bitcoin::OutPoint;
-use bitcoin::Transaction;
-use bitcoin::VarInt;
+use bitcoin::consensus::{serialize, deserialize};
+use bitcoin::{BitcoinHash, Block, OutPoint, Transaction, VarInt, TxOut, Script};
 use bitcoin_hashes::sha256d;
 use bitcoin_hashes::Hash;
 use rocksdb::WriteBatch;
@@ -68,7 +63,7 @@ impl Fee {
                         for input in tx.input.iter() {
                             block_extra.outpoint_values.insert(
                                 input.previous_output,
-                                outpoint_values_vec.pop().expect("can't pop").0,
+                                outpoint_values_vec.pop().expect("can't pop"),
                             );
                         }
                     }
@@ -99,14 +94,14 @@ impl Fee {
 }
 
 impl Fee {
-    fn compute_outpoint_values(&mut self, block: &Block, height: u32) -> Vec<VarInt> {
+    fn compute_outpoint_values(&mut self, block: &Block, height: u32) -> Vec<TxOut> {
         // saving all outputs value in the block in write batch
         let mut batch = WriteBatch::default();
         for tx in block.txdata.iter() {
             let txid = tx.txid();
             for (i, output) in tx.output.iter().enumerate() {
                 let key = output_key(txid, i as u64);
-                let value = serialize(&VarInt(output.value));
+                let value = serialize(output);
                 batch
                     .put(&key[..], &value)
                     .expect("can't put value in batch");
@@ -116,38 +111,29 @@ impl Fee {
         self.db.write(batch).expect("error writing batch writes");
 
         // getting all inputs keys and outpoints, prepare for deletion
-        let mut keys_index = vec![];
-        let mut index = 1u32;
+        let mut keys = vec![];
         for tx in block.txdata.iter().skip(1) {
             for input in tx.input.iter() {
                 let key = output_key(
                     input.previous_output.txid,
                     u64::from(input.previous_output.vout),
                 );
-                keys_index.push((key, index));
-                index += 1;
+                keys.push(key);
             }
         }
 
-        // getting value from db in ordered fashion (because of paging is faster)
-        keys_index.sort_by(|a, b| a.0.cmp(&b.0));
-        let mut values_index = vec![];
         let coin_base_output_value = block.txdata[0].output.iter().map(|el| el.value).sum();
-        values_index.push((VarInt(coin_base_output_value), 0)); //coinbase
-        for (key, index) in keys_index.iter() {
+        let mut values = vec![];
+        values.push(TxOut { value: coin_base_output_value, script_pubkey: Script::new()}); //coinbase
+        for key in keys.iter().rev() {
             let value = self
                 .db
                 .get(key)
                 .expect("operational problem in get")
                 .expect("unexpected None in db");
-            values_index.push((deserialize::<VarInt>(&value).unwrap(), *index));
+            values.push(deserialize::<TxOut>(&value).unwrap());
         }
-        let to_delete = keys_index.into_iter().map(|el| el.0).collect();
-        self.delete_after(height, to_delete);
-
-        // reordering in block order (reversed)
-        values_index.sort_by(|a, b| b.1.cmp(&a.1));
-        let values: Vec<VarInt> = values_index.into_iter().map(|el| el.0).collect();
+        self.delete_after(height, keys);
 
         self.db
             .put(
@@ -184,12 +170,12 @@ pub fn block_fee(block_value: &BlockExtra) -> u64 {
     total
 }
 
-pub fn tx_fee(tx: &Transaction, outpoint_values: &HashMap<OutPoint, u64>) -> u64 {
+pub fn tx_fee(tx: &Transaction, outpoint_values: &HashMap<OutPoint, TxOut>) -> u64 {
     let output_total: u64 = tx.output.iter().map(|el| el.value).sum();
     let mut input_total = 0u64;
     for input in tx.input.iter() {
         match outpoint_values.get(&input.previous_output) {
-            Some(val) => input_total += val,
+            Some(txout) => input_total += txout.value,
             None => panic!("can't find tx fee {}", tx.txid()),
         }
     }
