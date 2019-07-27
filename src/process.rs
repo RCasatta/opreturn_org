@@ -4,6 +4,8 @@ use bitcoin::util::hash::BitcoinHash;
 use bitcoin::Script;
 use bitcoin::Transaction;
 use bitcoin::VarInt;
+use bitcoin::util::bip158::BlockFilter;
+use bitcoin::util::bip158::Error;
 use bitcoin_hashes::hex::FromHex;
 use bitcoin_hashes::sha256d;
 use chrono::DateTime;
@@ -54,6 +56,7 @@ struct Stats {
     total_bytes_output_value_bitcoin_varint: u64,
     total_bytes_output_value_compressed_bitcoin_varint: u64,
     rounded_amount_per_month: Vec<u64>,
+    bip158_filter_size_per_month: Vec<u64>,
 }
 
 struct ScriptType {
@@ -130,6 +133,14 @@ impl Process {
         let date = Utc.timestamp(i64::from(time), 0);
         let index = date_index(date);
 
+        let filter = BlockFilter::new_script_filter(&block.block, |o| if let Some(s) = &block.outpoint_values.get(o) {
+            Ok(s.script_pubkey.clone())
+        } else {
+            Err(Error::UtxoMissing(o.clone()))
+        }).unwrap();
+
+        self.stats.bip158_filter_size_per_month[index] += filter.content.len() as u64;
+
         for tx in block.block.txdata {
             for output in tx.output.iter() {
                 if output.script_pubkey.is_op_return() {
@@ -141,15 +152,15 @@ impl Process {
                     );
                 }
                 self.process_output_script(&output.script_pubkey, index);
+                let len = VarInt(output.value).len() as u64;
 
-                self.stats.total_bytes_output_value_bitcoin_varint +=
-                    VarInt(output.value).encoded_length();
+                self.stats.total_bytes_output_value_bitcoin_varint += len;
                 self.stats.total_bytes_output_value_varint +=
                     encoded_length_7bit_varint(output.value);
                 let compressed = compress_amount(output.value);
                 self.stats
                     .total_bytes_output_value_compressed_bitcoin_varint +=
-                    VarInt(compressed).encoded_length();
+                    VarInt(compressed).len() as u64;
                 self.stats.total_bytes_output_value_compressed_varint +=
                     encoded_length_7bit_varint(compressed);
                 if (output.value % 1000) == 0 {
@@ -243,7 +254,7 @@ impl Process {
     }
 
     fn process_stats(&mut self, tx: &Transaction) {
-        let weight = tx.get_weight();
+        let weight = tx.get_weight() as u64;
         let outputs = tx.output.len() as u64;
         let inputs = tx.input.len() as u64;
         let txid = tx.txid();
@@ -439,6 +450,7 @@ impl Stats {
             total_bytes_output_value_compressed_bitcoin_varint: 0u64,
             total_spent_in_block_per_month: vec![0; month_array_len()],
             rounded_amount_per_month: vec![0; month_array_len()],
+            bip158_filter_size_per_month: vec![0; month_array_len()],
         }
     }
 
@@ -501,6 +513,13 @@ impl Stats {
             "rounded_amount_per_month",
             &self.rounded_amount_per_month,
                  None,
+        ));
+
+        s.push_str("\n\n");
+        s.push_str(&toml_section_vec(
+            "bip158_filter_size_per_month",
+            &self.bip158_filter_size_per_month,
+            None,
         ));
 
         s
