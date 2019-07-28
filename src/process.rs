@@ -1,11 +1,11 @@
 use crate::fee::tx_fee;
 use crate::BlockExtra;
+use bitcoin::util::bip158::BlockFilter;
+use bitcoin::util::bip158::Error;
 use bitcoin::util::hash::BitcoinHash;
 use bitcoin::Script;
 use bitcoin::Transaction;
 use bitcoin::VarInt;
-use bitcoin::util::bip158::BlockFilter;
-use bitcoin::util::bip158::Error;
 use bitcoin_hashes::hex::FromHex;
 use bitcoin_hashes::sha256d;
 use chrono::DateTime;
@@ -14,8 +14,8 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs;
 use std::sync::mpsc::Receiver;
-use time::Duration;
 use std::time::Instant;
+use time::Duration;
 
 pub struct Process {
     receiver: Receiver<Option<BlockExtra>>,
@@ -95,14 +95,19 @@ impl Process {
 
         //remove current month and cut initial months if not significant
         self.op_return_data.op_ret_per_month.pop();
-        self.op_return_data.op_ret_per_month = self.op_return_data.op_ret_per_month[month_index("201501".to_string())..].to_vec();
+        self.op_return_data.op_ret_per_month =
+            self.op_return_data.op_ret_per_month[month_index("201501".to_string())..].to_vec();
         self.op_return_data.op_ret_fee_per_month.pop();
-        self.op_return_data.op_ret_fee_per_month = self.op_return_data.op_ret_fee_per_month[month_index("201501".to_string())..].to_vec();
+        self.op_return_data.op_ret_fee_per_month =
+            self.op_return_data.op_ret_fee_per_month[month_index("201501".to_string())..].to_vec();
         self.op_return_data.op_ret_fee_per_month.pop();
         self.op_return_data.veriblock_per_month.pop();
-        self.op_return_data.veriblock_per_month = self.op_return_data.veriblock_per_month[month_index("201807".to_string())..].to_vec();
+        self.op_return_data.veriblock_per_month =
+            self.op_return_data.veriblock_per_month[month_index("201807".to_string())..].to_vec();
         self.op_return_data.veriblock_fee_per_month.pop();
-        self.op_return_data.veriblock_fee_per_month = self.op_return_data.veriblock_fee_per_month[month_index("201807".to_string())..].to_vec();
+        self.op_return_data.veriblock_fee_per_month = self.op_return_data.veriblock_fee_per_month
+            [month_index("201807".to_string())..]
+            .to_vec();
 
         let toml = self.op_return_data.to_toml();
         println!("{}", toml);
@@ -125,7 +130,10 @@ impl Process {
         println!("{}", toml);
         fs::write("site/_data/script_type.toml", toml).expect("Unable to write file");
 
-        println!("ending processer, busy_time: {}", (busy_time / 1_000_000_000) );
+        println!(
+            "ending processer, busy_time: {}",
+            (busy_time / 1_000_000_000)
+        );
     }
 
     fn process_block(&mut self, block: BlockExtra) {
@@ -133,11 +141,14 @@ impl Process {
         let date = Utc.timestamp(i64::from(time), 0);
         let index = date_index(date);
 
-        let filter = BlockFilter::new_script_filter(&block.block, |o| if let Some(s) = &block.outpoint_values.get(o) {
-            Ok(s.script_pubkey.clone())
-        } else {
-            Err(Error::UtxoMissing(o.clone()))
-        }).unwrap();
+        let filter = BlockFilter::new_script_filter(&block.block, |o| {
+            if let Some(s) = &block.outpoint_values.get(o) {
+                Ok(s.script_pubkey.clone())
+            } else {
+                Err(Error::UtxoMissing(o.clone()))
+            }
+        })
+        .unwrap();
 
         self.stats.bip158_filter_size_per_month[index] += filter.content.len() as u64;
 
@@ -331,7 +342,7 @@ impl OpReturnData {
         s.push_str(&toml_section_vec(
             "op_ret_per_month",
             &self.op_ret_per_month,
-                 Some(month_index("201501".to_string()))
+            Some(month_index("201501".to_string())),
         ));
         s.push_str(&toml_section("op_ret_size", &self.op_ret_size));
         s.push_str(&toml_section(
@@ -350,21 +361,18 @@ impl OpReturnData {
         s.push_str(&toml_section_vec_f64(
             "op_ret_fee_per_month",
             &convert_sat_to_bitcoin(&self.op_ret_fee_per_month),
-            Some(month_index("201501".to_string()))
-
+            Some(month_index("201501".to_string())),
         ));
 
         s.push_str(&toml_section_vec(
             "veriblock_per_month",
             &self.veriblock_per_month.to_vec(),
-            Some(month_index("201807".to_string()))
-
+            Some(month_index("201807".to_string())),
         ));
         s.push_str(&toml_section_vec_f64(
             "veriblock_fee_per_month",
             &convert_sat_to_bitcoin(&self.veriblock_fee_per_month),
-            Some(month_index("201807".to_string()))
-
+            Some(month_index("201807".to_string())),
         ));
 
         s.push_str("\n[totals]\n");
@@ -390,7 +398,11 @@ fn convert_sat_to_bitcoin(map: &Vec<u64>) -> Vec<f64> {
 fn toml_section_vec_f64(title: &str, vec: &Vec<f64>, shift: Option<usize>) -> String {
     let mut s = String::new();
     s.push_str(&format!("\n[{}]\n", title));
-    let labels: Vec<String> = vec.iter().enumerate().map(|el| index_month(el.0+ shift.unwrap_or(0))).collect();
+    let labels: Vec<String> = vec
+        .iter()
+        .enumerate()
+        .map(|el| index_month(el.0 + shift.unwrap_or(0)))
+        .collect();
     s.push_str(&format!("labels={:?}\n", labels));
     s.push_str(&format!("values={:?}\n\n", vec));
     s
@@ -399,7 +411,11 @@ fn toml_section_vec_f64(title: &str, vec: &Vec<f64>, shift: Option<usize>) -> St
 fn toml_section_vec(title: &str, vec: &Vec<u64>, shift: Option<usize>) -> String {
     let mut s = String::new();
     s.push_str(&format!("\n[{}]\n", title));
-    let labels: Vec<String> = vec.iter().enumerate().map(|el| index_month(el.0+ shift.unwrap_or(0) ) ).collect();
+    let labels: Vec<String> = vec
+        .iter()
+        .enumerate()
+        .map(|el| index_month(el.0 + shift.unwrap_or(0)))
+        .collect();
     s.push_str(&format!("labels={:?}\n", labels));
     s.push_str(&format!("values={:?}\n\n", vec));
     s
@@ -505,14 +521,14 @@ impl Stats {
         s.push_str(&toml_section_vec(
             "total_spent_in_block_per_month",
             &self.total_spent_in_block_per_month,
-                 None,
+            None,
         ));
 
         s.push_str("\n\n");
         s.push_str(&toml_section_vec(
             "rounded_amount_per_month",
             &self.rounded_amount_per_month,
-                 None,
+            None,
         ));
 
         s.push_str("\n\n");

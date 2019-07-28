@@ -26,7 +26,7 @@ pub struct BlockExtra {
     pub height: u32,
     pub out_of_order_size: usize,
     pub outpoint_values: HashMap<OutPoint, TxOut>,
-    pub tx_hashes: HashSet<sha256d::Hash>
+    pub tx_hashes: HashSet<sha256d::Hash>,
 }
 
 fn main() {

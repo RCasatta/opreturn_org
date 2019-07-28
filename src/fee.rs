@@ -1,6 +1,6 @@
 use crate::BlockExtra;
-use bitcoin::consensus::{serialize, deserialize};
-use bitcoin::{BitcoinHash, Block, OutPoint, Transaction, VarInt, TxOut, Script};
+use bitcoin::consensus::{deserialize, serialize};
+use bitcoin::{BitcoinHash, Block, OutPoint, Script, Transaction, TxOut, VarInt};
 use bitcoin_hashes::sha256d;
 use bitcoin_hashes::Hash;
 use rocksdb::WriteBatch;
@@ -88,7 +88,9 @@ impl Fee {
         self.sender.send(None).expect("fee: cannot send none");
         println!(
             "ending fee processer total tx {}, output values found: {}, busy_time: {}",
-            total_txs, found_values, busy_time / 1_000_000_000
+            total_txs,
+            found_values,
+            busy_time / 1_000_000_000
         );
     }
 }
@@ -100,7 +102,7 @@ impl Fee {
         for tx in block.txdata.iter() {
             let txid = tx.txid();
             for (i, output) in tx.output.iter().enumerate() {
-                let key = output_key(txid, i as u64);
+                let key = output_key(txid, i as u32);
                 let value = serialize(output);
                 batch
                     .put(&key[..], &value)
@@ -114,23 +116,25 @@ impl Fee {
         let mut keys = vec![];
         for tx in block.txdata.iter().skip(1) {
             for input in tx.input.iter() {
-                let key = output_key(
+                keys.push(output_key(
                     input.previous_output.txid,
-                    u64::from(input.previous_output.vout),
-                );
-                keys.push(key);
+                    input.previous_output.vout,
+                ));
             }
         }
 
         let coin_base_output_value = block.txdata[0].output.iter().map(|el| el.value).sum();
         let mut values = vec![];
-        values.push(TxOut { value: coin_base_output_value, script_pubkey: Script::new()}); //coinbase
+        values.push(TxOut {
+            value: coin_base_output_value,
+            script_pubkey: Script::new(),
+        }); //coinbase
         for key in keys.iter().rev() {
             let value = self
                 .db
                 .get(key)
                 .expect("operational problem in get")
-                .expect("unexpected None in db");
+                .unwrap_or_else(|| panic!("unexpected None in db for key {}", hex::encode(key)));
             values.push(deserialize::<TxOut>(&value).unwrap());
         }
         self.delete_after(height, keys);
@@ -182,11 +186,11 @@ pub fn tx_fee(tx: &Transaction, outpoint_values: &HashMap<OutPoint, TxOut>) -> u
     input_total - output_total
 }
 
-fn output_key(txid: sha256d::Hash, i: u64) -> Vec<u8> {
+fn output_key(txid: sha256d::Hash, i: u32) -> Vec<u8> {
     let mut v = vec![];
     v.push(b'o');
     v.extend(&txid.into_inner()[0..10]);
-    v.extend(serialize(&VarInt(i)));
+    v.extend(serialize(&VarInt(i as u64)));
     v
 }
 

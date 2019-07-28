@@ -2,16 +2,16 @@ use crate::BlockExtra;
 use bitcoin::consensus::deserialize;
 use bitcoin::consensus::Decodable;
 use bitcoin::network::constants::Network;
+use bitcoin::Block;
+use bitcoin_hashes::sha256d;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::io::Cursor;
 use std::io::Seek;
 use std::io::SeekFrom;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::SyncSender;
 use std::time::Instant;
-use bitcoin_hashes::sha256d;
-use std::collections::HashSet;
-use bitcoin::Block;
 
 pub struct Parse {
     receiver: Receiver<Option<Vec<u8>>>,
@@ -79,7 +79,8 @@ fn parse_blocks(blob: Vec<u8>) -> Vec<BlockExtra> {
 
         match deserialize::<Block>(&blob[start..end]) {
             Ok(block) => {
-                let tx_hashes: HashSet<sha256d::Hash> = block.txdata.iter().map(|tx| tx.txid()).collect();
+                let tx_hashes: HashSet<sha256d::Hash> =
+                    block.txdata.iter().map(|tx| tx.txid()).collect();
                 blocks.push(BlockExtra {
                     block,
                     size,
@@ -89,7 +90,7 @@ fn parse_blocks(blob: Vec<u8>) -> Vec<BlockExtra> {
                     out_of_order_size: 0,
                     tx_hashes,
                 })
-            },
+            }
             Err(e) => eprintln!("error block parsing {:?}", e),
         }
     }

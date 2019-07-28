@@ -33,6 +33,6 @@ impl Read {
             self.sender.send(Some(blob)).expect("cannot send");
         }
         self.sender.send(None).expect("cannot send");
-        println!("ending reader, busy time: {}s", (busy_time/1_000_000_000) );
+        println!("ending reader, busy time: {}s", (busy_time / 1_000_000_000));
     }
 }
