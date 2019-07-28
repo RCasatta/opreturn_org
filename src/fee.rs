@@ -56,7 +56,7 @@ impl Fee {
                                 .expect("cannot deserialize block fees")
                         }
                         None => {
-                            self.compute_outpoint_values(&block_extra.block, block_extra.height)
+                            self.compute_previous_outpoint(&block_extra.block, block_extra.height)
                         }
                     };
                     for tx in block_extra.block.txdata.iter() {
@@ -96,7 +96,7 @@ impl Fee {
 }
 
 impl Fee {
-    fn compute_outpoint_values(&mut self, block: &Block, height: u32) -> Vec<TxOut> {
+    fn compute_previous_outpoint(&mut self, block: &Block, height: u32) -> Vec<TxOut> {
         // saving all outputs value in the block in write batch
         let mut batch = WriteBatch::default();
         for tx in block.txdata.iter() {
@@ -137,7 +137,6 @@ impl Fee {
                 .unwrap_or_else(|| panic!("unexpected None in db for key {}", hex::encode(key)));
             values.push(deserialize::<TxOut>(&value).unwrap());
         }
-        self.delete_after(height, keys);
 
         self.db
             .put(
@@ -145,6 +144,8 @@ impl Fee {
                 &serialize(&values),
             )
             .expect("fee: cannot put value in db");
+
+        self.delete_after(height, keys);
 
         values
     }
@@ -189,7 +190,8 @@ pub fn tx_fee(tx: &Transaction, outpoint_values: &HashMap<OutPoint, TxOut>) -> u
 fn output_key(txid: sha256d::Hash, i: u32) -> Vec<u8> {
     let mut v = vec![];
     v.push(b'o');
-    v.extend(&txid.into_inner()[0..10]);
+    //v.extend(&txid.into_inner()[0..10]);
+    v.extend(serialize(&txid));
     v.extend(serialize(&VarInt(i as u64)));
     v
 }
