@@ -1,8 +1,11 @@
 use crate::fee::tx_fee;
 use crate::BlockExtra;
+use bitcoin::blockdata::opcodes;
+use bitcoin::blockdata::script::Instruction::PushBytes;
 use bitcoin::util::bip158::BlockFilter;
 use bitcoin::util::bip158::Error;
 use bitcoin::util::hash::BitcoinHash;
+use bitcoin::PublicKey;
 use bitcoin::Script;
 use bitcoin::Transaction;
 use bitcoin::VarInt;
@@ -12,9 +15,11 @@ use chrono::DateTime;
 use chrono::{Datelike, TimeZone, Utc};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
-use std::fs;
+use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::mpsc::Receiver;
 use std::time::Instant;
+use std::{env, fs};
 use time::Duration;
 
 pub struct Process {
@@ -67,6 +72,7 @@ struct ScriptType {
     v0_p2wsh: Vec<u64>,
     p2sh: Vec<u64>,
     other: Vec<u64>,
+    multisig: BTreeMap<String, u64>,
 }
 
 impl Process {
@@ -108,13 +114,13 @@ impl Process {
         self.op_return_data.veriblock_fee_per_month = self.op_return_data.veriblock_fee_per_month
             [month_index("201807".to_string())..]
             .to_vec();
-
         let toml = self.op_return_data.to_toml();
         println!("{}", toml);
         fs::write("site/_data/op_return.toml", toml).expect("Unable to write file");
 
         self.stats.total_spent_in_block_per_month.pop();
         self.stats.rounded_amount_per_month.pop();
+        self.stats.bip158_filter_size_per_month.pop();
         let toml = self.stats.to_toml();
         println!("{}", toml);
         fs::write("site/_data/stats.toml", toml).expect("Unable to w rite file");
@@ -152,6 +158,11 @@ impl Process {
 
         self.stats.bip158_filter_size_per_month[index] += filter.content.len() as u64;
 
+        if let Ok(dir) = env::var("BIP158_DIR") {
+            let p = PathBuf::from_str(&format!("{}/{}.bin", dir, block.height)).unwrap();
+            fs::write(p, filter.content).unwrap();
+        }
+
         for tx in block.block.txdata {
             for output in tx.output.iter() {
                 if output.script_pubkey.is_op_return() {
@@ -184,6 +195,16 @@ impl Process {
                     self.stats.total_spent_in_block += 1;
                     self.stats.total_spent_in_block_per_month[index] += 1;
                 }
+
+                let script= &input.script_sig;
+                let bytes = script.as_bytes();
+                if bytes.last() == Some(&opcodes::all::OP_CHECKMULTISIG.into_u8()) {
+                    let n = bytes[0];
+                    let m = extract_pub_keys(script).len();
+                    let key = format!("{}of{}", n, m);
+                    *self.script_type.multisig.entry(key).or_insert(0) += 1;
+                }
+
             }
             self.process_stats(&tx);
         }
@@ -298,6 +319,7 @@ impl ScriptType {
             v0_p2wsh: vec![0; month_array_len()],
             p2sh: vec![0; month_array_len()],
             other: vec![0; month_array_len()],
+            multisig: BTreeMap::new(),
         }
     }
 
@@ -311,6 +333,7 @@ impl ScriptType {
         s.push_str(&toml_section_vec("v0_p2wsh", &self.v0_p2wsh, None));
         s.push_str(&toml_section_vec("p2sh", &self.p2sh, None));
         s.push_str(&toml_section_vec("other", &self.other, None));
+        s.push_str(&toml_section("multisig", &self.multisig));
 
         s
     }
@@ -443,6 +466,18 @@ fn map_by_value(map: &HashMap<String, u64>) -> BTreeMap<String, u64> {
     tree
 }
 
+fn extract_pub_keys(script: &Script) -> Vec<PublicKey> {
+    let mut result = vec![];
+    for instruct in script.iter(false) {
+        if let PushBytes(a) = instruct {
+            if a.len() == 33 {
+                result.push(PublicKey::from_slice(&a).unwrap());
+            }
+        }
+    }
+    result
+}
+
 impl Stats {
     fn new() -> Self {
         Stats {
@@ -538,8 +573,25 @@ impl Stats {
             None,
         ));
 
+        s.push_str("\n\n");
+        s.push_str(&toml_section_vec(
+            "bip158_filter_size_per_month_cum",
+            &cumulative(&self.bip158_filter_size_per_month),
+            None,
+        ));
+
         s
     }
+}
+
+fn cumulative(values: &Vec<u64>) -> Vec<u64> {
+    let mut result = Vec::with_capacity(values.len());
+    let mut cum = 0;
+    for val in values {
+        cum += val;
+        result.push(cum);
+    }
+    result
 }
 
 fn toml_section_hash(title: &str, value: &(u64, Option<sha256d::Hash>)) -> String {
@@ -639,6 +691,7 @@ fn month_array_len() -> usize {
 #[cfg(test)]
 mod test {
     use crate::process::compress_amount;
+    use crate::process::cumulative;
     use crate::process::decompress_amount;
     use crate::process::index_month;
     use crate::process::{date_index, encoded_length_7bit_varint, month_date};
@@ -697,5 +750,11 @@ mod test {
         for i in 0..std::u64::MAX {
             assert_eq!(i, decompress_amount(compress_amount(i)));
         }
+    }
+
+    #[test]
+    fn test5() {
+        let vec = vec![1, 1, 1];
+        assert_eq!(cumulative(&vec), vec![1, 2, 3]);
     }
 }
