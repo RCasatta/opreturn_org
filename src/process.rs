@@ -1,11 +1,9 @@
 use crate::fee::tx_fee;
 use crate::BlockExtra;
 use bitcoin::blockdata::opcodes;
-use bitcoin::blockdata::script::Instruction::PushBytes;
 use bitcoin::util::bip158::BlockFilter;
 use bitcoin::util::bip158::Error;
 use bitcoin::util::hash::BitcoinHash;
-use bitcoin::PublicKey;
 use bitcoin::Script;
 use bitcoin::Transaction;
 use bitcoin::VarInt;
@@ -195,16 +193,15 @@ impl Process {
                     self.stats.total_spent_in_block += 1;
                     self.stats.total_spent_in_block_per_month[index] += 1;
                 }
-
-                let script= &input.script_sig;
-                let bytes = script.as_bytes();
-                if bytes.last() == Some(&opcodes::all::OP_CHECKMULTISIG.into_u8()) {
-                    let n = bytes[0];
-                    let m = extract_pub_keys(script).len();
-                    let key = format!("{}of{}", n, m);
-                    *self.script_type.multisig.entry(key).or_insert(0) += 1;
+                if let Some(witness_script) = input.witness.last() {
+                    let witness_script_len = witness_script.len();
+                    if witness_script.last() == Some(&opcodes::all::OP_CHECKMULTISIG.into_u8()) && witness_script_len > 1 {
+                        let n = witness_script[0];
+                        let m = witness_script[witness_script_len-2];
+                        let key = format!("{}of{}", n, m);
+                        *self.script_type.multisig.entry(key).or_insert(0) += 1;
+                    }
                 }
-
             }
             self.process_stats(&tx);
         }
@@ -464,18 +461,6 @@ fn map_by_value(map: &HashMap<String, u64>) -> BTreeMap<String, u64> {
     let other = count_vec.iter().skip(10).fold(0, |acc, x| acc + x.1);
     tree.insert("other".to_owned(), other);
     tree
-}
-
-fn extract_pub_keys(script: &Script) -> Vec<PublicKey> {
-    let mut result = vec![];
-    for instruct in script.iter(false) {
-        if let PushBytes(a) = instruct {
-            if a.len() == 33 {
-                result.push(PublicKey::from_slice(&a).unwrap());
-            }
-        }
-    }
-    result
 }
 
 impl Stats {
