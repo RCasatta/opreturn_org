@@ -194,11 +194,7 @@ impl Process {
                     self.stats.total_spent_in_block_per_month[index] += 1;
                 }
                 if let Some(witness_script) = input.witness.last() {
-                    let witness_script_len = witness_script.len();
-                    if witness_script.last() == Some(&opcodes::all::OP_CHECKMULTISIG.into_u8()) && witness_script_len > 1 {
-                        let n = witness_script[0];
-                        let m = witness_script[witness_script_len-2];
-                        let key = format!("{}of{}", n, m);
+                    if let Some(key) = parse_multisig(witness_script) {
                         *self.script_type.multisig.entry(key).or_insert(0) += 1;
                     }
                 }
@@ -408,6 +404,26 @@ impl OpReturnData {
         ));
 
         s
+    }
+}
+
+fn parse_multisig(witness_script: &Vec<u8>) -> Option<String> {
+    let witness_script_len = witness_script.len();
+    if witness_script.last() == Some(&opcodes::all::OP_CHECKMULTISIG.into_u8()) && witness_script_len > 1 {
+        let n = read_pushnum(witness_script[0]);
+        let m = read_pushnum(witness_script[witness_script_len-2]);
+        if n.is_some() && m.is_some() {
+            return Some(format!("{:02}of{:02}", n.unwrap(), m.unwrap()));
+        }
+    }
+    None
+}
+
+fn read_pushnum(value: u8) -> Option<u8> {
+    if value >= opcodes::all::OP_PUSHNUM_1.into_u8() && value <= opcodes::all::OP_PUSHNUM_16.into_u8() {
+        Some(value-opcodes::all::OP_PUSHNUM_1.into_u8()+1)
+    } else {
+        None
     }
 }
 
@@ -680,6 +696,7 @@ mod test {
     use crate::process::decompress_amount;
     use crate::process::index_month;
     use crate::process::{date_index, encoded_length_7bit_varint, month_date};
+    use crate::process::parse_multisig;
     use chrono::offset::TimeZone;
     use chrono::Utc;
     use std::collections::HashMap;
@@ -742,4 +759,11 @@ mod test {
         let vec = vec![1, 1, 1];
         assert_eq!(cumulative(&vec), vec![1, 2, 3]);
     }
+
+    #[test]
+    fn test_parse_multisig() {
+        let script = hex::decode("52210293de2378b245e0c4a8325d2beb2e537041a3b9b12c96052a9f30954700e56ef3210230d013baf38205252c298625a7c7799e1f11a016d3738198410bcf8bcc1fecab52ae").unwrap();
+        assert_eq!(Some("02of02".to_string()), parse_multisig(&script));
+    }
+
 }
