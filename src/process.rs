@@ -69,6 +69,7 @@ struct ScriptType {
     p2sh: Vec<u64>,
     other: Vec<u64>,
     multisig: HashMap<String, u64>,
+    multisig_tx: HashMap<String, String>,
 }
 
 impl Process {
@@ -125,6 +126,8 @@ impl Process {
         let toml = self.script_type.to_toml();
         println!("{}", toml);
         fs::write("site/_data/script_type.toml", toml).expect("Unable to write file");
+
+        println!("{:?}", self.script_type.multisig_tx);
 
         println!(
             "ending processer, busy_time: {}",
@@ -187,6 +190,9 @@ impl Process {
                 }
                 if let Some(witness_script) = input.witness.last() {
                     if let Some(key) = parse_multisig(witness_script) {
+                        if self.script_type.multisig_tx.get(&key).is_none() {
+                            self.script_type.multisig_tx.insert(key.clone(), format!("{}",tx.txid()));
+                        }
                         *self.script_type.multisig.entry(key).or_insert(0) += 1;
                     }
                 }
@@ -301,6 +307,7 @@ impl ScriptType {
             p2sh: vec![0; month_array_len()],
             other: vec![0; month_array_len()],
             multisig: HashMap::new(),
+            multisig_tx: HashMap::new(),
         }
     }
 
