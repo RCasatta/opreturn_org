@@ -31,9 +31,7 @@ pub struct Process {
 struct OpReturnData {
     op_ret_per_month: Vec<u64>,
     op_ret_size: BTreeMap<String, u64>, //pad with spaces usize of len up to 3
-    veriblock_per_month: Vec<u64>,
     op_ret_fee_per_month: Vec<u64>,
-    veriblock_fee_per_month: Vec<u64>,
     op_ret_per_proto: HashMap<String, u64>,
     op_ret_per_proto_last_month: HashMap<String, u64>,
     op_ret_per_proto_last_year: HashMap<String, u64>,
@@ -105,13 +103,7 @@ impl Process {
         self.op_return_data.op_ret_fee_per_month =
             self.op_return_data.op_ret_fee_per_month[month_index("201501".to_string())..].to_vec();
         self.op_return_data.op_ret_fee_per_month.pop();
-        self.op_return_data.veriblock_per_month.pop();
-        self.op_return_data.veriblock_per_month =
-            self.op_return_data.veriblock_per_month[month_index("201807".to_string())..].to_vec();
-        self.op_return_data.veriblock_fee_per_month.pop();
-        self.op_return_data.veriblock_fee_per_month = self.op_return_data.veriblock_fee_per_month
-            [month_index("201807".to_string())..]
-            .to_vec();
+
         let toml = self.op_return_data.to_toml();
         println!("{}", toml);
         fs::write("site/_data/op_return.toml", toml).expect("Unable to write file");
@@ -271,10 +263,6 @@ impl Process {
                 .op_ret_per_proto
                 .entry(op_ret_proto.clone())
                 .or_insert(0) += 1;
-            if op_ret_proto.starts_with("00") && script_len >= 82 {
-                data.veriblock_per_month[index] += 1;
-                data.veriblock_fee_per_month[index] += fee;
-            }
         }
     }
 
@@ -345,9 +333,6 @@ impl OpReturnData {
             op_ret_per_proto: HashMap::new(),
             op_ret_per_proto_last_month: HashMap::new(),
             op_ret_per_proto_last_year: HashMap::new(),
-            veriblock_per_month: vec![0; len],
-            veriblock_fee_per_month: vec![0; len],
-
             month_ago,
             year_ago,
         }
@@ -381,27 +366,11 @@ impl OpReturnData {
             Some(month_index("201501".to_string())),
         ));
 
-        s.push_str(&toml_section_vec(
-            "veriblock_per_month",
-            &self.veriblock_per_month.to_vec(),
-            Some(month_index("201807".to_string())),
-        ));
-        s.push_str(&toml_section_vec_f64(
-            "veriblock_fee_per_month",
-            &convert_sat_to_bitcoin(&self.veriblock_fee_per_month),
-            Some(month_index("201807".to_string())),
-        ));
-
         s.push_str("\n[totals]\n");
         let op_ret_fee_total: u64 = self.op_ret_fee_per_month.iter().sum();
         s.push_str(&format!(
             "op_ret_fee = {}\n",
             (op_ret_fee_total as f64 / 100_000_000f64)
-        ));
-        let veriblock_fee_total: u64 = self.veriblock_fee_per_month.iter().sum();
-        s.push_str(&format!(
-            "veriblock_fee = {}\n",
-            (veriblock_fee_total as f64 / 100_000_000f64)
         ));
 
         s
