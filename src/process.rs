@@ -70,7 +70,7 @@ struct ScriptType {
     v0_p2wsh: Vec<u64>,
     p2sh: Vec<u64>,
     other: Vec<u64>,
-    multisig: BTreeMap<String, u64>,
+    multisig: HashMap<String, u64>,
 }
 
 impl Process {
@@ -312,7 +312,7 @@ impl ScriptType {
             v0_p2wsh: vec![0; month_array_len()],
             p2sh: vec![0; month_array_len()],
             other: vec![0; month_array_len()],
-            multisig: BTreeMap::new(),
+            multisig: HashMap::new(),
         }
     }
 
@@ -326,7 +326,8 @@ impl ScriptType {
         s.push_str(&toml_section_vec("v0_p2wsh", &self.v0_p2wsh, None));
         s.push_str(&toml_section_vec("p2sh", &self.p2sh, None));
         s.push_str(&toml_section_vec("other", &self.other, None));
-        s.push_str(&toml_section("multisig", &self.multisig));
+        s.push_str(&toml_section("segwit_multisig", &hash_to_tree(&self.multisig)));
+        s.push_str(&toml_section("segwit_multisig_other", &map_by_value(&self.multisig)));
 
         s
     }
@@ -465,6 +466,14 @@ fn toml_section(title: &str, map: &BTreeMap<String, u64>) -> String {
     let values: Vec<u64> = map.values().cloned().collect();
     s.push_str(&format!("values={:?}\n\n", values));
     s
+}
+
+fn hash_to_tree(map: &HashMap<String, u64>) -> BTreeMap<String, u64> {
+    let mut tree: BTreeMap<String, u64> = BTreeMap::new();
+    for (key, value) in map.iter() {
+        tree.insert(key.to_string(), *value);
+    }
+    tree
 }
 
 fn map_by_value(map: &HashMap<String, u64>) -> BTreeMap<String, u64> {
