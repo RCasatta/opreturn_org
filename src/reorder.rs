@@ -37,19 +37,6 @@ impl OutOfOrderBlocks {
             prev_block.next.push(hash);
         }
 
-        if block_extra.height % 10000 == 0 {
-            //map maintainance, remove very old blocks
-            let mut to_delete = vec![];
-            for (el, key) in self.blocks.iter() {
-                if key.height + 10000 < block_extra.height {
-                    to_delete.push(el.clone());
-                }
-            }
-            for el in to_delete {
-                self.blocks.remove(&el);
-            }
-        }
-
         self.blocks.insert(hash, block_extra);
     }
 

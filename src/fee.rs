@@ -190,8 +190,8 @@ pub fn tx_fee(tx: &Transaction, outpoint_values: &HashMap<OutPoint, TxOut>) -> u
 fn output_key(txid: sha256d::Hash, i: u32) -> Vec<u8> {
     let mut v = vec![];
     v.push(b'o');
-    //v.extend(&txid.into_inner()[0..10]);
-    v.extend(serialize(&txid));
+    v.extend(&txid.into_inner()[0..10]);
+    //v.extend(serialize(&txid));
     v.extend(serialize(&VarInt(i as u64)));
     v
 }
