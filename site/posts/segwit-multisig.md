@@ -6,7 +6,7 @@ description: Analyze segwit input scripts counting the occurence of the NofM
 ---
 
 <br><br>
-<h2 style="text-align:center">Last month</h2>
+<h2 style="text-align:center">{{ page.title }}</h2>
 <canvas id="myChart" width="100%"></canvas>
 <script>
 var labels = {{ site.data.script_type.multisig.labels | join: "','" | prepend: "['" | append : "']"}};
