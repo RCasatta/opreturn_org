@@ -19,12 +19,17 @@ use std::sync::mpsc::Receiver;
 use std::time::Instant;
 use std::{env, fs};
 use time::Duration;
+use rocksdb::DB;
+use std::sync::Arc;
+use bitcoin::consensus::serialize;
+use bitcoin::consensus::deserialize;
 
 pub struct Process {
     receiver: Receiver<Option<BlockExtra>>,
     op_return_data: OpReturnData,
     stats: Stats,
     script_type: ScriptType,
+    db: Arc<DB>
     // previous_hashes: VecDeque<HashSet<sha256d::Hash>>,
 }
 
@@ -73,12 +78,13 @@ struct ScriptType {
 }
 
 impl Process {
-    pub fn new(receiver: Receiver<Option<BlockExtra>>) -> Process {
+    pub fn new(receiver: Receiver<Option<BlockExtra>>, db: Arc<DB>) -> Process {
         Process {
             receiver,
             op_return_data: OpReturnData::new(),
             stats: Stats::new(),
             script_type: ScriptType::new(),
+            db,
         }
     }
 
@@ -140,21 +146,29 @@ impl Process {
         let date = Utc.timestamp(i64::from(time), 0);
         let index = date_index(date);
 
-        let filter = BlockFilter::new_script_filter(&block.block, |o| {
-            if let Some(s) = &block.outpoint_values.get(o) {
-                Ok(s.script_pubkey.clone())
-            } else {
-                Err(Error::UtxoMissing(o.clone()))
+        let key = filter_key(block.block.bitcoin_hash());
+
+        let filter_len = match self.db.get(&key).expect("operational problem encountered") {
+            Some(value) => deserialize::<u64>(&value).expect("cant deserialize u64"),
+            None => {
+                let filter = BlockFilter::new_script_filter(&block.block, |o| {
+                    if let Some(s) = &block.outpoint_values.get(o) {
+                        Ok(s.script_pubkey.clone())
+                    } else {
+                        Err(Error::UtxoMissing(o.clone()))
+                    }
+                }).unwrap();
+                let filter_len = filter.content.len() as u64;
+                if let Ok(dir) = env::var("BIP158_DIR") {
+                    let p = PathBuf::from_str(&format!("{}/{}.bin", dir, block.height)).unwrap();
+                    fs::write(p, filter.content).unwrap();
+                }
+                self.db.put(&key, &serialize(&filter_len)).expect("error in write");
+                filter_len
             }
-        })
-        .unwrap();
+        };
 
-        self.stats.bip158_filter_size_per_month[index] += filter.content.len() as u64;
-
-        if let Ok(dir) = env::var("BIP158_DIR") {
-            let p = PathBuf::from_str(&format!("{}/{}.bin", dir, block.height)).unwrap();
-            fs::write(p, filter.content).unwrap();
-        }
+        self.stats.bip158_filter_size_per_month[index] += filter_len;
 
         for tx in block.block.txdata {
             for output in tx.output.iter() {
@@ -382,6 +396,13 @@ impl OpReturnData {
 
         s
     }
+}
+
+fn filter_key(block_hash: sha256d::Hash) -> Vec<u8> {
+    let mut v = vec![];
+    v.push(b'f');
+    v.extend(serialize(&block_hash));
+    v
 }
 
 fn parse_multisig(witness_script: &Vec<u8>) -> Option<String> {

@@ -10,11 +10,12 @@ use std::collections::HashMap;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::SyncSender;
 use std::time::Instant;
+use std::sync::Arc;
 
 pub struct Fee {
     receiver: Receiver<Option<BlockExtra>>,
     sender: SyncSender<Option<BlockExtra>>,
-    db: DB,
+    db: Arc<DB>,
     delete_after: HashMap<u32, Vec<Vec<u8>>>,
 }
 
@@ -22,7 +23,7 @@ impl Fee {
     pub fn new(
         receiver: Receiver<Option<BlockExtra>>,
         sender: SyncSender<Option<BlockExtra>>,
-        db: DB,
+        db: Arc<DB>,
     ) -> Fee {
         Fee {
             sender,
@@ -31,9 +32,7 @@ impl Fee {
             delete_after: HashMap::new(),
         }
     }
-}
 
-impl Fee {
     pub fn start(&mut self) {
         println!("starting fee processer");
         let mut busy_time = 0u128;
@@ -93,9 +92,7 @@ impl Fee {
             busy_time / 1_000_000_000
         );
     }
-}
 
-impl Fee {
     fn compute_previous_outpoint(&mut self, block: &Block, height: u32) -> Vec<TxOut> {
         // saving all outputs value in the block in write batch
         let mut batch = WriteBatch::default();

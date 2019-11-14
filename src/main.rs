@@ -11,6 +11,7 @@ use std::env;
 use std::path::PathBuf;
 use std::sync::mpsc::sync_channel;
 use std::thread;
+use std::sync::Arc;
 
 mod fee;
 mod parse;
@@ -42,7 +43,7 @@ fn main() {
     let mut db_opts = rocksdb::Options::default();
     db_opts.increase_parallelism(4);
     db_opts.create_if_missing(true);
-    let db = DB::open(&db_opts, env::var("DB").unwrap_or_else(|_| "db".into())).unwrap();
+    let db = Arc::new(DB::open(&db_opts, env::var("DB").unwrap_or_else(|_| "db".into())).unwrap());
 
     let (send_blobs, receive_blobs) = sync_channel(blob_size);
     let mut read = Read::new(path, send_blobs);
@@ -63,12 +64,12 @@ fn main() {
     });
 
     let (send_blocks_and_fee, receive_blocks_and_fee) = sync_channel(blocks_size);
-    let mut fee = Fee::new(receive_ordered_blocks, send_blocks_and_fee, db);
+    let mut fee = Fee::new(receive_ordered_blocks, send_blocks_and_fee, db.clone());
     let fee_handle = thread::spawn(move || {
         fee.start();
     });
 
-    let mut process = Process::new(receive_blocks_and_fee);
+    let mut process = Process::new(receive_blocks_and_fee, db);
     let process_handle = thread::spawn(move || {
         process.start();
     });
