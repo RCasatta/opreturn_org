@@ -63,6 +63,9 @@ struct Stats {
     total_bytes_output_value_compressed_bitcoin_varint: u64,
     rounded_amount_per_month: Vec<u64>,
     bip158_filter_size_per_month: Vec<u64>,
+    block_size_per_month: Vec<u64>,
+    sighashtype: Vec<u64>,
+    in_out: HashMap<String, u64>,
 }
 
 struct ScriptType {
@@ -136,7 +139,7 @@ impl Process {
         println!("{:?}", self.script_type.multisig_tx);
 
         println!(
-            "ending processer, busy_time: {}",
+            "ending processer, busy time: {}s",
             (busy_time / 1_000_000_000)
         );
     }
@@ -147,6 +150,8 @@ impl Process {
         let index = date_index(date);
 
         let key = filter_key(block.block.bitcoin_hash());
+
+        self.stats.block_size_per_month[index] += block.size as u64;
 
         let filter_len = match self.db.get(&key).expect("operational problem encountered") {
             Some(value) => deserialize::<u64>(&value).expect("cant deserialize u64"),
@@ -306,6 +311,9 @@ impl Process {
             self.stats.min_weight_tx = (weight, Some(txid));
         }
 
+        let in_out_key = format!("{:04}-{:04}", inputs, outputs);
+        *self.stats.in_out.entry(in_out_key).or_insert(0) += 1;
+
         self.stats.amount_over_32 += tx.output.iter().filter(|o| o.value > 0xffff_ffff).count();
     }
 }
@@ -393,6 +401,8 @@ impl OpReturnData {
             "op_ret_fee = {}\n",
             (op_ret_fee_total as f64 / 100_000_000f64)
         ));
+
+
 
         s
     }
@@ -506,9 +516,13 @@ impl Stats {
             total_bytes_output_value_compressed_varint: 0u64,
             total_bytes_output_value_bitcoin_varint: 0u64,
             total_bytes_output_value_compressed_bitcoin_varint: 0u64,
-            total_spent_in_block_per_month: vec![0; month_array_len()],
-            rounded_amount_per_month: vec![0; month_array_len()],
-            bip158_filter_size_per_month: vec![0; month_array_len()],
+            total_spent_in_block_per_month: vec![0u64; month_array_len()],
+            rounded_amount_per_month: vec![0u64; month_array_len()],
+            bip158_filter_size_per_month: vec![0u64; month_array_len()],
+
+            block_size_per_month: vec![0u64; month_array_len()],
+            sighashtype: vec![0u64,0xff],
+            in_out: HashMap::new(),
         }
     }
 
@@ -585,6 +599,18 @@ impl Stats {
             "bip158_filter_size_per_month_cum",
             &cumulative(&self.bip158_filter_size_per_month),
             None,
+        ));
+
+        s.push_str("\n\n");
+        s.push_str(&toml_section_vec(
+            "block_size_per_month",
+            &cumulative(&self.block_size_per_month),
+            None,
+        ));
+
+        s.push_str(&toml_section(
+            "in_out",
+            &map_by_value(&self.in_out),
         ));
 
         s

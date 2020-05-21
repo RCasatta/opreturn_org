@@ -86,7 +86,7 @@ impl Fee {
         }
         self.sender.send(None).expect("fee: cannot send none");
         println!(
-            "ending fee processer total tx {}, output values found: {}, busy_time: {}",
+            "ending fee processer total tx {}, output values found: {}, busy time: {}s",
             total_txs,
             found_values,
             busy_time / 1_000_000_000
