@@ -142,13 +142,13 @@ impl ProcessStats {
                     self.stats.rounded_amount += 1;
                 }
             }
+            let mut strange_sighash = vec![];
             for input in tx.input.iter() {
                 if block.tx_hashes.contains(&input.previous_output.txid) {
                     self.stats.total_spent_in_block += 1;
                     self.stats.total_spent_in_block_per_month[index] += 1;
                 }
 
-                let mut strange_sighash = vec![];
                 for instr in input.script_sig.iter(true) {
                     if let Instruction::PushBytes(data) = instr {
                         if let Ok(sighash) = deserialize::<SignatureHash>(data) {
@@ -179,10 +179,9 @@ impl ProcessStats {
 
                     }
                 }
-                if !strange_sighash.is_empty() {
-                    self.stats.sighash_file.write(format!("{} {:?}\n", tx.txid(), strange_sighash ).as_bytes() ).unwrap();
-                }
-
+            }
+            if !strange_sighash.is_empty() {
+                self.stats.sighash_file.write(format!("{} {:?}\n", tx.txid(), strange_sighash ).as_bytes() ).unwrap();
             }
             self.process_stats(&tx);
         }
