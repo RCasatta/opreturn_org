@@ -387,7 +387,9 @@ pub fn map_by_value(map: &HashMap<String, u64>) -> BTreeMap<String, u64> {
         tree.insert(key.to_string(), **value);
     }
     let other = count_vec.iter().skip(10).fold(0, |acc, x| acc + x.1);
-    tree.insert("other".to_owned(), other);
+    if other > 0 {
+        tree.insert("other".to_owned(), other);
+    }
     tree
 }
 

@@ -8,7 +8,7 @@ use bitcoin::util::bip158::Error;
 use bitcoin::util::hash::BitcoinHash;
 use bitcoin::Transaction;
 use bitcoin::VarInt;
-use bitcoin::{Script, SigHashType};
+use bitcoin::SigHashType;
 use bitcoin_hashes::hex::FromHex;
 use bitcoin_hashes::sha256d;
 use chrono::{TimeZone, Utc};
@@ -20,6 +20,8 @@ use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
 use std::{env, fs};
+use std::fs::File;
+use std::io::Write;
 
 pub struct ProcessStats {
     receiver: Receiver<Option<BlockExtra>>,
@@ -49,6 +51,7 @@ struct Stats {
     block_size_per_month: Vec<u64>,
     sighashtype: HashMap<String, u64>,
     in_out: HashMap<String, u64>,
+    sighash_file: File,
 }
 
 impl ProcessStats {
@@ -145,8 +148,37 @@ impl ProcessStats {
                     self.stats.total_spent_in_block_per_month[index] += 1;
                 }
 
-                self.process_input_script(&input.script_sig);
-                self.process_witness(&input.witness);
+                for instr in input.script_sig.iter(true) {
+                    if let Instruction::PushBytes(data) = instr {
+                        if let Ok(sighash) = deserialize::<SignatureHash>(data) {
+                            *self
+                                .stats
+                                .sighashtype
+                                .entry(format!("{:?}", sighash.0))
+                                .or_insert(0) += 1;
+                            match sighash.0 {
+                                SigHashType::All | SigHashType::AllPlusAnyoneCanPay => 0,
+                                _ => self.stats.sighash_file.write(format!("{} {:?} {}", tx.txid(), sighash.0, input.sequence ).as_bytes() ).unwrap(),
+                            };
+
+                        }
+                    }
+                }
+                for vec in input.witness.iter() {
+                    if let Ok(sighash) = deserialize::<SignatureHash>(vec) {
+                        *self
+                            .stats
+                            .sighashtype
+                            .entry(format!("{:?}", sighash.0))
+                            .or_insert(0) += 1;
+                        match sighash.0 {
+                            SigHashType::All | SigHashType::AllPlusAnyoneCanPay => 0,
+                            _ => self.stats.sighash_file.write(format!("{} {:?} {}", tx.txid(), sighash.0, input.sequence ).as_bytes() ).unwrap()  ,
+                        };
+
+                    }
+                }
+
             }
             self.process_stats(&tx);
         }
@@ -157,32 +189,6 @@ impl ProcessStats {
         let size = u64::from(block.size);
         if self.stats.max_block_size.0 < size {
             self.stats.max_block_size = (size, Some(hash));
-        }
-    }
-
-    fn process_witness(&mut self, witness: &Vec<Vec<u8>>) {
-        for vec in witness.iter() {
-            if let Ok(sighash) = deserialize::<SignatureHash>(vec) {
-                *self
-                    .stats
-                    .sighashtype
-                    .entry(format!("{:?}", sighash.0))
-                    .or_insert(0) += 1;
-            }
-        }
-    }
-
-    fn process_input_script(&mut self, script: &Script) {
-        for instr in script.iter(true) {
-            if let Instruction::PushBytes(data) = instr {
-                if let Ok(sighash) = deserialize::<SignatureHash>(data) {
-                    *self
-                        .stats
-                        .sighashtype
-                        .entry(format!("{:?}", sighash.0))
-                        .or_insert(0) += 1;
-                }
-            }
         }
     }
 
@@ -215,6 +221,7 @@ impl ProcessStats {
 
 impl Stats {
     fn new() -> Self {
+        let sighash_file = File::create("sighashes.txt").unwrap();
         Stats {
             max_outputs_per_tx: (100u64, None),
             max_inputs_per_tx: (100u64, None),
@@ -241,6 +248,7 @@ impl Stats {
             block_size_per_month: vec![0u64; month_array_len()],
             sighashtype: HashMap::new(),
             in_out: HashMap::new(),
+            sighash_file,
         }
     }
 
