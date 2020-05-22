@@ -148,6 +148,7 @@ impl ProcessStats {
                     self.stats.total_spent_in_block_per_month[index] += 1;
                 }
 
+                let mut strange_sighash = vec![];
                 for instr in input.script_sig.iter(true) {
                     if let Instruction::PushBytes(data) = instr {
                         if let Ok(sighash) = deserialize::<SignatureHash>(data) {
@@ -157,8 +158,8 @@ impl ProcessStats {
                                 .entry(format!("{:?}", sighash.0))
                                 .or_insert(0) += 1;
                             match sighash.0 {
-                                SigHashType::All | SigHashType::AllPlusAnyoneCanPay => 0,
-                                _ => self.stats.sighash_file.write(format!("{} {:?} {}\n", tx.txid(), sighash.0, input.sequence ).as_bytes() ).unwrap(),
+                                SigHashType::All | SigHashType::AllPlusAnyoneCanPay => (),
+                                _ => strange_sighash.push(( sighash.0, input.sequence)) ,
                             };
 
                         }
@@ -172,11 +173,14 @@ impl ProcessStats {
                             .entry(format!("{:?}", sighash.0))
                             .or_insert(0) += 1;
                         match sighash.0 {
-                            SigHashType::All | SigHashType::AllPlusAnyoneCanPay => 0,
-                            _ => self.stats.sighash_file.write(format!("{} {:?} {}\n", tx.txid(), sighash.0, input.sequence ).as_bytes() ).unwrap()  ,
+                            SigHashType::All | SigHashType::AllPlusAnyoneCanPay => (),
+                            _ => strange_sighash.push(( sighash.0, input.sequence)) ,
                         };
 
                     }
+                }
+                if !strange_sighash.is_empty() {
+                    self.stats.sighash_file.write(format!("{} {:?}\n", tx.txid(), strange_sighash ).as_bytes() ).unwrap();
                 }
 
             }
