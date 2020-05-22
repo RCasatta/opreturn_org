@@ -1,36 +1,23 @@
 use crate::fee::tx_fee;
 use crate::BlockExtra;
 use bitcoin::blockdata::opcodes;
-use bitcoin::blockdata::script::Instruction;
-use bitcoin::consensus::{deserialize, encode};
-use bitcoin::consensus::{serialize, Decodable};
-use bitcoin::util::bip158::BlockFilter;
-use bitcoin::util::bip158::Error;
-use bitcoin::util::hash::BitcoinHash;
-use bitcoin::Transaction;
-use bitcoin::VarInt;
-use bitcoin::{Script, SigHashType};
-use bitcoin_hashes::hex::FromHex;
+use bitcoin::consensus::serialize;
+use bitcoin::Script;
 use bitcoin_hashes::sha256d;
 use chrono::DateTime;
 use chrono::{Datelike, TimeZone, Utc};
-use rocksdb::DB;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
-use std::path::PathBuf;
-use std::str::FromStr;
-use std::sync::mpsc::Receiver;
-use std::sync::Arc;
+use std::fs;
+use std::sync::mpsc::{Receiver, SyncSender};
 use std::time::Instant;
-use std::{env, fs};
 use time::Duration;
 
 pub struct Process {
     receiver: Receiver<Option<BlockExtra>>,
+    sender: SyncSender<Option<BlockExtra>>,
     op_return_data: OpReturnData,
-    stats: Stats,
     script_type: ScriptType,
-    db: Arc<DB>, // previous_hashes: VecDeque<HashSet<sha256d::Hash>>,
 }
 
 struct OpReturnData {
@@ -42,30 +29,6 @@ struct OpReturnData {
     op_ret_per_proto_last_year: HashMap<String, u64>,
     month_ago: u32,
     year_ago: u32,
-}
-
-struct Stats {
-    max_outputs_per_tx: (u64, Option<sha256d::Hash>),
-    min_weight_tx: (u64, Option<sha256d::Hash>),
-    max_inputs_per_tx: (u64, Option<sha256d::Hash>),
-    max_weight_tx: (u64, Option<sha256d::Hash>),
-    total_outputs: u64,
-    total_inputs: u64,
-    amount_over_32: usize,
-    rounded_amount: u64,
-    max_block_size: (u64, Option<sha256d::Hash>),
-    min_hash: sha256d::Hash,
-    total_spent_in_block: u64,
-    total_spent_in_block_per_month: Vec<u64>,
-    total_bytes_output_value_varint: u64,
-    total_bytes_output_value_compressed_varint: u64,
-    total_bytes_output_value_bitcoin_varint: u64,
-    total_bytes_output_value_compressed_bitcoin_varint: u64,
-    rounded_amount_per_month: Vec<u64>,
-    bip158_filter_size_per_month: Vec<u64>,
-    block_size_per_month: Vec<u64>,
-    sighashtype: HashMap<String, u64>,
-    in_out: HashMap<String, u64>,
 }
 
 struct ScriptType {
@@ -81,13 +44,15 @@ struct ScriptType {
 }
 
 impl Process {
-    pub fn new(receiver: Receiver<Option<BlockExtra>>, db: Arc<DB>) -> Process {
+    pub fn new(
+        receiver: Receiver<Option<BlockExtra>>,
+        sender: SyncSender<Option<BlockExtra>>,
+    ) -> Process {
         Process {
             receiver,
+            sender,
             op_return_data: OpReturnData::new(),
-            stats: Stats::new(),
             script_type: ScriptType::new(),
-            db,
         }
     }
 
@@ -98,10 +63,18 @@ impl Process {
             match received {
                 Some(block) => {
                     let now = Instant::now();
-                    self.process_block(block);
+                    self.process_block(&block);
                     busy_time = busy_time + now.elapsed().as_nanos();
+                    self.sender
+                        .send(Some(block))
+                        .expect("cannot send Some(block) to process_stats");
                 }
-                None => break,
+                None => {
+                    self.sender
+                        .send(None)
+                        .expect("cannot send None to process_stats");
+                    break;
+                }
             }
         }
 
@@ -117,13 +90,6 @@ impl Process {
         let toml = self.op_return_data.to_toml();
         println!("{}", toml);
         fs::write("site/_data/op_return.toml", toml).expect("Unable to write file");
-
-        self.stats.total_spent_in_block_per_month.pop();
-        self.stats.rounded_amount_per_month.pop();
-        self.stats.bip158_filter_size_per_month.pop();
-        let toml = self.stats.to_toml();
-        println!("{}", toml);
-        fs::write("site/_data/stats.toml", toml).expect("Unable to w rite file");
 
         self.script_type.all.pop();
         self.script_type.p2pkh.pop();
@@ -144,41 +110,12 @@ impl Process {
         );
     }
 
-    fn process_block(&mut self, block: BlockExtra) {
+    fn process_block(&mut self, block: &BlockExtra) {
         let time = block.block.header.time;
         let date = Utc.timestamp(i64::from(time), 0);
         let index = date_index(date);
 
-        let key = filter_key(block.block.bitcoin_hash());
-
-        self.stats.block_size_per_month[index] += block.size as u64;
-
-        let filter_len = match self.db.get(&key).expect("operational problem encountered") {
-            Some(value) => deserialize::<u64>(&value).expect("cant deserialize u64"),
-            None => {
-                let filter = BlockFilter::new_script_filter(&block.block, |o| {
-                    if let Some(s) = &block.outpoint_values.get(o) {
-                        Ok(s.script_pubkey.clone())
-                    } else {
-                        Err(Error::UtxoMissing(o.clone()))
-                    }
-                })
-                .unwrap();
-                let filter_len = filter.content.len() as u64;
-                if let Ok(dir) = env::var("BIP158_DIR") {
-                    let p = PathBuf::from_str(&format!("{}/{}.bin", dir, block.height)).unwrap();
-                    fs::write(p, filter.content).unwrap();
-                }
-                self.db
-                    .put(&key, &serialize(&filter_len))
-                    .expect("error in write");
-                filter_len
-            }
-        };
-
-        self.stats.bip158_filter_size_per_month[index] += filter_len;
-
-        for tx in block.block.txdata {
+        for tx in block.block.txdata.iter() {
             for output in tx.output.iter() {
                 if output.script_pubkey.is_op_return() {
                     self.process_op_return_script(
@@ -189,27 +126,8 @@ impl Process {
                     );
                 }
                 self.process_output_script(&output.script_pubkey, index);
-                let len = VarInt(output.value).len() as u64;
-
-                self.stats.total_bytes_output_value_bitcoin_varint += len;
-                self.stats.total_bytes_output_value_varint +=
-                    encoded_length_7bit_varint(output.value);
-                let compressed = compress_amount(output.value);
-                self.stats
-                    .total_bytes_output_value_compressed_bitcoin_varint +=
-                    VarInt(compressed).len() as u64;
-                self.stats.total_bytes_output_value_compressed_varint +=
-                    encoded_length_7bit_varint(compressed);
-                if (output.value % 1000) == 0 {
-                    self.stats.rounded_amount_per_month[index] += 1;
-                    self.stats.rounded_amount += 1;
-                }
             }
             for input in tx.input.iter() {
-                if block.tx_hashes.contains(&input.previous_output.txid) {
-                    self.stats.total_spent_in_block += 1;
-                    self.stats.total_spent_in_block_per_month[index] += 1;
-                }
                 if let Some(witness_script) = input.witness.last() {
                     if let Some(key) = parse_multisig(witness_script) {
                         if self.script_type.multisig_tx.get(&key).is_none() {
@@ -219,31 +137,6 @@ impl Process {
                         }
                         *self.script_type.multisig.entry(key).or_insert(0) += 1;
                     }
-                }
-
-                self.process_input_script(&input.script_sig);
-            }
-            self.process_stats(&tx);
-        }
-        let hash = block.block.header.bitcoin_hash();
-        if self.stats.min_hash > hash {
-            self.stats.min_hash = hash;
-        }
-        let size = u64::from(block.size);
-        if self.stats.max_block_size.0 < size {
-            self.stats.max_block_size = (size, Some(hash));
-        }
-    }
-
-    fn process_input_script(&mut self, script: &Script) {
-        for instr in script.iter(true) {
-            if let Instruction::PushBytes(data) = instr {
-                if let Ok(sighash) = deserialize::<SignatureHash>(data) {
-                    *self
-                        .stats
-                        .sighashtype
-                        .entry(format!("{:?}", sighash.0))
-                        .or_insert(0) += 1;
                 }
             }
         }
@@ -310,32 +203,6 @@ impl Process {
                 .entry(op_ret_proto.clone())
                 .or_insert(0) += 1;
         }
-    }
-
-    fn process_stats(&mut self, tx: &Transaction) {
-        let weight = tx.get_weight() as u64;
-        let outputs = tx.output.len() as u64;
-        let inputs = tx.input.len() as u64;
-        let txid = tx.txid();
-        self.stats.total_outputs += outputs as u64;
-        self.stats.total_inputs += inputs as u64;
-        if self.stats.max_outputs_per_tx.0 < outputs {
-            self.stats.max_outputs_per_tx = (outputs, Some(txid));
-        }
-        if self.stats.max_inputs_per_tx.0 < inputs {
-            self.stats.max_inputs_per_tx = (inputs, Some(txid));
-        }
-        if self.stats.max_weight_tx.0 < weight {
-            self.stats.max_weight_tx = (weight, Some(txid));
-        }
-        if self.stats.min_weight_tx.0 > weight {
-            self.stats.min_weight_tx = (weight, Some(txid));
-        }
-
-        let in_out_key = format!("{:02}-{:02}", inputs, outputs);
-        *self.stats.in_out.entry(in_out_key).or_insert(0) += 1;
-
-        self.stats.amount_over_32 += tx.output.iter().filter(|o| o.value > 0xffff_ffff).count();
     }
 }
 
@@ -433,14 +300,14 @@ impl OpReturnData {
     }
 }
 
-fn filter_key(block_hash: sha256d::Hash) -> Vec<u8> {
+pub fn filter_key(block_hash: sha256d::Hash) -> Vec<u8> {
     let mut v = vec![];
     v.push(b'f');
     v.extend(serialize(&block_hash));
     v
 }
 
-fn parse_multisig(witness_script: &Vec<u8>) -> Option<String> {
+pub fn parse_multisig(witness_script: &Vec<u8>) -> Option<String> {
     let witness_script_len = witness_script.len();
     if witness_script.last() == Some(&opcodes::all::OP_CHECKMULTISIG.into_u8())
         && witness_script_len > 1
@@ -454,7 +321,7 @@ fn parse_multisig(witness_script: &Vec<u8>) -> Option<String> {
     None
 }
 
-fn read_pushnum(value: u8) -> Option<u8> {
+pub fn read_pushnum(value: u8) -> Option<u8> {
     if value >= opcodes::all::OP_PUSHNUM_1.into_u8()
         && value <= opcodes::all::OP_PUSHNUM_16.into_u8()
     {
@@ -464,11 +331,11 @@ fn read_pushnum(value: u8) -> Option<u8> {
     }
 }
 
-fn convert_sat_to_bitcoin(map: &Vec<u64>) -> Vec<f64> {
+pub fn convert_sat_to_bitcoin(map: &Vec<u64>) -> Vec<f64> {
     map.iter().map(|v| *v as f64 / 100_000_000f64).collect()
 }
 
-fn toml_section_vec_f64(title: &str, vec: &Vec<f64>, shift: Option<usize>) -> String {
+pub fn toml_section_vec_f64(title: &str, vec: &Vec<f64>, shift: Option<usize>) -> String {
     let mut s = String::new();
     s.push_str(&format!("\n[{}]\n", title));
     let labels: Vec<String> = vec
@@ -481,7 +348,7 @@ fn toml_section_vec_f64(title: &str, vec: &Vec<f64>, shift: Option<usize>) -> St
     s
 }
 
-fn toml_section_vec(title: &str, vec: &Vec<u64>, shift: Option<usize>) -> String {
+pub fn toml_section_vec(title: &str, vec: &Vec<u64>, shift: Option<usize>) -> String {
     let mut s = String::new();
     s.push_str(&format!("\n[{}]\n", title));
     let labels: Vec<String> = vec
@@ -494,7 +361,7 @@ fn toml_section_vec(title: &str, vec: &Vec<u64>, shift: Option<usize>) -> String
     s
 }
 
-fn toml_section(title: &str, map: &BTreeMap<String, u64>) -> String {
+pub fn toml_section(title: &str, map: &BTreeMap<String, u64>) -> String {
     let mut s = String::new();
     s.push_str(&format!("\n[{}]\n", title));
     let labels: Vec<String> = map.keys().cloned().collect();
@@ -504,7 +371,7 @@ fn toml_section(title: &str, map: &BTreeMap<String, u64>) -> String {
     s
 }
 
-fn hash_to_tree(map: &HashMap<String, u64>) -> BTreeMap<String, u64> {
+pub fn hash_to_tree(map: &HashMap<String, u64>) -> BTreeMap<String, u64> {
     let mut tree: BTreeMap<String, u64> = BTreeMap::new();
     for (key, value) in map.iter() {
         tree.insert(key.to_string(), *value);
@@ -512,7 +379,7 @@ fn hash_to_tree(map: &HashMap<String, u64>) -> BTreeMap<String, u64> {
     tree
 }
 
-fn map_by_value(map: &HashMap<String, u64>) -> BTreeMap<String, u64> {
+pub fn map_by_value(map: &HashMap<String, u64>) -> BTreeMap<String, u64> {
     let mut tree: BTreeMap<String, u64> = BTreeMap::new();
     let mut count_vec: Vec<(&String, &u64)> = map.iter().collect();
     count_vec.sort_by(|a, b| b.1.cmp(a.1));
@@ -524,128 +391,7 @@ fn map_by_value(map: &HashMap<String, u64>) -> BTreeMap<String, u64> {
     tree
 }
 
-impl Stats {
-    fn new() -> Self {
-        Stats {
-            max_outputs_per_tx: (100u64, None),
-            max_inputs_per_tx: (100u64, None),
-            min_weight_tx: (10000u64, None),
-            max_weight_tx: (0u64, None),
-            total_outputs: 0u64,
-            total_inputs: 0u64,
-            amount_over_32: 0usize,
-            rounded_amount: 0u64,
-            total_spent_in_block: 0u64,
-            max_block_size: (0u64, None),
-            min_hash: sha256d::Hash::from_hex(
-                "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
-            )
-            .unwrap(),
-            total_bytes_output_value_varint: 0u64,
-            total_bytes_output_value_compressed_varint: 0u64,
-            total_bytes_output_value_bitcoin_varint: 0u64,
-            total_bytes_output_value_compressed_bitcoin_varint: 0u64,
-            total_spent_in_block_per_month: vec![0u64; month_array_len()],
-            rounded_amount_per_month: vec![0u64; month_array_len()],
-            bip158_filter_size_per_month: vec![0u64; month_array_len()],
-
-            block_size_per_month: vec![0u64; month_array_len()],
-            sighashtype: HashMap::new(),
-            in_out: HashMap::new(),
-        }
-    }
-
-    fn to_toml(&self) -> String {
-        let mut s = String::new();
-
-        s.push_str(&toml_section_hash(
-            "max_outputs_per_tx",
-            &self.max_outputs_per_tx,
-        ));
-        s.push_str(&toml_section_hash(
-            "max_inputs_per_tx",
-            &self.max_inputs_per_tx,
-        ));
-        s.push_str(&toml_section_hash("min_weight_tx", &self.min_weight_tx));
-        s.push_str(&toml_section_hash("max_weight_tx", &self.max_weight_tx));
-        s.push_str(&toml_section_hash("max_block_size", &self.max_block_size));
-
-        s.push_str("\n[totals]\n");
-        s.push_str(&format!("min_hash = \"{:?}\"\n", self.min_hash));
-        s.push_str(&format!("outputs = {}\n", self.total_outputs));
-        s.push_str(&format!("inputs = {}\n", self.total_inputs));
-        s.push_str(&format!("amount_over_32 = {}\n", self.amount_over_32));
-        s.push_str(&format!("rounded_amount = {}\n", self.rounded_amount));
-        s.push_str(&format!(
-            "total_spent_in_block = {}\n",
-            self.total_spent_in_block
-        ));
-
-        s.push_str(&format!(
-            "bytes_output_value = {}\n",
-            self.total_outputs * 8
-        ));
-        s.push_str(&format!(
-            "bytes_output_value_bitcoin_varint = {}\n",
-            self.total_bytes_output_value_bitcoin_varint
-        ));
-        s.push_str(&format!(
-            "bytes_output_value_varint = {}\n",
-            self.total_bytes_output_value_varint
-        ));
-        s.push_str(&format!(
-            "bytes_output_value_compressed_bitcoin_varint = {}\n",
-            self.total_bytes_output_value_compressed_bitcoin_varint
-        ));
-        s.push_str(&format!(
-            "bytes_output_value_compressed_varint = {}\n",
-            self.total_bytes_output_value_compressed_varint
-        ));
-
-        s.push_str("\n\n");
-        s.push_str(&toml_section_vec(
-            "total_spent_in_block_per_month",
-            &self.total_spent_in_block_per_month,
-            None,
-        ));
-
-        s.push_str("\n\n");
-        s.push_str(&toml_section_vec(
-            "rounded_amount_per_month",
-            &self.rounded_amount_per_month,
-            None,
-        ));
-
-        s.push_str("\n\n");
-        s.push_str(&toml_section_vec(
-            "bip158_filter_size_per_month",
-            &self.bip158_filter_size_per_month,
-            None,
-        ));
-
-        s.push_str("\n\n");
-        s.push_str(&toml_section_vec(
-            "bip158_filter_size_per_month_cum",
-            &cumulative(&self.bip158_filter_size_per_month),
-            None,
-        ));
-
-        s.push_str("\n\n");
-        s.push_str(&toml_section_vec(
-            "block_size_per_month",
-            &cumulative(&self.block_size_per_month),
-            None,
-        ));
-
-        s.push_str(&toml_section("in_out", &map_by_value(&self.in_out)));
-
-        s.push_str(&toml_section("sighashtype", &map_by_value(&self.sighashtype)));
-
-        s
-    }
-}
-
-fn cumulative(values: &Vec<u64>) -> Vec<u64> {
+pub fn cumulative(values: &Vec<u64>) -> Vec<u64> {
     let mut result = Vec::with_capacity(values.len());
     let mut cum = 0;
     for val in values {
@@ -655,7 +401,7 @@ fn cumulative(values: &Vec<u64>) -> Vec<u64> {
     result
 }
 
-fn toml_section_hash(title: &str, value: &(u64, Option<sha256d::Hash>)) -> String {
+pub fn toml_section_hash(title: &str, value: &(u64, Option<sha256d::Hash>)) -> String {
     let mut s = String::new();
     s.push_str(&format!("\n[{}]\n", title));
     s.push_str(&format!("hash=\"{:?}\"\n", value.1.unwrap()));
@@ -725,61 +471,28 @@ pub fn decompress_amount(x: u64) -> u64 {
     n
 }
 
-fn date_index(date: DateTime<Utc>) -> usize {
+pub fn date_index(date: DateTime<Utc>) -> usize {
     return (date.year() as usize - 2009) * 12 + (date.month() as usize - 1);
 }
 
-fn index_month(index: usize) -> String {
+pub fn index_month(index: usize) -> String {
     let year = 2009 + index / 12;
     let month = (index % 12) + 1;
     format!("{:04}{:02}", year, month)
 }
 
-fn month_date(yyyymm: String) -> DateTime<Utc> {
+pub fn month_date(yyyymm: String) -> DateTime<Utc> {
     let year: i32 = yyyymm[0..4].parse().unwrap();
     let month: u32 = yyyymm[4..6].parse().unwrap();
     Utc.ymd(year, month, 1).and_hms(0, 0, 0)
 }
 
-fn month_index(yyyymm: String) -> usize {
+pub fn month_index(yyyymm: String) -> usize {
     date_index(month_date(yyyymm))
 }
 
-fn month_array_len() -> usize {
+pub fn month_array_len() -> usize {
     date_index(Utc::now()) + 1
-}
-
-struct SignatureHash(pub SigHashType);
-
-impl Decodable for SignatureHash {
-    fn consensus_decode<D: std::io::Read>(mut d: D) -> Result<Self, encode::Error> {
-        let first = u8::consensus_decode(&mut d)?;
-        if first != 0x30 {
-            return Err(encode::Error::ParseFailed("Signature must start with 0x30"));
-        }
-        let _ = u8::consensus_decode(&mut d)?;
-        let integer_header = u8::consensus_decode(&mut d)?;
-        if integer_header != 0x02 {
-            return Err(encode::Error::ParseFailed("No integer header"));
-        }
-        let length_r = u8::consensus_decode(&mut d)?;
-        for _ in 0..length_r {
-            let _ = u8::consensus_decode(&mut d)?;
-        }
-        let integer_header = u8::consensus_decode(&mut d)?;
-        if integer_header != 0x02 {
-            return Err(encode::Error::ParseFailed("No integer header"));
-        }
-        let length_s = u8::consensus_decode(&mut d)?;
-        for _ in 0..length_s {
-            let _ = u8::consensus_decode(&mut d)?;
-        }
-
-        let sighash_u8 = u8::consensus_decode(&mut d)?;
-        let sighash = SigHashType::from_u32(sighash_u8 as u32);
-
-        Ok(SignatureHash(sighash))
-    }
 }
 
 #[cfg(test)]

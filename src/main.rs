@@ -1,6 +1,7 @@
 use crate::fee::Fee;
 use crate::parse::Parse;
 use crate::process::Process;
+use crate::process_stats::ProcessStats;
 use crate::read::Read;
 use crate::reorder::Reorder;
 use bitcoin::{Block, OutPoint, TxOut};
@@ -16,6 +17,7 @@ use std::thread;
 mod fee;
 mod parse;
 mod process;
+mod process_stats;
 mod read;
 mod reorder;
 
@@ -69,9 +71,15 @@ fn main() {
         fee.start();
     });
 
-    let mut process = Process::new(receive_blocks_and_fee, db);
+    let (send_process, receive_process) = sync_channel(blocks_size);
+    let mut process = Process::new(receive_blocks_and_fee, send_process);
     let process_handle = thread::spawn(move || {
         process.start();
+    });
+
+    let mut process_stats = ProcessStats::new(receive_process, db);
+    let process_stats_handle = thread::spawn(move || {
+        process_stats.start();
     });
 
     read_handle.join().unwrap();
@@ -79,4 +87,5 @@ fn main() {
     orderer_handle.join().unwrap();
     fee_handle.join().unwrap();
     process_handle.join().unwrap();
+    process_stats_handle.join().unwrap();
 }

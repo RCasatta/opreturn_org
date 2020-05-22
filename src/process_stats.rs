@@ -1,0 +1,451 @@
+use crate::process::*;
+use crate::BlockExtra;
+use bitcoin::blockdata::script::Instruction;
+use bitcoin::consensus::{deserialize, encode};
+use bitcoin::consensus::{serialize, Decodable};
+use bitcoin::util::bip158::BlockFilter;
+use bitcoin::util::bip158::Error;
+use bitcoin::util::hash::BitcoinHash;
+use bitcoin::Transaction;
+use bitcoin::VarInt;
+use bitcoin::{Script, SigHashType};
+use bitcoin_hashes::hex::FromHex;
+use bitcoin_hashes::sha256d;
+use chrono::{TimeZone, Utc};
+use rocksdb::DB;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::str::FromStr;
+use std::sync::mpsc::Receiver;
+use std::sync::Arc;
+use std::time::Instant;
+use std::{env, fs};
+
+pub struct ProcessStats {
+    receiver: Receiver<Option<BlockExtra>>,
+    stats: Stats,
+    db: Arc<DB>, // previous_hashes: VecDeque<HashSet<sha256d::Hash>>,
+}
+
+struct Stats {
+    max_outputs_per_tx: (u64, Option<sha256d::Hash>),
+    min_weight_tx: (u64, Option<sha256d::Hash>),
+    max_inputs_per_tx: (u64, Option<sha256d::Hash>),
+    max_weight_tx: (u64, Option<sha256d::Hash>),
+    total_outputs: u64,
+    total_inputs: u64,
+    amount_over_32: usize,
+    rounded_amount: u64,
+    max_block_size: (u64, Option<sha256d::Hash>),
+    min_hash: sha256d::Hash,
+    total_spent_in_block: u64,
+    total_spent_in_block_per_month: Vec<u64>,
+    total_bytes_output_value_varint: u64,
+    total_bytes_output_value_compressed_varint: u64,
+    total_bytes_output_value_bitcoin_varint: u64,
+    total_bytes_output_value_compressed_bitcoin_varint: u64,
+    rounded_amount_per_month: Vec<u64>,
+    bip158_filter_size_per_month: Vec<u64>,
+    block_size_per_month: Vec<u64>,
+    sighashtype: HashMap<String, u64>,
+    in_out: HashMap<String, u64>,
+}
+
+impl ProcessStats {
+    pub fn new(receiver: Receiver<Option<BlockExtra>>, db: Arc<DB>) -> ProcessStats {
+        ProcessStats {
+            receiver,
+            stats: Stats::new(),
+            db,
+        }
+    }
+
+    pub fn start(&mut self) {
+        let mut busy_time = 0u128;
+        loop {
+            let received = self.receiver.recv().expect("cannot receive fee block");
+            match received {
+                Some(block) => {
+                    let now = Instant::now();
+                    self.process_block(&block);
+                    busy_time = busy_time + now.elapsed().as_nanos();
+                }
+                None => break,
+            }
+        }
+
+        self.stats.total_spent_in_block_per_month.pop();
+        self.stats.rounded_amount_per_month.pop();
+        self.stats.bip158_filter_size_per_month.pop();
+        let toml = self.stats.to_toml();
+        println!("{}", toml);
+        fs::write("site/_data/stats.toml", toml).expect("Unable to w rite file");
+
+        println!(
+            "ending stats processer, busy time: {}s",
+            (busy_time / 1_000_000_000)
+        );
+    }
+
+    fn process_block(&mut self, block: &BlockExtra) {
+        let time = block.block.header.time;
+        let date = Utc.timestamp(i64::from(time), 0);
+        let index = date_index(date);
+
+        let key = filter_key(block.block.bitcoin_hash());
+
+        self.stats.block_size_per_month[index] += block.size as u64;
+
+        let filter_len = match self.db.get(&key).expect("operational problem encountered") {
+            Some(value) => deserialize::<u64>(&value).expect("cant deserialize u64"),
+            None => {
+                let filter = BlockFilter::new_script_filter(&block.block, |o| {
+                    if let Some(s) = &block.outpoint_values.get(o) {
+                        Ok(s.script_pubkey.clone())
+                    } else {
+                        Err(Error::UtxoMissing(o.clone()))
+                    }
+                })
+                .unwrap();
+                let filter_len = filter.content.len() as u64;
+                if let Ok(dir) = env::var("BIP158_DIR") {
+                    let p = PathBuf::from_str(&format!("{}/{}.bin", dir, block.height)).unwrap();
+                    fs::write(p, filter.content).unwrap();
+                }
+                self.db
+                    .put(&key, &serialize(&filter_len))
+                    .expect("error in write");
+                filter_len
+            }
+        };
+
+        self.stats.bip158_filter_size_per_month[index] += filter_len;
+
+        for tx in block.block.txdata.iter() {
+            for output in tx.output.iter() {
+                let len = VarInt(output.value).len() as u64;
+
+                self.stats.total_bytes_output_value_bitcoin_varint += len;
+                self.stats.total_bytes_output_value_varint +=
+                    encoded_length_7bit_varint(output.value);
+                let compressed = compress_amount(output.value);
+                self.stats
+                    .total_bytes_output_value_compressed_bitcoin_varint +=
+                    VarInt(compressed).len() as u64;
+                self.stats.total_bytes_output_value_compressed_varint +=
+                    encoded_length_7bit_varint(compressed);
+                if (output.value % 1000) == 0 {
+                    self.stats.rounded_amount_per_month[index] += 1;
+                    self.stats.rounded_amount += 1;
+                }
+            }
+            for input in tx.input.iter() {
+                if block.tx_hashes.contains(&input.previous_output.txid) {
+                    self.stats.total_spent_in_block += 1;
+                    self.stats.total_spent_in_block_per_month[index] += 1;
+                }
+
+                self.process_input_script(&input.script_sig);
+            }
+            self.process_stats(&tx);
+        }
+        let hash = block.block.header.bitcoin_hash();
+        if self.stats.min_hash > hash {
+            self.stats.min_hash = hash;
+        }
+        let size = u64::from(block.size);
+        if self.stats.max_block_size.0 < size {
+            self.stats.max_block_size = (size, Some(hash));
+        }
+    }
+
+    fn process_input_script(&mut self, script: &Script) {
+        for instr in script.iter(true) {
+            if let Instruction::PushBytes(data) = instr {
+                if let Ok(sighash) = deserialize::<SignatureHash>(data) {
+                    *self
+                        .stats
+                        .sighashtype
+                        .entry(format!("{:?}", sighash.0))
+                        .or_insert(0) += 1;
+                }
+            }
+        }
+    }
+
+    fn process_stats(&mut self, tx: &Transaction) {
+        let weight = tx.get_weight() as u64;
+        let outputs = tx.output.len() as u64;
+        let inputs = tx.input.len() as u64;
+        let txid = tx.txid();
+        self.stats.total_outputs += outputs as u64;
+        self.stats.total_inputs += inputs as u64;
+        if self.stats.max_outputs_per_tx.0 < outputs {
+            self.stats.max_outputs_per_tx = (outputs, Some(txid));
+        }
+        if self.stats.max_inputs_per_tx.0 < inputs {
+            self.stats.max_inputs_per_tx = (inputs, Some(txid));
+        }
+        if self.stats.max_weight_tx.0 < weight {
+            self.stats.max_weight_tx = (weight, Some(txid));
+        }
+        if self.stats.min_weight_tx.0 > weight {
+            self.stats.min_weight_tx = (weight, Some(txid));
+        }
+
+        let in_out_key = format!("{:02}-{:02}", inputs, outputs);
+        *self.stats.in_out.entry(in_out_key).or_insert(0) += 1;
+
+        self.stats.amount_over_32 += tx.output.iter().filter(|o| o.value > 0xffff_ffff).count();
+    }
+}
+
+impl Stats {
+    fn new() -> Self {
+        Stats {
+            max_outputs_per_tx: (100u64, None),
+            max_inputs_per_tx: (100u64, None),
+            min_weight_tx: (10000u64, None),
+            max_weight_tx: (0u64, None),
+            total_outputs: 0u64,
+            total_inputs: 0u64,
+            amount_over_32: 0usize,
+            rounded_amount: 0u64,
+            total_spent_in_block: 0u64,
+            max_block_size: (0u64, None),
+            min_hash: sha256d::Hash::from_hex(
+                "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
+            )
+            .unwrap(),
+            total_bytes_output_value_varint: 0u64,
+            total_bytes_output_value_compressed_varint: 0u64,
+            total_bytes_output_value_bitcoin_varint: 0u64,
+            total_bytes_output_value_compressed_bitcoin_varint: 0u64,
+            total_spent_in_block_per_month: vec![0u64; month_array_len()],
+            rounded_amount_per_month: vec![0u64; month_array_len()],
+            bip158_filter_size_per_month: vec![0u64; month_array_len()],
+
+            block_size_per_month: vec![0u64; month_array_len()],
+            sighashtype: HashMap::new(),
+            in_out: HashMap::new(),
+        }
+    }
+
+    fn to_toml(&self) -> String {
+        let mut s = String::new();
+
+        s.push_str(&toml_section_hash(
+            "max_outputs_per_tx",
+            &self.max_outputs_per_tx,
+        ));
+        s.push_str(&toml_section_hash(
+            "max_inputs_per_tx",
+            &self.max_inputs_per_tx,
+        ));
+        s.push_str(&toml_section_hash("min_weight_tx", &self.min_weight_tx));
+        s.push_str(&toml_section_hash("max_weight_tx", &self.max_weight_tx));
+        s.push_str(&toml_section_hash("max_block_size", &self.max_block_size));
+
+        s.push_str("\n[totals]\n");
+        s.push_str(&format!("min_hash = \"{:?}\"\n", self.min_hash));
+        s.push_str(&format!("outputs = {}\n", self.total_outputs));
+        s.push_str(&format!("inputs = {}\n", self.total_inputs));
+        s.push_str(&format!("amount_over_32 = {}\n", self.amount_over_32));
+        s.push_str(&format!("rounded_amount = {}\n", self.rounded_amount));
+        s.push_str(&format!(
+            "total_spent_in_block = {}\n",
+            self.total_spent_in_block
+        ));
+
+        s.push_str(&format!(
+            "bytes_output_value = {}\n",
+            self.total_outputs * 8
+        ));
+        s.push_str(&format!(
+            "bytes_output_value_bitcoin_varint = {}\n",
+            self.total_bytes_output_value_bitcoin_varint
+        ));
+        s.push_str(&format!(
+            "bytes_output_value_varint = {}\n",
+            self.total_bytes_output_value_varint
+        ));
+        s.push_str(&format!(
+            "bytes_output_value_compressed_bitcoin_varint = {}\n",
+            self.total_bytes_output_value_compressed_bitcoin_varint
+        ));
+        s.push_str(&format!(
+            "bytes_output_value_compressed_varint = {}\n",
+            self.total_bytes_output_value_compressed_varint
+        ));
+
+        s.push_str("\n\n");
+        s.push_str(&toml_section_vec(
+            "total_spent_in_block_per_month",
+            &self.total_spent_in_block_per_month,
+            None,
+        ));
+
+        s.push_str("\n\n");
+        s.push_str(&toml_section_vec(
+            "rounded_amount_per_month",
+            &self.rounded_amount_per_month,
+            None,
+        ));
+
+        s.push_str("\n\n");
+        s.push_str(&toml_section_vec(
+            "bip158_filter_size_per_month",
+            &self.bip158_filter_size_per_month,
+            None,
+        ));
+
+        s.push_str("\n\n");
+        s.push_str(&toml_section_vec(
+            "bip158_filter_size_per_month_cum",
+            &cumulative(&self.bip158_filter_size_per_month),
+            None,
+        ));
+
+        s.push_str("\n\n");
+        s.push_str(&toml_section_vec(
+            "block_size_per_month",
+            &cumulative(&self.block_size_per_month),
+            None,
+        ));
+
+        s.push_str(&toml_section("in_out", &map_by_value(&self.in_out)));
+
+        s.push_str(&toml_section(
+            "sighashtype",
+            &map_by_value(&self.sighashtype),
+        ));
+
+        s
+    }
+}
+
+struct SignatureHash(pub SigHashType);
+
+impl Decodable for SignatureHash {
+    fn consensus_decode<D: std::io::Read>(mut d: D) -> Result<Self, encode::Error> {
+        let first = u8::consensus_decode(&mut d)?;
+        if first != 0x30 {
+            return Err(encode::Error::ParseFailed("Signature must start with 0x30"));
+        }
+        let _ = u8::consensus_decode(&mut d)?;
+        let integer_header = u8::consensus_decode(&mut d)?;
+        if integer_header != 0x02 {
+            return Err(encode::Error::ParseFailed("No integer header"));
+        }
+        let length_r = u8::consensus_decode(&mut d)?;
+        for _ in 0..length_r {
+            let _ = u8::consensus_decode(&mut d)?;
+        }
+        let integer_header = u8::consensus_decode(&mut d)?;
+        if integer_header != 0x02 {
+            return Err(encode::Error::ParseFailed("No integer header"));
+        }
+        let length_s = u8::consensus_decode(&mut d)?;
+        for _ in 0..length_s {
+            let _ = u8::consensus_decode(&mut d)?;
+        }
+
+        let sighash_u8 = u8::consensus_decode(&mut d)?;
+        let sighash = SigHashType::from_u32(sighash_u8 as u32);
+
+        Ok(SignatureHash(sighash))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::process::cumulative;
+    use crate::process::decompress_amount;
+    use crate::process::index_month;
+    use crate::process::parse_multisig;
+    use crate::process::{compress_amount, SignatureHash};
+    use crate::process::{date_index, encoded_length_7bit_varint, month_date};
+    use bitcoin::consensus::{deserialize, Decodable};
+    use bitcoin::SigHashType;
+    use chrono::offset::TimeZone;
+    use chrono::Utc;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test0() {
+        let date = Utc.timestamp(1230768000i64, 0);
+        assert_eq!(0, date_index(date));
+        assert_eq!("200901", index_month(0));
+        let date = Utc.timestamp(1262304000i64, 0);
+        assert_eq!(12, date_index(date));
+        assert_eq!("200912", index_month(11));
+        assert_eq!("201001", index_month(12));
+        for i in 0..2000 {
+            assert_eq!(i, date_index(month_date(index_month(i))));
+        }
+    }
+
+    #[test]
+    fn test1() {
+        assert_eq!(encoded_length_7bit_varint(127), 1);
+        assert_eq!(encoded_length_7bit_varint(128), 2);
+        assert_eq!(encoded_length_7bit_varint(1_270), 2);
+        assert_eq!(encoded_length_7bit_varint(111_270), 3);
+        assert_eq!(encoded_length_7bit_varint(2_097_151), 3);
+        assert_eq!(encoded_length_7bit_varint(2_097_152), 4);
+    }
+
+    #[test]
+    fn test2() {
+        let tuples = vec![("one", 1), ("two", 2), ("three", 3)];
+        let m: HashMap<_, _> = tuples.into_iter().collect();
+        println!("{:?}", m);
+    }
+
+    #[test]
+    fn test3() {
+        let mut b: bool = true;
+        let u = b as u32;
+        assert_eq!(u, 1u32);
+        b = false;
+        let u = b as u32;
+        assert_eq!(u, 0u32);
+    }
+
+    #[test]
+    fn test4() {
+        let i = 10_000_000_000;
+        let compressed = compress_amount(i);
+        println!("compressed: {}", compressed);
+        assert_eq!(i, decompress_amount(compressed));
+
+        for i in 0..std::u64::MAX {
+            assert_eq!(i, decompress_amount(compress_amount(i)));
+        }
+    }
+
+    #[test]
+    fn test5() {
+        let vec = vec![1, 1, 1];
+        assert_eq!(cumulative(&vec), vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn test_parse_multisig() {
+        let script = hex::decode("52210293de2378b245e0c4a8325d2beb2e537041a3b9b12c96052a9f30954700e56ef3210230d013baf38205252c298625a7c7799e1f11a016d3738198410bcf8bcc1fecab52ae").unwrap();
+        assert_eq!(Some("02of02".to_string()), parse_multisig(&script));
+    }
+
+    #[test]
+    fn test_decode_signature() {
+        let der_signature = hex::decode("3045022100bd3688bbeefe67dbaf34b7e7d250bcbcf99c8a5cf7cb680393f5025b03dac912022057dbf2317c3413b57eeaf712f1599b74213f1a4ea4e3f5091db6f7fe8d02465a01").unwrap();
+
+        let signatureHash: SignatureHash = deserialize(&der_signature).unwrap();
+        assert_eq!(signatureHash.0, SigHashType::All);
+
+        let der_signature = hex::decode("3045022100bd3688bbeefe67dbaf34b7e7d250bcbcf99c8a5cf7cb680393f5025b03dac912022057dbf2317c3413b57eeaf712f1599b74213f1a4ea4e3f5091db6f7fe8d02465a83").unwrap();
+
+        let signatureHash: SignatureHash = deserialize(&der_signature).unwrap();
+        assert_eq!(signatureHash.0, SigHashType::SinglePlusAnyoneCanPay);
+    }
+}
