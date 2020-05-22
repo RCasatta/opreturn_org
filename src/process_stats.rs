@@ -158,7 +158,7 @@ impl ProcessStats {
                                 .or_insert(0) += 1;
                             match sighash.0 {
                                 SigHashType::All | SigHashType::AllPlusAnyoneCanPay => 0,
-                                _ => self.stats.sighash_file.write(format!("{} {:?} {}", tx.txid(), sighash.0, input.sequence ).as_bytes() ).unwrap(),
+                                _ => self.stats.sighash_file.write(format!("{} {:?} {}\n", tx.txid(), sighash.0, input.sequence ).as_bytes() ).unwrap(),
                             };
 
                         }
@@ -173,7 +173,7 @@ impl ProcessStats {
                             .or_insert(0) += 1;
                         match sighash.0 {
                             SigHashType::All | SigHashType::AllPlusAnyoneCanPay => 0,
-                            _ => self.stats.sighash_file.write(format!("{} {:?} {}", tx.txid(), sighash.0, input.sequence ).as_bytes() ).unwrap()  ,
+                            _ => self.stats.sighash_file.write(format!("{} {:?} {}\n", tx.txid(), sighash.0, input.sequence ).as_bytes() ).unwrap()  ,
                         };
 
                     }
