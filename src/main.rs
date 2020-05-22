@@ -10,8 +10,8 @@ use std::collections::{HashMap, HashSet};
 use std::env;
 use std::path::PathBuf;
 use std::sync::mpsc::sync_channel;
-use std::thread;
 use std::sync::Arc;
+use std::thread;
 
 mod fee;
 mod parse;

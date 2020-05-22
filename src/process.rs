@@ -1,36 +1,36 @@
 use crate::fee::tx_fee;
 use crate::BlockExtra;
 use bitcoin::blockdata::opcodes;
+use bitcoin::blockdata::script::Instruction;
+use bitcoin::consensus::{deserialize, encode};
+use bitcoin::consensus::{serialize, Decodable};
 use bitcoin::util::bip158::BlockFilter;
 use bitcoin::util::bip158::Error;
 use bitcoin::util::hash::BitcoinHash;
-use bitcoin::Script;
 use bitcoin::Transaction;
 use bitcoin::VarInt;
+use bitcoin::{Script, SigHashType};
 use bitcoin_hashes::hex::FromHex;
 use bitcoin_hashes::sha256d;
 use chrono::DateTime;
 use chrono::{Datelike, TimeZone, Utc};
+use rocksdb::DB;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::mpsc::Receiver;
+use std::sync::Arc;
 use std::time::Instant;
 use std::{env, fs};
 use time::Duration;
-use rocksdb::DB;
-use std::sync::Arc;
-use bitcoin::consensus::serialize;
-use bitcoin::consensus::deserialize;
 
 pub struct Process {
     receiver: Receiver<Option<BlockExtra>>,
     op_return_data: OpReturnData,
     stats: Stats,
     script_type: ScriptType,
-    db: Arc<DB>
-    // previous_hashes: VecDeque<HashSet<sha256d::Hash>>,
+    db: Arc<DB>, // previous_hashes: VecDeque<HashSet<sha256d::Hash>>,
 }
 
 struct OpReturnData {
@@ -64,7 +64,7 @@ struct Stats {
     rounded_amount_per_month: Vec<u64>,
     bip158_filter_size_per_month: Vec<u64>,
     block_size_per_month: Vec<u64>,
-    sighashtype: Vec<u64>,
+    sighashtype: HashMap<String, u64>,
     in_out: HashMap<String, u64>,
 }
 
@@ -162,13 +162,16 @@ impl Process {
                     } else {
                         Err(Error::UtxoMissing(o.clone()))
                     }
-                }).unwrap();
+                })
+                .unwrap();
                 let filter_len = filter.content.len() as u64;
                 if let Ok(dir) = env::var("BIP158_DIR") {
                     let p = PathBuf::from_str(&format!("{}/{}.bin", dir, block.height)).unwrap();
                     fs::write(p, filter.content).unwrap();
                 }
-                self.db.put(&key, &serialize(&filter_len)).expect("error in write");
+                self.db
+                    .put(&key, &serialize(&filter_len))
+                    .expect("error in write");
                 filter_len
             }
         };
@@ -210,11 +213,15 @@ impl Process {
                 if let Some(witness_script) = input.witness.last() {
                     if let Some(key) = parse_multisig(witness_script) {
                         if self.script_type.multisig_tx.get(&key).is_none() {
-                            self.script_type.multisig_tx.insert(key.clone(), format!("{}",tx.txid()));
+                            self.script_type
+                                .multisig_tx
+                                .insert(key.clone(), format!("{}", tx.txid()));
                         }
                         *self.script_type.multisig.entry(key).or_insert(0) += 1;
                     }
                 }
+
+                self.process_input_script(&input.script_sig);
             }
             self.process_stats(&tx);
         }
@@ -225,6 +232,20 @@ impl Process {
         let size = u64::from(block.size);
         if self.stats.max_block_size.0 < size {
             self.stats.max_block_size = (size, Some(hash));
+        }
+    }
+
+    fn process_input_script(&mut self, script: &Script) {
+        for instr in script.iter(true) {
+            if let Instruction::PushBytes(data) = instr {
+                if let Ok(sighash) = deserialize::<SignatureHash>(data) {
+                    *self
+                        .stats
+                        .sighashtype
+                        .entry(format!("{:?}", sighash.0))
+                        .or_insert(0) += 1;
+                }
+            }
         }
     }
 
@@ -311,7 +332,7 @@ impl Process {
             self.stats.min_weight_tx = (weight, Some(txid));
         }
 
-        let in_out_key = format!("{:04}-{:04}", inputs, outputs);
+        let in_out_key = format!("{:02}-{:02}", inputs, outputs);
         *self.stats.in_out.entry(in_out_key).or_insert(0) += 1;
 
         self.stats.amount_over_32 += tx.output.iter().filter(|o| o.value > 0xffff_ffff).count();
@@ -343,8 +364,14 @@ impl ScriptType {
         s.push_str(&toml_section_vec("v0_p2wsh", &self.v0_p2wsh, None));
         s.push_str(&toml_section_vec("p2sh", &self.p2sh, None));
         s.push_str(&toml_section_vec("other", &self.other, None));
-        s.push_str(&toml_section("segwit_multisig", &hash_to_tree(&self.multisig)));
-        s.push_str(&toml_section("segwit_multisig_other", &map_by_value(&self.multisig)));
+        s.push_str(&toml_section(
+            "segwit_multisig",
+            &hash_to_tree(&self.multisig),
+        ));
+        s.push_str(&toml_section(
+            "segwit_multisig_other",
+            &map_by_value(&self.multisig),
+        ));
 
         s
     }
@@ -402,8 +429,6 @@ impl OpReturnData {
             (op_ret_fee_total as f64 / 100_000_000f64)
         ));
 
-
-
         s
     }
 }
@@ -417,9 +442,11 @@ fn filter_key(block_hash: sha256d::Hash) -> Vec<u8> {
 
 fn parse_multisig(witness_script: &Vec<u8>) -> Option<String> {
     let witness_script_len = witness_script.len();
-    if witness_script.last() == Some(&opcodes::all::OP_CHECKMULTISIG.into_u8()) && witness_script_len > 1 {
+    if witness_script.last() == Some(&opcodes::all::OP_CHECKMULTISIG.into_u8())
+        && witness_script_len > 1
+    {
         let n = read_pushnum(witness_script[0]);
-        let m = read_pushnum(witness_script[witness_script_len-2]);
+        let m = read_pushnum(witness_script[witness_script_len - 2]);
         if n.is_some() && m.is_some() {
             return Some(format!("{:02}of{:02}", n.unwrap(), m.unwrap()));
         }
@@ -428,8 +455,10 @@ fn parse_multisig(witness_script: &Vec<u8>) -> Option<String> {
 }
 
 fn read_pushnum(value: u8) -> Option<u8> {
-    if value >= opcodes::all::OP_PUSHNUM_1.into_u8() && value <= opcodes::all::OP_PUSHNUM_16.into_u8() {
-        Some(value-opcodes::all::OP_PUSHNUM_1.into_u8()+1)
+    if value >= opcodes::all::OP_PUSHNUM_1.into_u8()
+        && value <= opcodes::all::OP_PUSHNUM_16.into_u8()
+    {
+        Some(value - opcodes::all::OP_PUSHNUM_1.into_u8() + 1)
     } else {
         None
     }
@@ -521,7 +550,7 @@ impl Stats {
             bip158_filter_size_per_month: vec![0u64; month_array_len()],
 
             block_size_per_month: vec![0u64; month_array_len()],
-            sighashtype: vec![0u64,0xff],
+            sighashtype: HashMap::new(),
             in_out: HashMap::new(),
         }
     }
@@ -608,10 +637,9 @@ impl Stats {
             None,
         ));
 
-        s.push_str(&toml_section(
-            "in_out",
-            &map_by_value(&self.in_out),
-        ));
+        s.push_str(&toml_section("in_out", &map_by_value(&self.in_out)));
+
+        s.push_str(&toml_section("sighashtype", &map_by_value(&self.sighashtype)));
 
         s
     }
@@ -721,14 +749,49 @@ fn month_array_len() -> usize {
     date_index(Utc::now()) + 1
 }
 
+struct SignatureHash(pub SigHashType);
+
+impl Decodable for SignatureHash {
+    fn consensus_decode<D: std::io::Read>(mut d: D) -> Result<Self, encode::Error> {
+        let first = u8::consensus_decode(&mut d)?;
+        if first != 0x30 {
+            return Err(encode::Error::ParseFailed("Signature must start with 0x30"));
+        }
+        let _ = u8::consensus_decode(&mut d)?;
+        let integer_header = u8::consensus_decode(&mut d)?;
+        if integer_header != 0x02 {
+            return Err(encode::Error::ParseFailed("No integer header"));
+        }
+        let length_r = u8::consensus_decode(&mut d)?;
+        for _ in 0..length_r {
+            let _ = u8::consensus_decode(&mut d)?;
+        }
+        let integer_header = u8::consensus_decode(&mut d)?;
+        if integer_header != 0x02 {
+            return Err(encode::Error::ParseFailed("No integer header"));
+        }
+        let length_s = u8::consensus_decode(&mut d)?;
+        for _ in 0..length_s {
+            let _ = u8::consensus_decode(&mut d)?;
+        }
+
+        let sighash_u8 = u8::consensus_decode(&mut d)?;
+        let sighash = SigHashType::from_u32(sighash_u8 as u32);
+
+        Ok(SignatureHash(sighash))
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use crate::process::compress_amount;
     use crate::process::cumulative;
     use crate::process::decompress_amount;
     use crate::process::index_month;
-    use crate::process::{date_index, encoded_length_7bit_varint, month_date};
     use crate::process::parse_multisig;
+    use crate::process::{compress_amount, SignatureHash};
+    use crate::process::{date_index, encoded_length_7bit_varint, month_date};
+    use bitcoin::consensus::{deserialize, Decodable};
+    use bitcoin::SigHashType;
     use chrono::offset::TimeZone;
     use chrono::Utc;
     use std::collections::HashMap;
@@ -798,4 +861,16 @@ mod test {
         assert_eq!(Some("02of02".to_string()), parse_multisig(&script));
     }
 
+    #[test]
+    fn test_decode_signature() {
+        let der_signature = hex::decode("3045022100bd3688bbeefe67dbaf34b7e7d250bcbcf99c8a5cf7cb680393f5025b03dac912022057dbf2317c3413b57eeaf712f1599b74213f1a4ea4e3f5091db6f7fe8d02465a01").unwrap();
+
+        let signatureHash: SignatureHash = deserialize(&der_signature).unwrap();
+        assert_eq!(signatureHash.0, SigHashType::All);
+
+        let der_signature = hex::decode("3045022100bd3688bbeefe67dbaf34b7e7d250bcbcf99c8a5cf7cb680393f5025b03dac912022057dbf2317c3413b57eeaf712f1599b74213f1a4ea4e3f5091db6f7fe8d02465a83").unwrap();
+
+        let signatureHash: SignatureHash = deserialize(&der_signature).unwrap();
+        assert_eq!(signatureHash.0, SigHashType::SinglePlusAnyoneCanPay);
+    }
 }

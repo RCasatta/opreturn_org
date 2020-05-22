@@ -9,8 +9,8 @@ use rocksdb::DB;
 use std::collections::HashMap;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::SyncSender;
-use std::time::Instant;
 use std::sync::Arc;
+use std::time::Instant;
 
 pub struct Fee {
     receiver: Receiver<Option<BlockExtra>>,
