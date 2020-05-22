@@ -146,6 +146,7 @@ impl ProcessStats {
                 }
 
                 self.process_input_script(&input.script_sig);
+                self.process_witness(&input.witness);
             }
             self.process_stats(&tx);
         }
@@ -156,6 +157,18 @@ impl ProcessStats {
         let size = u64::from(block.size);
         if self.stats.max_block_size.0 < size {
             self.stats.max_block_size = (size, Some(hash));
+        }
+    }
+
+    fn process_witness(&mut self, witness: &Vec<Vec<u8>>) {
+        for vec in witness.iter() {
+            if let Ok(sighash) = deserialize::<SignatureHash>(vec) {
+                *self
+                    .stats
+                    .sighashtype
+                    .entry(format!("{:?}", sighash.0))
+                    .or_insert(0) += 1;
+            }
         }
     }
 
