@@ -1,4 +1,4 @@
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.3/Chart.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.bundle.min.js"></script>
 <script src="/js/aWapBE.js"></script>
 <script type="text/javascript">
   var rainbowPalette = palette('tol-rainbow', 10).map(function(hex) {
@@ -14,6 +14,29 @@
   	purple: 'rgb(153, 102, 255, 0.8)',
   	grey: 'rgb(201, 203, 207, 0.8)'
   };
+
+  window.optionsForPercentage = {
+    tooltips: {
+      callbacks: {
+        label: function (tooltipItem, data) {
+          try {
+            let label = ' ' + data.labels[tooltipItem.index] || '';
+            if (label) {label += ': ';
+          }
+          const sum = data.datasets[0].data.reduce((accumulator, curValue) => {
+            return accumulator + curValue;
+          });
+          const value = data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index];
+          label +=  value + " (" + Number((value / sum) * 100).toFixed(2) + '%)';
+          return label;
+        } catch (error) {
+          console.log(error);
+        }
+      }
+    }
+  },
+};
+
 </script>
 <style>
 canvas{

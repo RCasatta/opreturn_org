@@ -22,7 +22,8 @@ var myChart = new Chart(ctx, {
             backgroundColor: rainbowPalette,
             fill: true,
         }]
-    }
+    },
+    options: window.optionsForPercentage
 });
 </script>
 
