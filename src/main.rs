@@ -60,24 +60,25 @@ fn main() {
     });
 
     let (send_ordered_blocks, receive_ordered_blocks) = sync_channel(blocks_size);
-    let mut reorder = Reorder::new(receive_blocks, send_ordered_blocks);
+    let mut reorder = Reorder::new(receive_blocks,send_ordered_blocks);
     let orderer_handle = thread::spawn(move || {
         reorder.start();
     });
 
-    let (send_blocks_and_fee, receive_blocks_and_fee) = sync_channel(blocks_size);
-    let mut fee = Fee::new(receive_ordered_blocks, send_blocks_and_fee, db.clone());
+    let (send_blocks_and_fee_1, receive_blocks_and_fee_1) = sync_channel(blocks_size);
+    let (send_blocks_and_fee_2, receive_blocks_and_fee_2) = sync_channel(blocks_size);
+
+    let mut fee = Fee::new(receive_ordered_blocks,  vec![send_blocks_and_fee_1, send_blocks_and_fee_2], db.clone());
     let fee_handle = thread::spawn(move || {
         fee.start();
     });
 
-    let (send_process, receive_process) = sync_channel(blocks_size);
-    let mut process = Process::new(receive_blocks_and_fee, send_process);
+    let mut process = Process::new(receive_blocks_and_fee_1);
     let process_handle = thread::spawn(move || {
         process.start();
     });
 
-    let mut process_stats = ProcessStats::new(receive_process, db);
+    let mut process_stats = ProcessStats::new(receive_blocks_and_fee_2, db);
     let process_stats_handle = thread::spawn(move || {
         process_stats.start();
     });

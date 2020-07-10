@@ -14,7 +14,7 @@ use std::time::Instant;
 
 pub struct Fee {
     receiver: Receiver<Option<BlockExtra>>,
-    sender: SyncSender<Option<BlockExtra>>,
+    sender: Vec<SyncSender<Arc<Option<BlockExtra>>>>,
     db: Arc<DB>,
     delete_after: HashMap<u32, Vec<Vec<u8>>>,
 }
@@ -22,7 +22,7 @@ pub struct Fee {
 impl Fee {
     pub fn new(
         receiver: Receiver<Option<BlockExtra>>,
-        sender: SyncSender<Option<BlockExtra>>,
+        sender: Vec<SyncSender<Arc<Option<BlockExtra>>>>,
         db: Arc<DB>,
     ) -> Fee {
         Fee {
@@ -77,14 +77,22 @@ impl Fee {
                              block_extra.out_of_order_size,
                     );
                     busy_time = busy_time + now.elapsed().as_nanos();
-                    self.sender
-                        .send(Some(block_extra))
-                        .expect("fee: cannot send");
+                    let block = Arc::new(Some(block_extra));
+                    for sender in self.sender.iter() {
+                        sender
+                            .send(block.clone())
+                            .expect("fee: cannot send");
+                    }
+
                 }
                 None => break,
             }
         }
-        self.sender.send(None).expect("fee: cannot send none");
+        let block_none = Arc::new(None);
+        for sender in self.sender.iter() {
+            sender.send(block_none.clone()).expect("fee: cannot send none");
+        }
+
         println!(
             "ending fee processer total tx {}, output values found: {}, busy time: {}s",
             total_txs,

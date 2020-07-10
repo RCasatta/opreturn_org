@@ -12,10 +12,10 @@ use std::fs;
 use std::sync::mpsc::{Receiver, SyncSender};
 use std::time::Instant;
 use time::Duration;
+use std::sync::Arc;
 
 pub struct Process {
-    receiver: Receiver<Option<BlockExtra>>,
-    sender: SyncSender<Option<BlockExtra>>,
+    receiver: Receiver<Arc<Option<BlockExtra>>>,
     op_return_data: OpReturnData,
     script_type: ScriptType,
 }

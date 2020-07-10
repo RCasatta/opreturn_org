@@ -24,7 +24,7 @@ use std::fs::File;
 use std::io::Write;
 
 pub struct ProcessStats {
-    receiver: Receiver<Option<BlockExtra>>,
+    receiver: Receiver<Arc<Option<BlockExtra>>>,
     stats: Stats,
     db: Arc<DB>, // previous_hashes: VecDeque<HashSet<sha256d::Hash>>,
 }
