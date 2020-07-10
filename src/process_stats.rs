@@ -6,22 +6,22 @@ use bitcoin::consensus::{serialize, Decodable};
 use bitcoin::util::bip158::BlockFilter;
 use bitcoin::util::bip158::Error;
 use bitcoin::util::hash::BitcoinHash;
+use bitcoin::SigHashType;
 use bitcoin::Transaction;
 use bitcoin::VarInt;
-use bitcoin::SigHashType;
 use bitcoin_hashes::hex::FromHex;
 use bitcoin_hashes::sha256d;
 use chrono::{TimeZone, Utc};
 use rocksdb::DB;
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Write;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
 use std::{env, fs};
-use std::fs::File;
-use std::io::Write;
 
 pub struct ProcessStats {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
@@ -55,7 +55,7 @@ struct Stats {
 }
 
 impl ProcessStats {
-    pub fn new(receiver: Receiver<Option<BlockExtra>>, db: Arc<DB>) -> ProcessStats {
+    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, db: Arc<DB>) -> ProcessStats {
         ProcessStats {
             receiver,
             stats: Stats::new(),
@@ -67,8 +67,8 @@ impl ProcessStats {
         let mut busy_time = 0u128;
         loop {
             let received = self.receiver.recv().expect("cannot receive fee block");
-            match received {
-                Some(block) => {
+            match *received {
+                Some(ref block) => {
                     let now = Instant::now();
                     self.process_block(&block);
                     busy_time = busy_time + now.elapsed().as_nanos();
@@ -160,9 +160,8 @@ impl ProcessStats {
                                 .or_insert(0) += 1;
                             match sighash.0 {
                                 SigHashType::All | SigHashType::AllPlusAnyoneCanPay => (),
-                                _ => strange_sighash.push(( sighash.0, input.sequence)) ,
+                                _ => strange_sighash.push((sighash.0, input.sequence)),
                             };
-
                         }
                     }
                 }
@@ -175,14 +174,16 @@ impl ProcessStats {
                             .or_insert(0) += 1;
                         match sighash.0 {
                             SigHashType::All | SigHashType::AllPlusAnyoneCanPay => (),
-                            _ => strange_sighash.push(( sighash.0, input.sequence)) ,
+                            _ => strange_sighash.push((sighash.0, input.sequence)),
                         };
-
                     }
                 }
             }
             if !strange_sighash.is_empty() {
-                self.stats.sighash_file.write(format!("{} {:?}\n", tx.txid(), strange_sighash ).as_bytes() ).unwrap();
+                self.stats
+                    .sighash_file
+                    .write(format!("{} {:?}\n", tx.txid(), strange_sighash).as_bytes())
+                    .unwrap();
             }
             self.process_stats(&tx);
         }

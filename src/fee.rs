@@ -79,18 +79,17 @@ impl Fee {
                     busy_time = busy_time + now.elapsed().as_nanos();
                     let block = Arc::new(Some(block_extra));
                     for sender in self.sender.iter() {
-                        sender
-                            .send(block.clone())
-                            .expect("fee: cannot send");
+                        sender.send(block.clone()).expect("fee: cannot send");
                     }
-
                 }
                 None => break,
             }
         }
         let block_none = Arc::new(None);
         for sender in self.sender.iter() {
-            sender.send(block_none.clone()).expect("fee: cannot send none");
+            sender
+                .send(block_none.clone())
+                .expect("fee: cannot send none");
         }
 
         println!(
@@ -109,9 +108,7 @@ impl Fee {
             for (i, output) in tx.output.iter().enumerate() {
                 let key = output_key(txid, i as u32);
                 let value = serialize(output);
-                batch
-                    .put(&key[..], &value)
-                    .expect("can't put value in batch");
+                batch.put(&key[..], &value)
                 //println!("putting {:?} hex {}", txid, hex::encode(key));
             }
         }
@@ -161,7 +158,7 @@ impl Fee {
             if let Some(val) = self.delete_after.remove(&(height - 6)) {
                 let mut batch = WriteBatch::default();
                 for el in val {
-                    batch.delete(&el).expect("cannot insert deletion in batch");
+                    batch.delete(&el);
                 }
                 let mut opt = WriteOptions::default();
                 opt.set_sync(false);

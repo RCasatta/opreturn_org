@@ -9,10 +9,10 @@ use chrono::{Datelike, TimeZone, Utc};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs;
-use std::sync::mpsc::{Receiver, SyncSender};
+use std::sync::mpsc::Receiver;
+use std::sync::Arc;
 use std::time::Instant;
 use time::Duration;
-use std::sync::Arc;
 
 pub struct Process {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
@@ -44,13 +44,9 @@ struct ScriptType {
 }
 
 impl Process {
-    pub fn new(
-        receiver: Receiver<Option<BlockExtra>>,
-        sender: SyncSender<Option<BlockExtra>>,
-    ) -> Process {
+    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>) -> Process {
         Process {
             receiver,
-            sender,
             op_return_data: OpReturnData::new(),
             script_type: ScriptType::new(),
         }
@@ -60,21 +56,13 @@ impl Process {
         let mut busy_time = 0u128;
         loop {
             let received = self.receiver.recv().expect("cannot receive fee block");
-            match received {
-                Some(block) => {
+            match *received {
+                Some(ref block) => {
                     let now = Instant::now();
                     self.process_block(&block);
                     busy_time = busy_time + now.elapsed().as_nanos();
-                    self.sender
-                        .send(Some(block))
-                        .expect("cannot send Some(block) to process_stats");
                 }
-                None => {
-                    self.sender
-                        .send(None)
-                        .expect("cannot send None to process_stats");
-                    break;
-                }
+                None => break,
             }
         }
 

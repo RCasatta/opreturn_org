@@ -60,7 +60,7 @@ fn main() {
     });
 
     let (send_ordered_blocks, receive_ordered_blocks) = sync_channel(blocks_size);
-    let mut reorder = Reorder::new(receive_blocks,send_ordered_blocks);
+    let mut reorder = Reorder::new(receive_blocks, send_ordered_blocks);
     let orderer_handle = thread::spawn(move || {
         reorder.start();
     });
@@ -68,7 +68,11 @@ fn main() {
     let (send_blocks_and_fee_1, receive_blocks_and_fee_1) = sync_channel(blocks_size);
     let (send_blocks_and_fee_2, receive_blocks_and_fee_2) = sync_channel(blocks_size);
 
-    let mut fee = Fee::new(receive_ordered_blocks,  vec![send_blocks_and_fee_1, send_blocks_and_fee_2], db.clone());
+    let mut fee = Fee::new(
+        receive_ordered_blocks,
+        vec![send_blocks_and_fee_1, send_blocks_and_fee_2],
+        db.clone(),
+    );
     let fee_handle = thread::spawn(move || {
         fee.start();
     });
