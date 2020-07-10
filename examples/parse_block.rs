@@ -1,9 +1,9 @@
 extern crate bitcoin;
 
 use bitcoin::consensus::{deserialize, serialize};
+use bitcoin::hashes::sha256d;
 use bitcoin::util::hash::BitcoinHash;
 use bitcoin::{Block, Script, Transaction, VarInt};
-use bitcoin_hashes::sha256d;
 use std::collections::{HashMap, HashSet};
 use std::io;
 use std::io::{Read, Write};

@@ -4,8 +4,7 @@ use crate::process::Process;
 use crate::process_stats::ProcessStats;
 use crate::read::Read;
 use crate::reorder::Reorder;
-use bitcoin::{Block, OutPoint, TxOut};
-use bitcoin_hashes::sha256d;
+use bitcoin::{Block, BlockHash, OutPoint, TxOut, Txid};
 use rocksdb::DB;
 use std::collections::{HashMap, HashSet};
 use std::env;
@@ -24,12 +23,12 @@ mod reorder;
 #[derive(Debug)]
 pub struct BlockExtra {
     pub block: Block,
-    pub next: Vec<sha256d::Hash>, // reorg
+    pub next: Vec<BlockHash>, // vec cause in case of reorg could be more than one
     pub size: u32,
     pub height: u32,
     pub out_of_order_size: usize,
     pub outpoint_values: HashMap<OutPoint, TxOut>,
-    pub tx_hashes: HashSet<sha256d::Hash>,
+    pub tx_hashes: HashSet<Txid>,
 }
 
 fn main() {

@@ -2,8 +2,7 @@ use crate::fee::tx_fee;
 use crate::BlockExtra;
 use bitcoin::blockdata::opcodes;
 use bitcoin::consensus::serialize;
-use bitcoin::Script;
-use bitcoin_hashes::sha256d;
+use bitcoin::{BlockHash, Script, Txid};
 use chrono::DateTime;
 use chrono::{Datelike, TimeZone, Utc};
 use std::collections::BTreeMap;
@@ -288,7 +287,7 @@ impl OpReturnData {
     }
 }
 
-pub fn filter_key(block_hash: sha256d::Hash) -> Vec<u8> {
+pub fn filter_key(block_hash: BlockHash) -> Vec<u8> {
     let mut v = vec![];
     v.push(b'f');
     v.extend(serialize(&block_hash));
@@ -391,7 +390,7 @@ pub fn cumulative(values: &Vec<u64>) -> Vec<u64> {
     result
 }
 
-pub fn toml_section_hash(title: &str, value: &(u64, Option<sha256d::Hash>)) -> String {
+pub fn toml_section_hash(title: &str, value: &(u64, Option<Txid>)) -> String {
     let mut s = String::new();
     s.push_str(&format!("\n[{}]\n", title));
     s.push_str(&format!("hash=\"{:?}\"\n", value.1.unwrap()));

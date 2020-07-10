@@ -3,14 +3,13 @@ use crate::BlockExtra;
 use bitcoin::blockdata::script::Instruction;
 use bitcoin::consensus::{deserialize, encode};
 use bitcoin::consensus::{serialize, Decodable};
+use bitcoin::hashes::hex::FromHex;
 use bitcoin::util::bip158::BlockFilter;
 use bitcoin::util::bip158::Error;
 use bitcoin::util::hash::BitcoinHash;
 use bitcoin::SigHashType;
 use bitcoin::Transaction;
-use bitcoin::VarInt;
-use bitcoin_hashes::hex::FromHex;
-use bitcoin_hashes::sha256d;
+use bitcoin::{BlockHash, Txid, VarInt};
 use chrono::{TimeZone, Utc};
 use rocksdb::DB;
 use std::collections::HashMap;
@@ -30,16 +29,16 @@ pub struct ProcessStats {
 }
 
 struct Stats {
-    max_outputs_per_tx: (u64, Option<sha256d::Hash>),
-    min_weight_tx: (u64, Option<sha256d::Hash>),
-    max_inputs_per_tx: (u64, Option<sha256d::Hash>),
-    max_weight_tx: (u64, Option<sha256d::Hash>),
+    max_outputs_per_tx: (u64, Option<Txid>),
+    min_weight_tx: (u64, Option<Txid>),
+    max_inputs_per_tx: (u64, Option<Txid>),
+    max_weight_tx: (u64, Option<Txid>),
     total_outputs: u64,
     total_inputs: u64,
     amount_over_32: usize,
     rounded_amount: u64,
-    max_block_size: (u64, Option<sha256d::Hash>),
-    min_hash: sha256d::Hash,
+    max_block_size: (u64, Option<BlockHash>),
+    min_hash: BlockHash,
     total_spent_in_block: u64,
     total_spent_in_block_per_month: Vec<u64>,
     total_bytes_output_value_varint: u64,
@@ -238,7 +237,7 @@ impl Stats {
             rounded_amount: 0u64,
             total_spent_in_block: 0u64,
             max_block_size: (0u64, None),
-            min_hash: sha256d::Hash::from_hex(
+            min_hash: BlockHash::from_hex(
                 "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
             )
             .unwrap(),
@@ -270,7 +269,7 @@ impl Stats {
         ));
         s.push_str(&toml_section_hash("min_weight_tx", &self.min_weight_tx));
         s.push_str(&toml_section_hash("max_weight_tx", &self.max_weight_tx));
-        s.push_str(&toml_section_hash("max_block_size", &self.max_block_size));
+        //s.push_str(&toml_section_hash("max_block_size", &self.max_block_size));
 
         s.push_str("\n[totals]\n");
         s.push_str(&format!("min_hash = \"{:?}\"\n", self.min_hash));

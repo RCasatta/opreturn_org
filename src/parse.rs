@@ -2,8 +2,7 @@ use crate::BlockExtra;
 use bitcoin::consensus::deserialize;
 use bitcoin::consensus::Decodable;
 use bitcoin::network::constants::Network;
-use bitcoin::Block;
-use bitcoin_hashes::sha256d;
+use bitcoin::{Block, Txid};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io::Cursor;
@@ -79,8 +78,7 @@ fn parse_blocks(blob: Vec<u8>) -> Vec<BlockExtra> {
 
         match deserialize::<Block>(&blob[start..end]) {
             Ok(block) => {
-                let tx_hashes: HashSet<sha256d::Hash> =
-                    block.txdata.iter().map(|tx| tx.txid()).collect();
+                let tx_hashes: HashSet<Txid> = block.txdata.iter().map(|tx| tx.txid()).collect();
                 blocks.push(BlockExtra {
                     block,
                     size,

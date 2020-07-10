@@ -1,8 +1,7 @@
 use crate::BlockExtra;
 use bitcoin::consensus::{deserialize, serialize};
-use bitcoin::{BitcoinHash, Block, OutPoint, Script, Transaction, TxOut, VarInt};
-use bitcoin_hashes::sha256d;
-use bitcoin_hashes::Hash;
+use bitcoin::hashes::Hash;
+use bitcoin::{BitcoinHash, Block, BlockHash, OutPoint, Script, Transaction, TxOut, Txid, VarInt};
 use rocksdb::WriteBatch;
 use rocksdb::WriteOptions;
 use rocksdb::DB;
@@ -189,7 +188,7 @@ pub fn tx_fee(tx: &Transaction, outpoint_values: &HashMap<OutPoint, TxOut>) -> u
     input_total - output_total
 }
 
-fn output_key(txid: sha256d::Hash, i: u32) -> Vec<u8> {
+fn output_key(txid: Txid, i: u32) -> Vec<u8> {
     let mut v = vec![];
     v.push(b'o');
     v.extend(&txid.into_inner()[0..10]);
@@ -198,7 +197,7 @@ fn output_key(txid: sha256d::Hash, i: u32) -> Vec<u8> {
     v
 }
 
-fn block_outpoint_values_key(hash: sha256d::Hash) -> Vec<u8> {
+fn block_outpoint_values_key(hash: BlockHash) -> Vec<u8> {
     let mut v = vec![];
     v.push(b'v');
     v.extend(serialize(&hash));
