@@ -1,3 +1,5 @@
+mod process_bip158;
+
 use crate::fee::Fee;
 use crate::parse::Parse;
 use crate::process::Process;
@@ -66,10 +68,11 @@ fn main() {
 
     let (send_blocks_and_fee_1, receive_blocks_and_fee_1) = sync_channel(blocks_size);
     let (send_blocks_and_fee_2, receive_blocks_and_fee_2) = sync_channel(blocks_size);
+    let (send_blocks_and_fee_3, receive_blocks_and_fee_3) = sync_channel(blocks_size);
 
     let mut fee = Fee::new(
         receive_ordered_blocks,
-        vec![send_blocks_and_fee_1, send_blocks_and_fee_2],
+        vec![send_blocks_and_fee_1, send_blocks_and_fee_2, send_blocks_and_fee_3],
         db.clone(),
     );
     let fee_handle = thread::spawn(move || {
@@ -81,9 +84,14 @@ fn main() {
         process.start();
     });
 
-    let mut process_stats = ProcessStats::new(receive_blocks_and_fee_2, db);
+    let mut process_stats = ProcessStats::new(receive_blocks_and_fee_2, db.clone());
     let process_stats_handle = thread::spawn(move || {
         process_stats.start();
+    });
+
+    let mut process_bip158 = ProcessStats::new(receive_blocks_and_fee_3, db);
+    let process_bip158_handle = thread::spawn(move || {
+        process_bip158.start();
     });
 
     read_handle.join().unwrap();
@@ -92,4 +100,5 @@ fn main() {
     fee_handle.join().unwrap();
     process_handle.join().unwrap();
     process_stats_handle.join().unwrap();
+    process_bip158_handle.join().unwrap();
 }

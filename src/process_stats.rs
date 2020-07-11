@@ -4,8 +4,6 @@ use bitcoin::blockdata::script::Instruction;
 use bitcoin::consensus::{deserialize, encode};
 use bitcoin::consensus::{serialize, Decodable};
 use bitcoin::hashes::hex::FromHex;
-use bitcoin::util::bip158::BlockFilter;
-use bitcoin::util::bip158::Error;
 use bitcoin::util::hash::BitcoinHash;
 use bitcoin::SigHashType;
 use bitcoin::Transaction;
@@ -46,7 +44,6 @@ struct Stats {
     total_bytes_output_value_bitcoin_varint: u64,
     total_bytes_output_value_compressed_bitcoin_varint: u64,
     rounded_amount_per_month: Vec<u64>,
-    bip158_filter_size_per_month: Vec<u64>,
     block_size_per_month: Vec<u64>,
     sighashtype: HashMap<String, u64>,
     in_out: HashMap<String, u64>,
@@ -78,7 +75,6 @@ impl ProcessStats {
 
         self.stats.total_spent_in_block_per_month.pop();
         self.stats.rounded_amount_per_month.pop();
-        self.stats.bip158_filter_size_per_month.pop();
         self.stats.block_size_per_month.pop();
         let toml = self.stats.to_toml();
         println!("{}", toml);
@@ -121,8 +117,6 @@ impl ProcessStats {
                 filter_len
             }
         };
-
-        self.stats.bip158_filter_size_per_month[index] += filter_len;
 
         for tx in block.block.txdata.iter() {
             for output in tx.output.iter() {
@@ -247,7 +241,6 @@ impl Stats {
             total_bytes_output_value_compressed_bitcoin_varint: 0u64,
             total_spent_in_block_per_month: vec![0u64; month_array_len()],
             rounded_amount_per_month: vec![0u64; month_array_len()],
-            bip158_filter_size_per_month: vec![0u64; month_array_len()],
 
             block_size_per_month: vec![0u64; month_array_len()],
             sighashtype: HashMap::new(),
@@ -314,20 +307,6 @@ impl Stats {
         s.push_str(&toml_section_vec(
             "rounded_amount_per_month",
             &self.rounded_amount_per_month,
-            None,
-        ));
-
-        s.push_str("\n\n");
-        s.push_str(&toml_section_vec(
-            "bip158_filter_size_per_month",
-            &self.bip158_filter_size_per_month,
-            None,
-        ));
-
-        s.push_str("\n\n");
-        s.push_str(&toml_section_vec(
-            "bip158_filter_size_per_month_cum",
-            &cumulative(&self.bip158_filter_size_per_month),
             None,
         ));
 
