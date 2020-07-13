@@ -49,7 +49,7 @@ impl ProcessBip158Stats {
 
         self.stats.bip158_filter_size_per_month.pop();
         let toml = self.stats.to_toml();
-        println!("{}", toml);
+        //println!("{}", toml);
         fs::write("site/_data/bip158_stats.toml", toml).expect("Unable to w rite file");
 
         println!(

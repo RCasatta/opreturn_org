@@ -75,7 +75,7 @@ impl Process {
         self.op_return_data.op_ret_fee_per_month.pop();
 
         let toml = self.op_return_data.to_toml();
-        println!("{}", toml);
+        //println!("{}", toml);
         fs::write("site/_data/op_return.toml", toml).expect("Unable to write file");
 
         self.script_type.all.pop();
@@ -86,7 +86,7 @@ impl Process {
         self.script_type.v0_p2wsh.pop();
         self.script_type.other.pop();
         let toml = self.script_type.to_toml();
-        println!("{}", toml);
+        //println!("{}", toml);
         fs::write("site/_data/script_type.toml", toml).expect("Unable to write file");
 
         println!("{:?}", self.script_type.multisig_tx);

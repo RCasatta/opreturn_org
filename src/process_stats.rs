@@ -72,7 +72,7 @@ impl ProcessStats {
         self.stats.rounded_amount_per_month.pop();
         self.stats.block_size_per_month.pop();
         let toml = self.stats.to_toml();
-        println!("{}", toml);
+        //println!("{}", toml);
         fs::write("site/_data/stats.toml", toml).expect("Unable to w rite file");
 
         println!(

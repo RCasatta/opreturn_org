@@ -49,16 +49,22 @@ fn main() {
     db_opts.create_if_missing(true);
     let db = Arc::new(DB::open(&db_opts, env::var("DB").unwrap_or_else(|_| "db".into())).unwrap());
 
-    let (send_blobs, receive_blobs) = sync_channel(blob_size);
-    let mut read = Read::new(path, send_blobs);
+    let (send_blobs_1, receive_blobs_1) = sync_channel(blob_size);
+    let (send_blobs_2, receive_blobs_2) = sync_channel(blob_size);
+    let mut read = Read::new(path, vec![send_blobs_1, send_blobs_2]);
     let read_handle = thread::spawn(move || {
         read.start();
     });
 
     let (send_blocks, receive_blocks) = sync_channel(blocks_size);
-    let mut parse = Parse::new(receive_blobs, send_blocks);
-    let parse_handle = thread::spawn(move || {
-        parse.start();
+    let mut parse_1 = Parse::new(receive_blobs_1, send_blocks.clone());
+    let parse_handle_1 = thread::spawn(move || {
+        parse_1.start();
+    });
+
+    let mut parse_2 = Parse::new(receive_blobs_2, send_blocks);
+    let parse_handle_2 = thread::spawn(move || {
+        parse_2.start();
     });
 
     let (send_ordered_blocks, receive_ordered_blocks) = sync_channel(blocks_size);
@@ -100,7 +106,8 @@ fn main() {
     });
 
     read_handle.join().unwrap();
-    parse_handle.join().unwrap();
+    parse_handle_1.join().unwrap();
+    parse_handle_2.join().unwrap();
     orderer_handle.join().unwrap();
     fee_handle.join().unwrap();
     process_handle.join().unwrap();
