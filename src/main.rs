@@ -3,6 +3,7 @@ mod process_bip158;
 use crate::fee::Fee;
 use crate::parse::Parse;
 use crate::process::Process;
+use crate::process_bip158::ProcessBip158Stats;
 use crate::process_stats::ProcessStats;
 use crate::read::Read;
 use crate::reorder::Reorder;
@@ -72,7 +73,11 @@ fn main() {
 
     let mut fee = Fee::new(
         receive_ordered_blocks,
-        vec![send_blocks_and_fee_1, send_blocks_and_fee_2, send_blocks_and_fee_3],
+        vec![
+            send_blocks_and_fee_1,
+            send_blocks_and_fee_2,
+            send_blocks_and_fee_3,
+        ],
         db.clone(),
     );
     let fee_handle = thread::spawn(move || {
@@ -84,12 +89,12 @@ fn main() {
         process.start();
     });
 
-    let mut process_stats = ProcessStats::new(receive_blocks_and_fee_2, db.clone());
+    let mut process_stats = ProcessStats::new(receive_blocks_and_fee_2);
     let process_stats_handle = thread::spawn(move || {
         process_stats.start();
     });
 
-    let mut process_bip158 = ProcessStats::new(receive_blocks_and_fee_3, db);
+    let mut process_bip158 = ProcessBip158Stats::new(receive_blocks_and_fee_3, db);
     let process_bip158_handle = thread::spawn(move || {
         process_bip158.start();
     });

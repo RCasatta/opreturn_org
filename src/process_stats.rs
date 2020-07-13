@@ -1,29 +1,25 @@
 use crate::process::*;
 use crate::BlockExtra;
 use bitcoin::blockdata::script::Instruction;
+use bitcoin::consensus::Decodable;
 use bitcoin::consensus::{deserialize, encode};
-use bitcoin::consensus::{serialize, Decodable};
 use bitcoin::hashes::hex::FromHex;
 use bitcoin::util::hash::BitcoinHash;
 use bitcoin::SigHashType;
 use bitcoin::Transaction;
 use bitcoin::{BlockHash, Txid, VarInt};
 use chrono::{TimeZone, Utc};
-use rocksdb::DB;
 use std::collections::HashMap;
+use std::fs;
 use std::fs::File;
 use std::io::Write;
-use std::path::PathBuf;
-use std::str::FromStr;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
-use std::{env, fs};
 
 pub struct ProcessStats {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
     stats: Stats,
-    db: Arc<DB>, // previous_hashes: VecDeque<HashSet<sha256d::Hash>>,
 }
 
 struct Stats {
@@ -51,11 +47,10 @@ struct Stats {
 }
 
 impl ProcessStats {
-    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, db: Arc<DB>) -> ProcessStats {
+    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>) -> ProcessStats {
         ProcessStats {
             receiver,
             stats: Stats::new(),
-            db,
         }
     }
 
@@ -91,32 +86,7 @@ impl ProcessStats {
         let date = Utc.timestamp(i64::from(time), 0);
         let index = date_index(date);
 
-        let key = filter_key(block.block.bitcoin_hash());
-
         self.stats.block_size_per_month[index] += block.size as u64;
-
-        let filter_len = match self.db.get(&key).expect("operational problem encountered") {
-            Some(value) => deserialize::<u64>(&value).expect("cant deserialize u64"),
-            None => {
-                let filter = BlockFilter::new_script_filter(&block.block, |o| {
-                    if let Some(s) = &block.outpoint_values.get(o) {
-                        Ok(s.script_pubkey.clone())
-                    } else {
-                        Err(Error::UtxoMissing(o.clone()))
-                    }
-                })
-                .unwrap();
-                let filter_len = filter.content.len() as u64;
-                if let Ok(dir) = env::var("BIP158_DIR") {
-                    let p = PathBuf::from_str(&format!("{}/{}.bin", dir, block.height)).unwrap();
-                    fs::write(p, filter.content).unwrap();
-                }
-                self.db
-                    .put(&key, &serialize(&filter_len))
-                    .expect("error in write");
-                filter_len
-            }
-        };
 
         for tx in block.block.txdata.iter() {
             for output in tx.output.iter() {

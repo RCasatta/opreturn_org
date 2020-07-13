@@ -1,21 +1,11 @@
 use crate::process::*;
 use crate::BlockExtra;
-use bitcoin::blockdata::script::Instruction;
-use bitcoin::consensus::{deserialize, encode};
-use bitcoin::consensus::{serialize, Decodable};
+use bitcoin::consensus::{deserialize, serialize};
 use bitcoin::util::bip158::BlockFilter;
 use bitcoin::util::bip158::Error;
 use bitcoin::util::hash::BitcoinHash;
-use bitcoin::SigHashType;
-use bitcoin::Transaction;
-use bitcoin::VarInt;
-use bitcoin_hashes::hex::FromHex;
-use bitcoin_hashes::sha256d;
 use chrono::{TimeZone, Utc};
 use rocksdb::DB;
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::Write;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::mpsc::Receiver;
@@ -23,7 +13,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use std::{env, fs};
 
-pub struct ProcessStats {
+pub struct ProcessBip158Stats {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
     stats: Bip158Stats,
     db: Arc<DB>, // previous_hashes: VecDeque<HashSet<sha256d::Hash>>,
@@ -34,9 +24,9 @@ struct Bip158Stats {
     bip158_filter_size_per_month: Vec<u64>,
 }
 
-impl ProcessStats {
-    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, db: Arc<DB>) -> ProcessStats {
-        ProcessStats {
+impl ProcessBip158Stats {
+    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, db: Arc<DB>) -> Self {
+        Self {
             receiver,
             stats: Bip158Stats::new(),
             db,
@@ -69,6 +59,9 @@ impl ProcessStats {
     }
 
     fn process_block(&mut self, block: &BlockExtra) {
+        let time = block.block.header.time;
+        let date = Utc.timestamp(i64::from(time), 0);
+        let index = date_index(date);
         let key = filter_key(block.block.bitcoin_hash());
 
         let filter_len = match self.db.get(&key).expect("operational problem encountered") {
@@ -95,10 +88,11 @@ impl ProcessStats {
         };
         self.stats.bip158_filter_size_per_month[index] += filter_len;
     }
+}
 
 impl Bip158Stats {
     fn new() -> Self {
-        Stats {
+        Self {
             bip158_filter_size_per_month: vec![0u64; month_array_len()],
         }
     }
