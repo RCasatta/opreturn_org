@@ -15,6 +15,7 @@ use std::path::PathBuf;
 use std::sync::mpsc::sync_channel;
 use std::sync::Arc;
 use std::thread;
+use std::time::Instant;
 
 mod fee;
 mod parse;
@@ -35,6 +36,7 @@ pub struct BlockExtra {
 }
 
 fn main() {
+    let now = Instant::now();
     let path = PathBuf::from(env::var("BITCOIN_DIR").unwrap_or("~/.bitcoin/".to_string()));
     let blob_size = env::var("BLOB_CHANNEL_SIZE")
         .unwrap_or("1".to_string())
@@ -113,4 +115,5 @@ fn main() {
     process_handle.join().unwrap();
     process_stats_handle.join().unwrap();
     process_bip158_handle.join().unwrap();
+    println!("Total time elapsed: {}s", now.elapsed().as_secs());
 }
