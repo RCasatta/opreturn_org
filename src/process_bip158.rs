@@ -13,13 +13,13 @@ use std::sync::Arc;
 use std::time::Instant;
 use std::{env, fs};
 
+// TODO remove db, use flat file with Vec<u32> save all and read all at start
 pub struct ProcessBip158Stats {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
     stats: Bip158Stats,
     db: Arc<DB>, // previous_hashes: VecDeque<HashSet<sha256d::Hash>>,
 }
 
-// TODO slowest, bring bip158 out/remove?
 struct Bip158Stats {
     bip158_filter_size_per_month: Vec<u64>,
 }

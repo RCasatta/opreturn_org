@@ -110,6 +110,7 @@ impl Reorder {
                 Some(block_extra) => {
                     self.blocks.add(block_extra);
                     while let Some(mut block_to_send) = self.blocks.remove(&self.next) {
+                        //TODO save in text file the blockhash list with height and then check with the  self.blocks.print() (save to file too)
                         block_to_send.out_of_order_size = self.blocks.blocks.len();
                         self.send(block_to_send);
                     }

@@ -46,6 +46,7 @@ struct Stats {
     sighash_file: File,
 }
 
+//TODO split again this one slower together with read
 impl ProcessStats {
     pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>) -> ProcessStats {
         ProcessStats {
