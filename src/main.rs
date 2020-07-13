@@ -64,9 +64,11 @@ fn main() {
         parse_1.start();
     });
 
-    let mut parse_2 = Parse::new(receive_blobs_2, send_blocks);
+    let mut parse_2 = Parse::new(receive_blobs_2, send_blocks.clone());
     let parse_handle_2 = thread::spawn(move || {
         parse_2.start();
+        parse_handle_1.join().unwrap();
+        send_blocks.send(None).unwrap();
     });
 
     let (send_ordered_blocks, receive_ordered_blocks) = sync_channel(blocks_size);
@@ -108,7 +110,6 @@ fn main() {
     });
 
     read_handle.join().unwrap();
-    parse_handle_1.join().unwrap();
     parse_handle_2.join().unwrap();
     orderer_handle.join().unwrap();
     fee_handle.join().unwrap();

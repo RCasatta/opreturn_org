@@ -47,7 +47,6 @@ impl Parse {
                 None => break,
             }
         }
-        self.sender.send(None).expect("parse: cannot send None");
         println!("ending parser, busy time: {}s", (busy_time / 1_000_000_000));
     }
 }
