@@ -44,6 +44,9 @@ struct Stats {
     sighashtype: HashMap<String, u64>,
     in_out: HashMap<String, u64>,
     sighash_file: File,
+    total_outputs_per_month: Vec<u64>,
+    total_inputs_per_month: Vec<u64>,
+    total_tx_per_month: Vec<u64>,
 }
 
 //TODO split again this one slower together with read
@@ -149,7 +152,7 @@ impl ProcessStats {
                     .write(format!("{} {:?}\n", tx.txid(), strange_sighash).as_bytes())
                     .unwrap();
             }
-            self.process_stats(&tx);
+            self.process_stats(&tx, index);
         }
         let hash = block.block.header.bitcoin_hash();
         if self.stats.min_hash > hash {
@@ -161,10 +164,13 @@ impl ProcessStats {
         }
     }
 
-    fn process_stats(&mut self, tx: &Transaction) {
+    fn process_stats(&mut self, tx: &Transaction, index: usize) {
         let weight = tx.get_weight() as u64;
         let outputs = tx.output.len() as u64;
         let inputs = tx.input.len() as u64;
+        self.stats.total_outputs_per_month[index] += outputs;
+        self.stats.total_inputs_per_month[index] += inputs;
+        self.stats.total_tx_per_month[index] += 1;
         let txid = tx.txid();
         self.stats.total_outputs += outputs as u64;
         self.stats.total_inputs += inputs as u64;
@@ -217,6 +223,9 @@ impl Stats {
             sighashtype: HashMap::new(),
             in_out: HashMap::new(),
             sighash_file,
+            total_inputs_per_month: vec![0u64; month_array_len()],
+            total_outputs_per_month: vec![0u64; month_array_len()],
+            total_tx_per_month: vec![0u64; month_array_len()],
         }
     }
 
@@ -293,6 +302,27 @@ impl Stats {
         s.push_str(&toml_section(
             "sighashtype",
             &map_by_value(&self.sighashtype),
+        ));
+
+        s.push_str("\n\n");
+        s.push_str(&toml_section_vec(
+            "total_outputs_per_month",
+            &self.total_outputs_per_month,
+            None,
+        ));
+
+        s.push_str("\n\n");
+        s.push_str(&toml_section_vec(
+            "total_inputs_per_month",
+            &self.total_inputs_per_month,
+            None,
+        ));
+
+        s.push_str("\n\n");
+        s.push_str(&toml_section_vec(
+            "total_tx_per_month",
+            &self.total_tx_per_month,
+            None,
         ));
 
         s
