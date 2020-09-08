@@ -23,21 +23,21 @@ var myChart = new Chart(ctx, {
             data: tx,
             backgroundColor: window.chartColors.blue,
             borderColor: window.chartColors.blue,
-            fill: false,
+            fill: true,
 	    yAxisID: 'y-axis-1',
         },{
            label: 'total outputs per month',
            data: outputs,
            backgroundColor: window.chartColors.red,
            borderColor: window.chartColors.red,
-           fill: false,
+           fill: true,
 	    yAxisID: 'y-axis-1',
        },{
           label: 'total inputs per month',
           data: inputs,
           backgroundColor: window.chartColors.orange,
           borderColor: window.chartColors.orange,
-          fill: false,
+          fill: true,
 	    yAxisID: 'y-axis-1',
       },{
           label: 'average outputs per tx per month',
@@ -68,7 +68,7 @@ var myChart = new Chart(ctx, {
 			position: 'right',
 			id: 'y-axis-2',
 			gridLines: {
-				drawOnChartArea: false, 
+				drawOnChartArea: false,
 			},
 		}],
 	}
