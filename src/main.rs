@@ -7,7 +7,7 @@ use crate::process_bip158::ProcessBip158Stats;
 use crate::process_stats::ProcessStats;
 use crate::read::Read;
 use crate::reorder::Reorder;
-use bitcoin::{Block, BlockHash, OutPoint, TxOut, Txid};
+use bitcoin::{Block, BlockHash, OutPoint, TxOut, Txid, Transaction};
 use rocksdb::DB;
 use std::collections::{HashMap, HashSet};
 use std::env;
@@ -117,4 +117,30 @@ fn main() {
     process_stats_handle.join().unwrap();
     process_bip158_handle.join().unwrap();
     println!("Total time elapsed: {}s", now.elapsed().as_secs());
+}
+
+impl BlockExtra {
+    pub fn average_fee(&self) -> f64 {
+        self.fee() as f64 / self.block.txdata.len() as f64
+    }
+
+    pub fn fee(&self) -> u64 {
+        let mut total = 0u64;
+        for tx in block_value.block.txdata.iter() {
+            total += self.tx_fee(tx);
+        }
+        total
+    }
+
+    pub fn tx_fee(&self, tx: &Transaction) -> u64 {
+        let output_total: u64 = tx.output.iter().map(|el| el.value).sum();
+        let mut input_total = 0u64;
+        for input in tx.input.iter() {
+            match self.outpoint_values.get(&input.previous_output) {
+                Some(txout) => input_total += txout.value,
+                None => panic!("can't find tx fee {}", tx.txid()),
+            }
+        }
+        input_total - output_total
+    }
 }

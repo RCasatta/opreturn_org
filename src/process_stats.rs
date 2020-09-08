@@ -16,6 +16,7 @@ use std::io::Write;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
+use crate::fee::{tx_fee, block_fee};
 
 pub struct ProcessStats {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
@@ -47,6 +48,8 @@ struct Stats {
     total_outputs_per_month: Vec<u64>,
     total_inputs_per_month: Vec<u64>,
     total_tx_per_month: Vec<u64>,
+    fee_per_month: Vec<u64>,
+    estimated_fee_per_month: Vec<u64>,
 }
 
 //TODO split again this one slower together with read
@@ -78,6 +81,8 @@ impl ProcessStats {
         self.stats.total_inputs_per_month.pop();
         self.stats.total_outputs_per_month.pop();
         self.stats.total_tx_per_month.pop();
+        self.stats.estimated_fee_per_month.pop();
+        self.stats.fee_per_month.pop();
         let toml = self.stats.to_toml();
         //println!("{}", toml);
         fs::write("site/_data/stats.toml", toml).expect("Unable to w rite file");
@@ -94,6 +99,7 @@ impl ProcessStats {
         let index = date_index(date);
 
         self.stats.block_size_per_month[index] += block.size as u64;
+        let mut fees_from_this_block = vec![];
 
         for tx in block.block.txdata.iter() {
             for output in tx.output.iter() {
@@ -114,10 +120,12 @@ impl ProcessStats {
                 }
             }
             let mut strange_sighash = vec![];
+            let mut count_inputs_in_block = 0;
             for input in tx.input.iter() {
                 if block.tx_hashes.contains(&input.previous_output.txid) {
                     self.stats.total_spent_in_block += 1;
                     self.stats.total_spent_in_block_per_month[index] += 1;
+                    count_inputs_in_block += 1;
                 }
 
                 for instr in input.script_sig.iter(true) {
@@ -155,8 +163,17 @@ impl ProcessStats {
                     .write(format!("{} {:?}\n", tx.txid(), strange_sighash).as_bytes())
                     .unwrap();
             }
+            if count_inputs_in_block == tx.input.len() {
+                fees_from_this_block.push(block.tx_fee(&tx))
+            }
             self.process_stats(&tx, index);
         }
+        let fee = block.fee();
+        let average_estimated_fee = fees_from_this_block.iter().sum::<u64>() as f64 / fees_from_this_block.len() as f64;
+        let estimated_fee = (average_estimated_fee * block.block.txdata.len() as f64) as u64;
+        self.stats.fee_per_month[index] += fee;
+        self.stats.estimated_fee_per_month[index] += estimated_fee;
+
         let hash = block.block.header.bitcoin_hash();
         if self.stats.min_hash > hash {
             self.stats.min_hash = hash;
@@ -229,6 +246,8 @@ impl Stats {
             total_inputs_per_month: vec![0u64; month_array_len()],
             total_outputs_per_month: vec![0u64; month_array_len()],
             total_tx_per_month: vec![0u64; month_array_len()],
+            average_fee_per_month: vec![0u64; month_array_len()],
+            estimated_average_fee_per_month: vec![0u64; month_array_len()],
         }
     }
 
@@ -325,6 +344,20 @@ impl Stats {
         s.push_str(&toml_section_vec(
             "total_tx_per_month",
             &self.total_tx_per_month,
+            None,
+        ));
+
+        s.push_str("\n\n");
+        s.push_str(&toml_section_vec(
+            "estimated_fee_per_month",
+            &self.estimated_fee_per_month,
+            None,
+        ));
+
+        s.push_str("\n\n");
+        s.push_str(&toml_section_vec(
+            "fee_per_month",
+            &self.fee_per_month,
             None,
         ));
 

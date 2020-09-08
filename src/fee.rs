@@ -71,7 +71,7 @@ impl Fee {
                              block_extra.size,
                              block_extra.block.txdata.len(),
                              total_txs,
-                             block_fee(&block_extra),
+                             block_extra.fee(),
                              found_values,
                              block_extra.out_of_order_size,
                     );
@@ -166,26 +166,6 @@ impl Fee {
             }
         }
     }
-}
-
-pub fn block_fee(block_value: &BlockExtra) -> u64 {
-    let mut total = 0u64;
-    for tx in block_value.block.txdata.iter() {
-        total += tx_fee(tx, &block_value.outpoint_values);
-    }
-    total
-}
-
-pub fn tx_fee(tx: &Transaction, outpoint_values: &HashMap<OutPoint, TxOut>) -> u64 {
-    let output_total: u64 = tx.output.iter().map(|el| el.value).sum();
-    let mut input_total = 0u64;
-    for input in tx.input.iter() {
-        match outpoint_values.get(&input.previous_output) {
-            Some(txout) => input_total += txout.value,
-            None => panic!("can't find tx fee {}", tx.txid()),
-        }
-    }
-    input_total - output_total
 }
 
 fn output_key(txid: Txid, i: u32) -> Vec<u8> {
