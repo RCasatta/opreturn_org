@@ -1,8 +1,8 @@
 ---
-title: Spent in the same block
+title: Tx, inputs and outputs
 layout: chart.liquid
 permalink: /{{ name }}
-description: Charts showing the number of output which are spent in the same block they are created
+description: Charts showing total number of transactions, inputs and outputs per month
 ---
 
 <canvas id="myChart" width="100%"></canvas>
@@ -20,17 +20,20 @@ var myChart = new Chart(ctx, {
             label: 'total tx per month',
             data: tx,
             backgroundColor: window.chartColors.blue,
-            fill: true,
+            borderColor: window.chartColors.blue,
+            fill: false,
         },{
            label: 'total outputs per month',
            data: outputs,
            backgroundColor: window.chartColors.red,
-           fill: true,
+           borderColor: window.chartColors.red,
+           fill: false,
        },{
           label: 'total inputs per month',
           data: inputs,
-          backgroundColor: window.chartColors.violet,
-          fill: true,
+          backgroundColor: window.chartColors.orange,
+          borderColor: window.chartColors.orange,
+          fill: false,
       }]
     }
 });
