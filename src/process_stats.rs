@@ -44,6 +44,7 @@ struct Stats {
     sighashtype: HashMap<String, u64>,
     in_out: HashMap<String, u64>,
     sighash_file: File,
+    fee_file: File,
     total_outputs_per_month: Vec<u64>,
     total_inputs_per_month: Vec<u64>,
     total_tx_per_month: Vec<u64>,
@@ -167,11 +168,19 @@ impl ProcessStats {
             }
             self.process_stats(&tx, index);
         }
+        let tx_len = block.block.txdata.len();
+        let tx_with_fee_in_block_len = fees_from_this_block.len();
         let fee = block.fee();
-        let average_estimated_fee = fees_from_this_block.iter().sum::<u64>() as f64 / fees_from_this_block.len() as f64;
-        let estimated_fee = (average_estimated_fee * block.block.txdata.len() as f64) as u64;
+        let average_fee = fee as f64 / tx_len as f64;
+        let estimated_average_fee = if tx_with_fee_in_block_len == 0 {
+            0
+        } else {
+            fees_from_this_block.iter().sum::<u64>() as f64 / tx_with_fee_in_block_len as f64
+        };
+        let estimated_fee = (estimated_average_fee * tx_len as f64) as u64;
         self.stats.fee_per_month[index] += fee;
         self.stats.estimated_fee_per_month[index] += estimated_fee;
+        self.stats.fee_file.write(format!("{},{},{},{},{},{},{}\n", block.height, tx_len, fee, average_fee, tx_with_fee_in_block_len, estimated_fee, estimated_average_fee  ).as_bytes());
 
         let hash = block.block.header.bitcoin_hash();
         if self.stats.min_hash > hash {
@@ -216,6 +225,7 @@ impl ProcessStats {
 impl Stats {
     fn new() -> Self {
         let sighash_file = File::create("sighashes.txt").unwrap();
+        let fee_file = File::create("fee.txt").unwrap();
         Stats {
             max_outputs_per_tx: (100u64, None),
             max_inputs_per_tx: (100u64, None),
@@ -242,6 +252,7 @@ impl Stats {
             sighashtype: HashMap::new(),
             in_out: HashMap::new(),
             sighash_file,
+            fee_file,
             total_inputs_per_month: vec![0u64; month_array_len()],
             total_outputs_per_month: vec![0u64; month_array_len()],
             total_tx_per_month: vec![0u64; month_array_len()],
