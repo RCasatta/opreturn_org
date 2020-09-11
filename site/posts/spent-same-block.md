@@ -11,7 +11,6 @@ var labels = {{ site.data.stats.total_spent_in_block_per_month.labels | join: "'
 var values = {{ site.data.stats.total_spent_in_block_per_month.values | join: "," | prepend: "[" | append: "]"}};
 var total_values = {{ site.data.stats.total_outputs_per_month.values | join: "," | prepend: "[" | append: "]"}};
 var perc = values.map(function(n,i) { return n / total_values[i]; });
-
 var ctx = document.getElementById("myChart").getContext('2d');
 var myChart = new Chart(ctx, {
     type: 'line',
@@ -33,6 +32,8 @@ var myChart = new Chart(ctx, {
         label: 'percentual',
         data: perc,
         backgroundColor: window.chartColors.orange,
+        borderColor: window.chartColors.orange,
+	  borderDash: [5, 5],
         fill: false,
         yAxisID: 'y-axis-2',
     }]
@@ -53,8 +54,8 @@ var myChart = new Chart(ctx, {
  				drawOnChartArea: false,
  			},
  		}],
- 	}
-
+	}
+    }
 });
 </script>
 

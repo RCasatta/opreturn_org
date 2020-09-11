@@ -16,7 +16,6 @@ use std::io::Write;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
-use crate::fee::{tx_fee, block_fee};
 
 pub struct ProcessStats {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
@@ -246,8 +245,8 @@ impl Stats {
             total_inputs_per_month: vec![0u64; month_array_len()],
             total_outputs_per_month: vec![0u64; month_array_len()],
             total_tx_per_month: vec![0u64; month_array_len()],
-            average_fee_per_month: vec![0u64; month_array_len()],
-            estimated_average_fee_per_month: vec![0u64; month_array_len()],
+            fee_per_month: vec![0u64; month_array_len()],
+            estimated_fee_per_month: vec![0u64; month_array_len()],
         }
     }
 

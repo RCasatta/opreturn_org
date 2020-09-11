@@ -1,7 +1,7 @@
 use crate::BlockExtra;
 use bitcoin::consensus::{deserialize, serialize};
 use bitcoin::hashes::Hash;
-use bitcoin::{BitcoinHash, Block, BlockHash, OutPoint, Script, Transaction, TxOut, Txid, VarInt};
+use bitcoin::{BitcoinHash, Block, BlockHash, Script, TxOut, Txid, VarInt};
 use rocksdb::WriteBatch;
 use rocksdb::WriteOptions;
 use rocksdb::DB;

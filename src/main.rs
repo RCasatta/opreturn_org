@@ -126,7 +126,7 @@ impl BlockExtra {
 
     pub fn fee(&self) -> u64 {
         let mut total = 0u64;
-        for tx in block_value.block.txdata.iter() {
+        for tx in self.block.txdata.iter() {
             total += self.tx_fee(tx);
         }
         total

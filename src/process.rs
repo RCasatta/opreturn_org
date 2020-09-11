@@ -1,4 +1,3 @@
-use crate::fee::tx_fee;
 use crate::BlockExtra;
 use bitcoin::blockdata::opcodes;
 use bitcoin::consensus::serialize;
@@ -109,7 +108,7 @@ impl Process {
                         &output.script_pubkey,
                         time,
                         index,
-                        tx_fee(&tx, &block.outpoint_values),
+                        block.tx_fee(&tx),
                     );
                 }
                 self.process_output_script(&output.script_pubkey, index);
