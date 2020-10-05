@@ -4,24 +4,24 @@ use bitcoin::consensus::{deserialize, serialize};
 use bitcoin::util::bip158::BlockFilter;
 use bitcoin::util::bip158::Error;
 use bitcoin::util::hash::BitcoinHash;
+use bitcoin::Script;
 use chrono::{TimeZone, Utc};
 use rocksdb::DB;
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
 use std::{env, fs};
-use bitcoin::Script;
-use std::collections::HashSet;
 
 // TODO remove db, use flat file with Vec<u32> save all and read all at start
 pub struct ProcessBip158Stats {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
     stats: Bip158Stats,
-    db: Arc<DB>, // previous_hashes: VecDeque<HashSet<sha256d::Hash>>,
-    scripts: HashSet<Script>,  // counter of elements
-    scripts_1M: u64,
+    db: Arc<DB>,              // previous_hashes: VecDeque<HashSet<sha256d::Hash>>,
+    scripts: HashSet<Script>, // counter of elements
+    scripts_heights: Vec<u32>,
 }
 
 struct Bip158Stats {
@@ -35,7 +35,7 @@ impl ProcessBip158Stats {
             stats: Bip158Stats::new(),
             db,
             scripts: HashSet::new(),
-            scripts_1M: 0u64,
+            scripts_heights: vec![],
         }
     }
 
@@ -62,7 +62,8 @@ impl ProcessBip158Stats {
             "ending bip158 stats processer, busy time: {}s",
             (busy_time / 1_000_000_000)
         );
-        println!("scripts_1M: {}", self.scripts_1M);
+        println!("scripts_1M: {:?}", self.scripts_heights);
+        println!("scripts_1M: {}", self.scripts_heights.len());
     }
 
     fn process_block(&mut self, block: &BlockExtra) {
@@ -97,21 +98,27 @@ impl ProcessBip158Stats {
 
         for tx in block.block.txdata.iter() {
             for input in tx.input.iter() {
-                self.scripts.insert((block.outpoint_values.get(&input.previous_output).unwrap().script_pubkey.clone());
-                if self.scripts.len() >= 1_000_000 {
-                    self.scripts.clear();
-                    self.scripts_1M += 1;
-                }
+                self.add_script(
+                    &block
+                        .outpoint_values
+                        .get(&input.previous_output)
+                        .unwrap()
+                        .script_pubkey,
+                    block.height,
+                );
             }
             for output in tx.output.iter() {
-                self.scripts.insert(output.script_pubkey.clone());
-                if self.scripts.len() >= 1_000_000 {
-                    self.scripts.clear();
-                    self.scripts_1M += 1;
-                }
+                self.add_script(&output.script_pubkey, block.height)
             }
         }
+    }
 
+    fn add_script(&mut self, script: &Script, height: u32) {
+        self.scripts.insert(script.clone());
+        if self.scripts.len() >= 1_000_000 {
+            self.scripts.clear();
+            self.scripts_heights.push(height);
+        }
     }
 }
 

@@ -180,7 +180,22 @@ impl ProcessStats {
         let estimated_fee = (estimated_average_fee * tx_len as f64) as u64;
         self.stats.fee_per_month[index] += fee;
         self.stats.estimated_fee_per_month[index] += estimated_fee;
-        self.stats.fee_file.write(format!("{},{},{},{},{},{},{}\n", block.height, tx_len, fee, average_fee, tx_with_fee_in_block_len, estimated_fee, estimated_average_fee  ).as_bytes()).unwrap();
+        self.stats
+            .fee_file
+            .write(
+                format!(
+                    "{},{},{},{},{},{},{}\n",
+                    block.height,
+                    tx_len,
+                    fee,
+                    average_fee,
+                    tx_with_fee_in_block_len,
+                    estimated_fee,
+                    estimated_average_fee
+                )
+                .as_bytes(),
+            )
+            .unwrap();
 
         let hash = block.block.header.bitcoin_hash();
         if self.stats.min_hash > hash {

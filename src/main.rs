@@ -7,7 +7,7 @@ use crate::process_bip158::ProcessBip158Stats;
 use crate::process_stats::ProcessStats;
 use crate::read::Read;
 use crate::reorder::Reorder;
-use bitcoin::{Block, BlockHash, OutPoint, TxOut, Txid, Transaction};
+use bitcoin::{Block, BlockHash, OutPoint, Transaction, TxOut, Txid};
 use rocksdb::DB;
 use std::collections::{HashMap, HashSet};
 use std::env;
