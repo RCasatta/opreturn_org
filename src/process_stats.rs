@@ -32,6 +32,7 @@ struct Stats {
     amount_over_32: usize,
     rounded_amount: u64,
     max_block_size: (u64, Option<BlockHash>),
+    max_tx_per_block: (u64, Option<BlockHash>),
     min_hash: BlockHash,
     total_spent_in_block: u64,
     total_spent_in_block_per_month: Vec<u64>,
@@ -205,6 +206,11 @@ impl ProcessStats {
         if self.stats.max_block_size.0 < size {
             self.stats.max_block_size = (size, Some(hash));
         }
+
+        let l = block.block.txdata.len() as u64;
+        if self.stats.max_tx_per_block.0 < l {
+            self.stats.max_tx_per_block = (l, Some(hash));
+        }
     }
 
     fn process_stats(&mut self, tx: &Transaction, index: usize) {
@@ -252,6 +258,7 @@ impl Stats {
             rounded_amount: 0u64,
             total_spent_in_block: 0u64,
             max_block_size: (0u64, None),
+            max_tx_per_block: (0u64, None),
             min_hash: BlockHash::from_hex(
                 "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
             )
@@ -287,6 +294,17 @@ impl Stats {
             "max_inputs_per_tx",
             &self.max_inputs_per_tx,
         ));
+
+        s.push_str(&toml_section_block_hash(
+            "max_inputs_per_tx",
+            &self.max_block_size,
+        ));
+
+        s.push_str(&toml_section_block_hash(
+            "max_inputs_per_tx",
+            &self.max_tx_per_block,
+        ));
+
         s.push_str(&toml_section_hash("min_weight_tx", &self.min_weight_tx));
         s.push_str(&toml_section_hash("max_weight_tx", &self.max_weight_tx));
         //s.push_str(&toml_section_hash("max_block_size", &self.max_block_size));

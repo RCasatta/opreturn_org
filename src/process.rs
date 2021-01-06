@@ -398,6 +398,15 @@ pub fn toml_section_hash(title: &str, value: &(u64, Option<Txid>)) -> String {
     s
 }
 
+pub fn toml_section_block_hash(title: &str, value: &(u64, Option<BlockHash>)) -> String {
+    let mut s = String::new();
+    s.push_str(&format!("\n[{}]\n", title));
+    s.push_str(&format!("hash=\"{:?}\"\n", value.1.unwrap()));
+    s.push_str(&format!("value={:?}\n\n", value.0));
+
+    s
+}
+
 pub fn encoded_length_7bit_varint(mut value: u64) -> u64 {
     let mut bytes = 1;
     loop {
