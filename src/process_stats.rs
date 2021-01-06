@@ -46,6 +46,7 @@ struct Stats {
     in_out: HashMap<String, u64>,
     sighash_file: File,
     fee_file: File,
+    blocks_len_file: File,
     total_outputs_per_month: Vec<u64>,
     total_inputs_per_month: Vec<u64>,
     total_tx_per_month: Vec<u64>,
@@ -208,6 +209,7 @@ impl ProcessStats {
         }
 
         let l = block.block.txdata.len() as u64;
+        self.stats.blocks_len_file.write(format!("{}\n",l).as_bytes());
         if self.stats.max_tx_per_block.0 < l {
             self.stats.max_tx_per_block = (l, Some(hash));
         }
@@ -247,6 +249,7 @@ impl Stats {
     fn new() -> Self {
         let sighash_file = File::create("sighashes.txt").unwrap();
         let fee_file = File::create("fee.txt").unwrap();
+        let blocks_len_file = File::create("blocks_len.txt").unwrap();
         Stats {
             max_outputs_per_tx: (100u64, None),
             max_inputs_per_tx: (100u64, None),
@@ -275,6 +278,7 @@ impl Stats {
             in_out: HashMap::new(),
             sighash_file,
             fee_file,
+            blocks_len_file,
             total_inputs_per_month: vec![0u64; month_array_len()],
             total_outputs_per_month: vec![0u64; month_array_len()],
             total_tx_per_month: vec![0u64; month_array_len()],
@@ -296,12 +300,12 @@ impl Stats {
         ));
 
         s.push_str(&toml_section_block_hash(
-            "max_inputs_per_tx",
+            "max_block_size",
             &self.max_block_size,
         ));
 
         s.push_str(&toml_section_block_hash(
-            "max_inputs_per_tx",
+            "max_tx_per_block",
             &self.max_tx_per_block,
         ));
 
