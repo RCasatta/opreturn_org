@@ -209,7 +209,7 @@ impl ProcessStats {
         }
 
         let l = block.block.txdata.len() as u64;
-        self.stats.blocks_len_file.write(format!("{}\n",l).as_bytes());
+        self.stats.blocks_len_file.write(format!("{}\n",l).as_bytes()).unwrap();
         if self.stats.max_tx_per_block.0 < l {
             self.stats.max_tx_per_block = (l, Some(hash));
         }
