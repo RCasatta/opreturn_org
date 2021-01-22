@@ -19,7 +19,7 @@ use std::{env, fs};
 pub struct ProcessBip158Stats {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
     stats: Bip158Stats,
-    db: Arc<DB>,              // previous_hashes: VecDeque<HashSet<sha256d::Hash>>,
+    db: Arc<DB>,                 // previous_hashes: VecDeque<HashSet<sha256d::Hash>>,
     scripts_1m: HashSet<Script>, // counter of elements
     scripts_1m_heights: Vec<u32>,
     scripts_10m: HashSet<Script>, // counter of elements
