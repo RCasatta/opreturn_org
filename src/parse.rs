@@ -2,7 +2,7 @@ use crate::BlockExtra;
 use bitcoin::consensus::deserialize;
 use bitcoin::consensus::Decodable;
 use bitcoin::network::constants::Network;
-use bitcoin::{Block, Txid};
+use bitcoin::{Block, Txid, BitcoinHash};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io::Cursor;
@@ -52,6 +52,7 @@ impl Parse {
 }
 
 fn parse_blocks(blob: Vec<u8>) -> Vec<BlockExtra> {
+    let bitcoin_pdf_hashes = vec![hex::decode("8de2fdb04edce612738eb51e14ecc426381f8ed8").unwrap(),  hex::decode("b1674191a88ec5cdd733e4240a81803105dc412d6c6708d53ab94fc248f4f553").unwrap()];
     let magic = Network::Bitcoin.magic();
     let mut cursor = Cursor::new(&blob);
     let mut blocks = vec![];
@@ -77,6 +78,11 @@ fn parse_blocks(blob: Vec<u8>) -> Vec<BlockExtra> {
 
         match deserialize::<Block>(&blob[start..end]) {
             Ok(block) => {
+                for (i,hash) in bitcoin_pdf_hashes.iter().enumerate() {
+                    if let Some(pos) = find_subsequence(&blob[start..end], &hash[..]) {
+                        println!("Found hash#{} at {} in {}", i, pos, block.bitcoin_hash());
+                    }
+                }
                 let tx_hashes: HashSet<Txid> = block.txdata.iter().map(|tx| tx.txid()).collect();
                 blocks.push(BlockExtra {
                     block,
@@ -92,4 +98,9 @@ fn parse_blocks(blob: Vec<u8>) -> Vec<BlockExtra> {
         }
     }
     blocks
+}
+
+
+fn find_subsequence(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+    haystack.windows(needle.len()).position(|window| window == needle)
 }
