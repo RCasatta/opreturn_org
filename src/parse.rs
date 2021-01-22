@@ -53,9 +53,10 @@ impl Parse {
 
 fn parse_blocks(blob: Vec<u8>) -> Vec<BlockExtra> {
     let bytes_to_search = vec![
-        hex::decode("8de2fdb04edce612738eb51e14ecc426381f8ed8").unwrap(),
-        hex::decode("b1674191a88ec5cdd733e4240a81803105dc412d6c6708d53ab94fc248f4f553").unwrap(),
-        hex::decode("9c1185a5c5e9fc54612808977ee8f548b2258d31").unwrap(),
+        hex::decode("8de2fdb04edce612738eb51e14ecc426381f8ed8").unwrap(),  // sha1(bitcoin.pdf)
+        hex::decode("b1674191a88ec5cdd733e4240a81803105dc412d6c6708d53ab94fc248f4f553").unwrap(), //sha256(bitcoin.pdf)
+        hex::decode("9c1185a5c5e9fc54612808977ee8f548b2258d31").unwrap(),  // ripemd("")
+        hex::decode("20a4da2752a61bd6866e8080144fbb560e0b8f0d").unwrap(),  // ripemd(sha256(bitcoin.pdf))
     ];
     let magic = Network::Bitcoin.magic();
     let mut cursor = Cursor::new(&blob);
