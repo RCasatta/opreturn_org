@@ -52,6 +52,7 @@ struct Stats {
     total_tx_per_month: Vec<u64>,
     fee_per_month: Vec<u64>,
     estimated_fee_per_month: Vec<u64>,
+    witness_elements: HashMap<String, u64>,
 }
 
 //TODO split again this one slower together with read
@@ -145,6 +146,11 @@ impl ProcessStats {
                         }
                     }
                 }
+                *self
+                    .stats
+                    .witness_elements
+                    .entry(witness_elements.len().to_string())
+                    .or_insert(0) += 1;
                 for vec in input.witness.iter() {
                     if let Ok(sighash) = deserialize::<SignatureHash>(vec) {
                         *self
@@ -278,6 +284,7 @@ impl Stats {
 
             block_size_per_month: vec![0u64; month_array_len()],
             sighashtype: HashMap::new(),
+            witness_elements: HashMap::new(),
             in_out: HashMap::new(),
             sighash_file,
             fee_file,
@@ -374,6 +381,11 @@ impl Stats {
         s.push_str(&toml_section(
             "sighashtype",
             &map_by_value(&self.sighashtype),
+        ));
+
+        s.push_str(&toml_section(
+            "witness_elements",
+            &map_by_value(&self.witness_elements),
         ));
 
         s.push_str("\n\n");
