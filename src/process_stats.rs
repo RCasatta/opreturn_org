@@ -1,5 +1,4 @@
 use crate::process::*;
-use crate::BlockExtra;
 use bitcoin::blockdata::script::Instruction;
 use bitcoin::consensus::Decodable;
 use bitcoin::consensus::{deserialize, encode};

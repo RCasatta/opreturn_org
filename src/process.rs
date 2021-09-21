@@ -1,4 +1,3 @@
-use crate::BlockExtra;
 use bitcoin::blockdata::opcodes;
 use bitcoin::consensus::serialize;
 use bitcoin::{BlockHash, Script, Txid};
@@ -11,6 +10,7 @@ use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
 use time::Duration;
+use blocks_iterator::BlockExtra;
 
 pub struct Process {
     receiver: Receiver<Arc<Option<BlockExtra>>>,

@@ -1,5 +1,4 @@
 use crate::process::*;
-use crate::BlockExtra;
 use bitcoin::consensus::{deserialize, serialize};
 use bitcoin::util::bip158::BlockFilter;
 use bitcoin::util::bip158::Error;
@@ -14,6 +13,7 @@ use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
 use std::{env, fs};
+use blocks_iterator::BlockExtra;
 
 // TODO remove db, use flat file with Vec<u32> save all and read all at start
 pub struct ProcessBip158Stats {
