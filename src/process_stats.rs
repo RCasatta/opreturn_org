@@ -51,7 +51,6 @@ struct Stats {
     total_inputs_per_month: Vec<u64>,
     total_tx_per_month: Vec<u64>,
     fee_per_month: Vec<u64>,
-    estimated_fee_per_month: Vec<u64>,
     witness_elements: HashMap<String, u64>,
 }
 
@@ -84,7 +83,6 @@ impl ProcessStats {
         self.stats.total_inputs_per_month.pop();
         self.stats.total_outputs_per_month.pop();
         self.stats.total_tx_per_month.pop();
-        self.stats.estimated_fee_per_month.pop();
         self.stats.fee_per_month.pop();
         let toml = self.stats.to_toml();
         //println!("{}", toml);
@@ -187,7 +185,6 @@ impl ProcessStats {
         };
         let estimated_fee = (estimated_average_fee * tx_len as f64) as u64;
         self.stats.fee_per_month[index] += fee;
-        self.stats.estimated_fee_per_month[index] += estimated_fee;
         self.stats
             .fee_file
             .write(
@@ -293,7 +290,6 @@ impl Stats {
             total_outputs_per_month: vec![0u64; month_array_len()],
             total_tx_per_month: vec![0u64; month_array_len()],
             fee_per_month: vec![0u64; month_array_len()],
-            estimated_fee_per_month: vec![0u64; month_array_len()],
         }
     }
 
@@ -406,13 +402,6 @@ impl Stats {
         s.push_str(&toml_section_vec(
             "total_tx_per_month",
             &self.total_tx_per_month,
-            None,
-        ));
-
-        s.push_str("\n\n");
-        s.push_str(&toml_section_vec(
-            "estimated_fee_per_month",
-            &self.estimated_fee_per_month,
             None,
         ));
 

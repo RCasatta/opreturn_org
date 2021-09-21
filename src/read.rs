@@ -8,7 +8,7 @@ pub struct Read {
     sender: Vec<SyncSender<Option<Vec<u8>>>>,
 }
 
-// TODO consider not reading all the file but deserializing directly1
+// TODO consider not reading all the file but deserializing directly
 impl Read {
     pub fn new(path: PathBuf, sender: Vec<SyncSender<Option<Vec<u8>>>>) -> Self {
         Read { path, sender }
