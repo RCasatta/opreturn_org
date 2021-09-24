@@ -1,5 +1,4 @@
 use bitcoin::blockdata::opcodes;
-use bitcoin::consensus::serialize;
 use bitcoin::{BlockHash, Script, Txid};
 use blocks_iterator::BlockExtra;
 use chrono::DateTime;
@@ -284,13 +283,6 @@ impl OpReturnData {
 
         s
     }
-}
-
-pub fn filter_key(block_hash: BlockHash) -> Vec<u8> {
-    let mut v = vec![];
-    v.push(b'f');
-    v.extend(serialize(&block_hash));
-    v
 }
 
 pub fn parse_multisig(witness_script: &Vec<u8>) -> Option<String> {

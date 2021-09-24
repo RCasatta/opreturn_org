@@ -7,8 +7,6 @@ use blocks_iterator::periodic_log_level;
 use blocks_iterator::Config;
 use env_logger::Env;
 use log::{info, log};
-use rocksdb::DB;
-use std::env;
 use std::sync::mpsc::sync_channel;
 use std::sync::Arc;
 use std::thread;
@@ -21,11 +19,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     info!("start");
     let blocks_size = 3;
-
-    let mut db_opts = rocksdb::Options::default();
-    db_opts.increase_parallelism(4);
-    db_opts.create_if_missing(true);
-    let db = Arc::new(DB::open(&db_opts, env::var("DB").unwrap_or_else(|_| "db".into())).unwrap());
 
     let config = Config::from_args();
     let (send, recv) = sync_channel(100);
@@ -46,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         process_stats.start();
     });
 
-    let mut process_bip158 = ProcessBip158Stats::new(receive_3, db);
+    let mut process_bip158 = ProcessBip158Stats::new(receive_3);
     let process_bip158_handle = thread::spawn(move || {
         process_bip158.start();
     });

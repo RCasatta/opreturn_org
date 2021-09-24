@@ -1,11 +1,9 @@
 use crate::process::*;
-use bitcoin::consensus::{deserialize, serialize};
 use bitcoin::util::bip158::BlockFilter;
 use bitcoin::util::bip158::Error;
 use bitcoin::Script;
 use blocks_iterator::BlockExtra;
 use chrono::{TimeZone, Utc};
-use rocksdb::DB;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -13,16 +11,18 @@ use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
 use std::{env, fs};
+use std::fs::File;
+use std::io::Read;
+use std::convert::TryInto;
 
-// TODO remove db, use flat file with Vec<u32> save all and read all at start
 pub struct ProcessBip158Stats {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
     stats: Bip158Stats,
-    db: Arc<DB>,                 // previous_hashes: VecDeque<HashSet<sha256d::Hash>>,
     scripts_1m: HashSet<Script>, // counter of elements
     scripts_1m_heights: Vec<u32>,
     scripts_10m: HashSet<Script>, // counter of elements
     scripts_10m_heights: Vec<u32>,
+    cache: Vec<u32>,
 }
 
 struct Bip158Stats {
@@ -30,11 +30,24 @@ struct Bip158Stats {
 }
 
 impl ProcessBip158Stats {
-    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, db: Arc<DB>) -> Self {
+    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>) -> Self {
+        let cache = match File::open("bip138_size_cache") {
+            Ok(mut file) => {
+                let mut buffer = Vec::new();
+                file.read_to_end(&mut buffer).unwrap();
+                let mut cache = Vec::new();
+                for chunk in buffer.chunks(4) {
+                    cache.push(u32::from_be_bytes(chunk.try_into().unwrap()))
+                }
+                cache
+            }
+            Err(_) => Vec::new(),
+        };
+
         Self {
             receiver,
+            cache,
             stats: Bip158Stats::new(),
-            db,
             scripts_1m: HashSet::new(),
             scripts_1m_heights: vec![],
             scripts_10m: HashSet::new(),
@@ -75,11 +88,10 @@ impl ProcessBip158Stats {
         let time = block.block.header.time;
         let date = Utc.timestamp(i64::from(time), 0);
         let index = date_index(date);
-        let key = filter_key(block.block.block_hash());
 
-        let filter_len = match self.db.get(&key).expect("operational problem encountered") {
-            Some(value) => deserialize::<u64>(&value).expect("cant deserialize u64"),
-            None => {
+        let filter_len = match self.cache.get(block.height as usize) {
+            Some(val) => *val,
+            None =>{
                 let filter = BlockFilter::new_script_filter(&block.block, |o| {
                     if let Some(s) = &block.outpoint_values.get(o) {
                         Ok(s.script_pubkey.clone())
@@ -87,19 +99,18 @@ impl ProcessBip158Stats {
                         Err(Error::UtxoMissing(o.clone()))
                     }
                 })
-                .unwrap();
-                let filter_len = filter.content.len() as u64;
+                    .unwrap();
+                let filter_len = filter.content.len() as u32;
                 if let Ok(dir) = env::var("BIP158_DIR") {
                     let p = PathBuf::from_str(&format!("{}/{}.bin", dir, block.height)).unwrap();
                     fs::write(p, filter.content).unwrap();
                 }
-                self.db
-                    .put(&key, &serialize(&filter_len))
-                    .expect("error in write");
                 filter_len
             }
         };
-        self.stats.bip158_filter_size_per_month[index] += filter_len;
+        self.cache[block.height as usize] = filter_len;
+
+        self.stats.bip158_filter_size_per_month[index] += filter_len as u64;
 
         for tx in block.block.txdata.iter() {
             for input in tx.input.iter() {
