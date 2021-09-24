@@ -5,15 +5,15 @@ use bitcoin::Script;
 use blocks_iterator::BlockExtra;
 use chrono::{TimeZone, Utc};
 use std::collections::HashSet;
+use std::convert::TryInto;
+use std::fs::File;
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
 use std::{env, fs};
-use std::fs::File;
-use std::io::Read;
-use std::convert::TryInto;
 
 pub struct ProcessBip158Stats {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
@@ -68,6 +68,10 @@ impl ProcessBip158Stats {
                 None => break,
             }
         }
+        let mut file = File::create("bip138_size_cache").unwrap();
+        for size in self.cache.iter() {
+            file.write(&size.to_be_bytes()).unwrap();
+        }
 
         self.stats.bip158_filter_size_per_month.pop();
         let toml = self.stats.to_toml();
@@ -89,9 +93,9 @@ impl ProcessBip158Stats {
         let date = Utc.timestamp(i64::from(time), 0);
         let index = date_index(date);
 
-        let filter_len = match self.cache.get(block.height as usize) {
-            Some(val) => *val,
-            None =>{
+        let (filter_len, insert) = match self.cache.get(block.height as usize) {
+            Some(val) => (*val, false),
+            None => {
                 let filter = BlockFilter::new_script_filter(&block.block, |o| {
                     if let Some(s) = &block.outpoint_values.get(o) {
                         Ok(s.script_pubkey.clone())
@@ -99,16 +103,18 @@ impl ProcessBip158Stats {
                         Err(Error::UtxoMissing(o.clone()))
                     }
                 })
-                    .unwrap();
+                .unwrap();
                 let filter_len = filter.content.len() as u32;
                 if let Ok(dir) = env::var("BIP158_DIR") {
                     let p = PathBuf::from_str(&format!("{}/{}.bin", dir, block.height)).unwrap();
                     fs::write(p, filter.content).unwrap();
                 }
-                filter_len
+                (filter_len, true)
             }
         };
-        self.cache[block.height as usize] = filter_len;
+        if insert {
+            self.cache.push(filter_len);
+        }
 
         self.stats.bip158_filter_size_per_month[index] += filter_len as u64;
 
