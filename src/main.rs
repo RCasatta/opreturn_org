@@ -1,33 +1,31 @@
 mod process_bip158;
 
-use crate::fee::Fee;
-use crate::parse::Parse;
 use crate::process::Process;
 use crate::process_bip158::ProcessBip158Stats;
 use crate::process_stats::ProcessStats;
-use crate::read::Read;
-use crate::reorder::Reorder;
-use bitcoin::{Block, BlockHash, OutPoint, Transaction, TxOut, Txid};
-use rocksdb::{DB, Env};
-use std::collections::{HashMap, HashSet};
+use blocks_iterator::periodic_log_level;
+use blocks_iterator::Config;
+use env_logger::Env;
+use log::{info, log};
+use rocksdb::DB;
 use std::env;
-use std::path::PathBuf;
 use std::sync::mpsc::sync_channel;
 use std::sync::Arc;
 use std::thread;
-use std::time::Instant;
+use structopt::StructOpt;
 
-mod fee;
-mod parse;
 mod process;
 mod process_stats;
-mod read;
-mod reorder;
 
-fn main() {
-
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     info!("start");
+    let blocks_size = 3;
+
+    let mut db_opts = rocksdb::Options::default();
+    db_opts.increase_parallelism(4);
+    db_opts.create_if_missing(true);
+    let db = Arc::new(DB::open(&db_opts, env::var("DB").unwrap_or_else(|_| "db".into())).unwrap());
 
     let config = Config::from_args();
     let (send, recv) = sync_channel(100);
@@ -54,10 +52,6 @@ fn main() {
     });
 
     while let Some(block_extra) = recv.recv()? {
-        let block_extra = Arc::new(Some(block_extra));
-        for sender in senders.iter() {
-            sender.send(block_extra.clone())
-        }
         log!(
             periodic_log_level(block_extra.height),
             "# {:7} {} {:?}",
@@ -65,9 +59,19 @@ fn main() {
             block_extra.block_hash,
             block_extra.fee()
         );
-
+        let block_extra = Arc::new(Some(block_extra));
+        for sender in senders.iter() {
+            sender.send(block_extra.clone()).unwrap();
+        }
+    }
+    let end = Arc::new(None);
+    for sender in senders.iter() {
+        sender.send(end.clone()).unwrap();
     }
     handle.join().expect("couldn't join");
+    process_bip158_handle.join().expect("couldn't join");
+    process_stats_handle.join().expect("couldn't join");
+    process_handle.join().expect("couldn't join");
     info!("end");
-
+    Ok(())
 }

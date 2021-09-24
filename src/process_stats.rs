@@ -3,10 +3,10 @@ use bitcoin::blockdata::script::Instruction;
 use bitcoin::consensus::Decodable;
 use bitcoin::consensus::{deserialize, encode};
 use bitcoin::hashes::hex::FromHex;
-use bitcoin::util::hash::BitcoinHash;
 use bitcoin::SigHashType;
 use bitcoin::Transaction;
 use bitcoin::{BlockHash, Txid, VarInt};
+use blocks_iterator::BlockExtra;
 use chrono::{TimeZone, Utc};
 use std::collections::HashMap;
 use std::fs;
@@ -128,8 +128,8 @@ impl ProcessStats {
                     count_inputs_in_block += 1;
                 }
 
-                for instr in input.script_sig.iter(true) {
-                    if let Instruction::PushBytes(data) = instr {
+                for instr in input.script_sig.instructions() {
+                    if let Ok(Instruction::PushBytes(data)) = instr {
                         if let Ok(sighash) = deserialize::<SignatureHash>(data) {
                             *self
                                 .stats
@@ -146,7 +146,7 @@ impl ProcessStats {
                 *self
                     .stats
                     .witness_elements
-                    .entry(witness_elements.len().to_string())
+                    .entry(input.witness.len().to_string())
                     .or_insert(0) += 1;
                 for vec in input.witness.iter() {
                     if let Ok(sighash) = deserialize::<SignatureHash>(vec) {
@@ -169,13 +169,13 @@ impl ProcessStats {
                     .unwrap();
             }
             if count_inputs_in_block == tx.input.len() {
-                fees_from_this_block.push(block.tx_fee(&tx))
+                fees_from_this_block.push(block.tx_fee(&tx).unwrap())
             }
             self.process_stats(&tx, index);
         }
         let tx_len = block.block.txdata.len();
         let tx_with_fee_in_block_len = fees_from_this_block.len();
-        let fee = block.fee();
+        let fee = block.fee().unwrap();
         let average_fee = fee as f64 / tx_len as f64;
         let estimated_average_fee = if tx_with_fee_in_block_len == 0 {
             0f64
@@ -201,7 +201,7 @@ impl ProcessStats {
             )
             .unwrap();
 
-        let hash = block.block.header.bitcoin_hash();
+        let hash = block.block.header.block_hash();
         if self.stats.min_hash > hash {
             self.stats.min_hash = hash;
         }
@@ -442,7 +442,7 @@ impl Decodable for SignatureHash {
         }
 
         let sighash_u8 = u8::consensus_decode(&mut d)?;
-        let sighash = SigHashType::from_u32(sighash_u8 as u32);
+        let sighash = SigHashType::from_u32_consensus(sighash_u8 as u32);
 
         Ok(SignatureHash(sighash))
     }

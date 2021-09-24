@@ -12,3 +12,7 @@ hex = "0.3.2"
 rocksdb = "0.17.0"
 glob = "0.2.11"
 blocks_iterator = "0.3.0"
+log = "0.4.14"
+env_logger = "0.9.0"
+structopt = "0.3.21"
+

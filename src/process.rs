@@ -1,6 +1,7 @@
 use bitcoin::blockdata::opcodes;
 use bitcoin::consensus::serialize;
 use bitcoin::{BlockHash, Script, Txid};
+use blocks_iterator::BlockExtra;
 use chrono::DateTime;
 use chrono::{Datelike, TimeZone, Utc};
 use std::collections::BTreeMap;
@@ -10,7 +11,6 @@ use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
 use time::Duration;
-use blocks_iterator::BlockExtra;
 
 pub struct Process {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
@@ -108,7 +108,7 @@ impl Process {
                         &output.script_pubkey,
                         time,
                         index,
-                        block.tx_fee(&tx),
+                        block.tx_fee(&tx).unwrap(),
                     );
                 }
                 self.process_output_script(&output.script_pubkey, index);

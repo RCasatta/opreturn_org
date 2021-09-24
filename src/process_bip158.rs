@@ -2,8 +2,8 @@ use crate::process::*;
 use bitcoin::consensus::{deserialize, serialize};
 use bitcoin::util::bip158::BlockFilter;
 use bitcoin::util::bip158::Error;
-use bitcoin::util::hash::BitcoinHash;
 use bitcoin::Script;
+use blocks_iterator::BlockExtra;
 use chrono::{TimeZone, Utc};
 use rocksdb::DB;
 use std::collections::HashSet;
@@ -13,7 +13,6 @@ use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
 use std::{env, fs};
-use blocks_iterator::BlockExtra;
 
 // TODO remove db, use flat file with Vec<u32> save all and read all at start
 pub struct ProcessBip158Stats {
@@ -76,7 +75,7 @@ impl ProcessBip158Stats {
         let time = block.block.header.time;
         let date = Utc.timestamp(i64::from(time), 0);
         let index = date_index(date);
-        let key = filter_key(block.block.bitcoin_hash());
+        let key = filter_key(block.block.block_hash());
 
         let filter_len = match self.db.get(&key).expect("operational problem encountered") {
             Some(value) => deserialize::<u64>(&value).expect("cant deserialize u64"),
