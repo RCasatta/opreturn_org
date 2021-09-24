@@ -1,7 +1,7 @@
 use crate::process::*;
-use bitcoin::util::bip158::BlockFilter;
-use bitcoin::util::bip158::Error;
-use bitcoin::Script;
+use blocks_iterator::bitcoin::util::bip158::BlockFilter;
+use blocks_iterator::bitcoin::util::bip158::Error;
+use blocks_iterator::bitcoin::Script;
 use blocks_iterator::BlockExtra;
 use chrono::{TimeZone, Utc};
 use std::collections::HashSet;

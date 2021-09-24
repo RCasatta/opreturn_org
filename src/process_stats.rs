@@ -1,11 +1,8 @@
 use crate::process::*;
-use bitcoin::blockdata::script::Instruction;
-use bitcoin::consensus::Decodable;
-use bitcoin::consensus::{deserialize, encode};
-use bitcoin::hashes::hex::FromHex;
-use bitcoin::SigHashType;
-use bitcoin::Transaction;
-use bitcoin::{BlockHash, Txid, VarInt};
+use blocks_iterator::bitcoin::blockdata::script::Instruction;
+use blocks_iterator::bitcoin::consensus::{deserialize, encode, Decodable};
+use blocks_iterator::bitcoin::hashes::hex::FromHex;
+use blocks_iterator::bitcoin::{BlockHash, SigHashType, Transaction, Txid, VarInt};
 use blocks_iterator::BlockExtra;
 use chrono::{TimeZone, Utc};
 use std::collections::HashMap;

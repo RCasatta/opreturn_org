@@ -1,5 +1,5 @@
-use bitcoin::blockdata::opcodes;
-use bitcoin::{BlockHash, Script, Txid};
+use blocks_iterator::bitcoin::blockdata::opcodes;
+use blocks_iterator::bitcoin::{BlockHash, Script, Txid};
 use blocks_iterator::BlockExtra;
 use chrono::DateTime;
 use chrono::{Datelike, TimeZone, Utc};

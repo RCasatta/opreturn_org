@@ -3,14 +3,14 @@ mod process_bip158;
 use crate::process::Process;
 use crate::process_bip158::ProcessBip158Stats;
 use crate::process_stats::ProcessStats;
+use blocks_iterator::log::{info, log};
 use blocks_iterator::periodic_log_level;
+use blocks_iterator::structopt::StructOpt;
 use blocks_iterator::Config;
 use env_logger::Env;
-use log::{info, log};
 use std::sync::mpsc::sync_channel;
 use std::sync::Arc;
 use std::thread;
-use structopt::StructOpt;
 
 mod process;
 mod process_stats;
