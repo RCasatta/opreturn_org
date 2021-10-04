@@ -5,7 +5,7 @@ use blocks_iterator::bitcoin::hashes::hex::FromHex;
 use blocks_iterator::bitcoin::{BlockHash, SigHashType, Transaction, Txid, VarInt};
 use blocks_iterator::BlockExtra;
 use chrono::{TimeZone, Utc};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::fs::File;
 use std::io::Write;
@@ -47,7 +47,11 @@ struct Stats {
     total_inputs_per_month: Vec<u64>,
     total_tx_per_month: Vec<u64>,
     fee_per_month: Vec<u64>,
+
+    /// number of witness elements
     witness_elements: HashMap<String, u64>,
+    /// witness byte size as sum of len of every element
+    witness_byte_size: HashMap<String, u64>,
 }
 
 //TODO split again this one slower together with read
@@ -97,7 +101,7 @@ impl ProcessStats {
 
         self.stats.block_size_per_month[index] += block.size as u64;
         let mut fees_from_this_block = vec![];
-
+        let tx_hashes: HashSet<_> = block.block.txdata.iter().map(|tx| tx.txid()).collect();
         for tx in block.block.txdata.iter() {
             for output in tx.output.iter() {
                 let len = VarInt(output.value).len() as u64;
@@ -118,8 +122,9 @@ impl ProcessStats {
             }
             let mut strange_sighash = vec![];
             let mut count_inputs_in_block = 0;
+
             for input in tx.input.iter() {
-                if block.tx_hashes.contains(&input.previous_output.txid) {
+                if tx_hashes.contains(&input.previous_output.txid) {
                     self.stats.total_spent_in_block += 1;
                     self.stats.total_spent_in_block_per_month[index] += 1;
                     count_inputs_in_block += 1;
@@ -143,8 +148,14 @@ impl ProcessStats {
                 *self
                     .stats
                     .witness_elements
-                    .entry(input.witness.len().to_string())
+                    .entry(format!("{:02}", input.witness.len()) )
                     .or_insert(0) += 1;
+                *self
+                    .stats
+                    .witness_byte_size
+                    .entry(format!("{:04}", input.witness.iter().map(|e| e.len()).sum::<usize>()))
+                    .or_insert(0) += 1;
+
                 for vec in input.witness.iter() {
                     if let Ok(sighash) = deserialize::<SignatureHash>(vec) {
                         *self
@@ -278,6 +289,7 @@ impl Stats {
             block_size_per_month: vec![0u64; month_array_len()],
             sighashtype: HashMap::new(),
             witness_elements: HashMap::new(),
+            witness_byte_size: HashMap::new(),
             in_out: HashMap::new(),
             sighash_file,
             fee_file,
@@ -378,6 +390,11 @@ impl Stats {
         s.push_str(&toml_section(
             "witness_elements",
             &map_by_value(&self.witness_elements),
+        ));
+
+        s.push_str(&toml_section(
+            "witness_byte_size",
+            &map_by_value(&self.witness_byte_size),
         ));
 
         s.push_str("\n\n");
