@@ -48,6 +48,8 @@ struct Stats {
     total_tx_per_month: Vec<u64>,
     fee_per_month: Vec<u64>,
 
+    /// number of inputs using witness (number of element > 0) and not using witness
+    has_witness: HashMap<String, u64>,
     /// number of witness elements
     witness_elements: HashMap<String, u64>,
     /// witness byte size as sum of len of every element
@@ -84,6 +86,13 @@ impl ProcessStats {
         self.stats.total_outputs_per_month.pop();
         self.stats.total_tx_per_month.pop();
         self.stats.fee_per_month.pop();
+        let not_using = self.stats.witness_elements.remove("00").unwrap();
+        let using = self.stats.witness_elements.values().sum();
+        self.stats.has_witness.insert("with".to_string(), using);
+        self.stats.has_witness.insert("without".to_string(), not_using);
+
+        self.stats.witness_byte_size.remove("000");
+
         let toml = self.stats.to_toml();
         //println!("{}", toml);
         fs::write("site/_data/stats.toml", toml).expect("Unable to w rite file");
@@ -153,7 +162,7 @@ impl ProcessStats {
                 *self
                     .stats
                     .witness_byte_size
-                    .entry(format!("{:04}", input.witness.iter().map(|e| e.len()).sum::<usize>()))
+                    .entry(format!("{:03}", input.witness.iter().map(|e| e.len()).sum::<usize>()))
                     .or_insert(0) += 1;
 
                 for vec in input.witness.iter() {
@@ -290,6 +299,7 @@ impl Stats {
             sighashtype: HashMap::new(),
             witness_elements: HashMap::new(),
             witness_byte_size: HashMap::new(),
+            has_witness: HashMap::new(),
             in_out: HashMap::new(),
             sighash_file,
             fee_file,
