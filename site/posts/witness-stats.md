@@ -44,6 +44,7 @@ var myChart2 = new Chart(ctx, {
             backgroundColor: rainbowPalette,
             fill: true,
         }]
-    }
+    },
+    options: window.optionsForPercentage
 });
 </script>
