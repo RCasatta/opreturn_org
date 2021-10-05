@@ -5,8 +5,6 @@ permalink: /{{ name }}
 description: Stats about the witnesses, number of elements and bytes used
 ---
 
-
-<br><br>
 <h2 style="text-align:center">Inputs with or without elements in witness</h2>
 <canvas id="myChart" width="100%"></canvas>
 <script>
@@ -30,7 +28,7 @@ var myChart = new Chart(ctx, {
 
 
 <br><br>
-<h2 style="text-align:center">Number of elements in witness</h2>
+<h2 style="text-align:center">Number of elements in non-empty witness</h2>
 <canvas id="myChart2" width="100%"></canvas>
 <script>
 var labels = {{ site.data.stats.witness_elements.labels | join: "','" | prepend: "['" | append : "']"}};
@@ -52,7 +50,7 @@ var myChart2 = new Chart(ctx, {
 </script>
 
 <br><br>
-<h2 style="text-align:center">Bytes in witness</h2>
+<h2 style="text-align:center">Bytes in non-empty witness</h2>
 <canvas id="myChart3" width="100%"></canvas>
 <script>
 var labels = {{ site.data.stats.witness_byte_size.labels | join: "','" | prepend: "['" | append : "']"}};
