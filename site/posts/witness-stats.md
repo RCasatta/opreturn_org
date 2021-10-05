@@ -7,7 +7,7 @@ description: Stats about the witnesses, number of elements and bytes used
 
 
 <br><br>
-<h2 style="text-align:center">Number of elements in witness</h2>
+<h2 style="text-align:center">Inputs with or without elements in witness</h2>
 <canvas id="myChart" width="100%"></canvas>
 <script>
 var labels = {{ site.data.stats.has_witness.labels | join: "','" | prepend: "['" | append : "']"}};
