@@ -407,6 +407,11 @@ impl Stats {
             &map_by_value(&self.witness_byte_size),
         ));
 
+        s.push_str(&toml_section(
+            "has_witness",
+            &map_by_value(&self.has_witness),
+        ));
+
         s.push_str("\n\n");
         s.push_str(&toml_section_vec(
             "total_outputs_per_month",
