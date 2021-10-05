@@ -31,12 +31,12 @@ var myChart = new Chart(ctx, {
 
 <br><br>
 <h2 style="text-align:center">Number of elements in witness</h2>
-<canvas id="myChart" width="100%"></canvas>
+<canvas id="myChart2" width="100%"></canvas>
 <script>
 var labels = {{ site.data.stats.witness_elements.labels | join: "','" | prepend: "['" | append : "']"}};
 var values = {{ site.data.stats.witness_elements.values | join: "," | prepend: "[" | append: "]"}};
-var ctx = document.getElementById("myChart").getContext('2d');
-var myChart = new Chart(ctx, {
+var ctx = document.getElementById("myChart2").getContext('2d');
+var myChart2 = new Chart(ctx, {
     type: 'pie',
     data: {
         labels: labels,
@@ -53,12 +53,12 @@ var myChart = new Chart(ctx, {
 
 <br><br>
 <h2 style="text-align:center">Bytes in witness</h2>
-<canvas id="myChart2" width="100%"></canvas>
+<canvas id="myChart3" width="100%"></canvas>
 <script>
 var labels = {{ site.data.stats.witness_byte_size.labels | join: "','" | prepend: "['" | append : "']"}};
 var values = {{ site.data.stats.witness_byte_size.values | join: "," | prepend: "[" | append: "]"}};
-var ctx = document.getElementById("myChart2").getContext('2d');
-var myChart2 = new Chart(ctx, {
+var ctx = document.getElementById("myChart3").getContext('2d');
+var myChart3 = new Chart(ctx, {
     type: 'pie',
     data: {
         labels: labels,
