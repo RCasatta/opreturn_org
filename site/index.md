@@ -8,3 +8,5 @@ layout: default.liquid
 {% for post in collections.posts.pages %}
  * [{{ post.title }}]({{ post.permalink }}): {{ post.description }}
 {% endfor %}
+
+[Contact](/contact)
