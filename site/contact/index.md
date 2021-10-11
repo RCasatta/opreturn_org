@@ -18,7 +18,6 @@ layout: default.liquid
     </label>
     <input type="hidden" name="_tags" value="opreturn.org">
     <br /><br />
-    <!-- your other form fields go here -->
     <button type="submit">Send</button>
     <br /><br />
 </form>

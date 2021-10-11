@@ -46,7 +46,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     while let Some(block_extra) = recv.recv()? {
         log!(
-            periodic_log_level(block_extra.height),
+            periodic_log_level(block_extra.height, 10_000),
             "# {:7} {} {:?}",
             block_extra.height,
             block_extra.block_hash,
