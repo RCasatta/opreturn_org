@@ -89,7 +89,9 @@ impl ProcessStats {
         let not_using = self.stats.witness_elements.remove("00").unwrap();
         let using = self.stats.witness_elements.values().sum();
         self.stats.has_witness.insert("with".to_string(), using);
-        self.stats.has_witness.insert("without".to_string(), not_using);
+        self.stats
+            .has_witness
+            .insert("without".to_string(), not_using);
 
         self.stats.witness_byte_size.remove("000");
 
@@ -157,12 +159,15 @@ impl ProcessStats {
                 *self
                     .stats
                     .witness_elements
-                    .entry(format!("{:02}", input.witness.len()) )
+                    .entry(format!("{:02}", input.witness.len()))
                     .or_insert(0) += 1;
                 *self
                     .stats
                     .witness_byte_size
-                    .entry(format!("{:03}", input.witness.iter().map(|e| e.len()).sum::<usize>()))
+                    .entry(format!(
+                        "{:03}",
+                        input.witness.iter().map(|e| e.len()).sum::<usize>()
+                    ))
                     .or_insert(0) += 1;
 
                 for vec in input.witness.iter() {

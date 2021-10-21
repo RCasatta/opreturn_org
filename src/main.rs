@@ -4,13 +4,11 @@ use crate::process::Process;
 use crate::process_bip158::ProcessBip158Stats;
 use crate::process_stats::ProcessStats;
 use blocks_iterator::log::{info, log};
-use blocks_iterator::periodic_log_level;
-use blocks_iterator::structopt::StructOpt;
-use blocks_iterator::Config;
+use blocks_iterator::{periodic_log_level, PipeIterator};
 use env_logger::Env;
 use std::sync::mpsc::sync_channel;
 use std::sync::Arc;
-use std::thread;
+use std::{io, thread};
 
 mod process;
 mod process_stats;
@@ -20,9 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("start");
     let blocks_size = 3;
 
-    let config = Config::from_args();
-    let (send, recv) = sync_channel(100);
-    let handle = blocks_iterator::iterate(config, send);
+    let iter = PipeIterator::new(io::stdin(), io::stdout());
 
     let (send_1, receive_1) = sync_channel(blocks_size);
     let (send_2, receive_2) = sync_channel(blocks_size);
@@ -44,7 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         process_bip158.start();
     });
 
-    while let Some(block_extra) = recv.recv()? {
+    for block_extra in iter {
         log!(
             periodic_log_level(block_extra.height, 10_000),
             "# {:7} {} {:?}",
@@ -61,7 +57,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for sender in senders.iter() {
         sender.send(end.clone()).unwrap();
     }
-    handle.join().expect("couldn't join");
+
     process_bip158_handle.join().expect("couldn't join");
     process_stats_handle.join().expect("couldn't join");
     process_handle.join().expect("couldn't join");
