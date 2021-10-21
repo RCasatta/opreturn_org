@@ -23,6 +23,7 @@ pub struct ProcessBip158Stats {
     scripts_10m: HashSet<Script>, // counter of elements
     scripts_10m_heights: Vec<u32>,
     cache: Vec<u32>,
+    target_dir: PathBuf,
 }
 
 struct Bip158Stats {
@@ -30,7 +31,7 @@ struct Bip158Stats {
 }
 
 impl ProcessBip158Stats {
-    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>) -> Self {
+    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, target_dir: &PathBuf) -> Self {
         let cache = match File::open("bip138_size_cache") {
             Ok(mut file) => {
                 let mut buffer = Vec::new();
@@ -52,6 +53,8 @@ impl ProcessBip158Stats {
             scripts_1m_heights: vec![],
             scripts_10m: HashSet::new(),
             scripts_10m_heights: vec![],
+            target_dir: target_dir.clone(),
+
         }
     }
 
@@ -76,7 +79,7 @@ impl ProcessBip158Stats {
         self.stats.bip158_filter_size_per_month.pop();
         let toml = self.stats.to_toml();
         //println!("{}", toml);
-        fs::write("site/_data/bip158_stats.toml", toml).expect("Unable to w rite file");
+        fs::write(format!("{}/site/_data/bip158_stats.toml", self.target_dir.display()), toml).expect("Unable to w rite file");
 
         println!(
             "ending bip158 stats processer, busy time: {}s",

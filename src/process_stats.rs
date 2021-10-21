@@ -12,10 +12,12 @@ use std::io::Write;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
+use std::path::PathBuf;
 
 pub struct ProcessStats {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
     stats: Stats,
+    target_dir: PathBuf,
 }
 
 struct Stats {
@@ -58,10 +60,11 @@ struct Stats {
 
 //TODO split again this one slower together with read
 impl ProcessStats {
-    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>) -> ProcessStats {
+    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, target_dir: &PathBuf) -> ProcessStats {
         ProcessStats {
             receiver,
             stats: Stats::new(),
+            target_dir: target_dir.clone(),
         }
     }
 
@@ -97,7 +100,7 @@ impl ProcessStats {
 
         let toml = self.stats.to_toml();
         //println!("{}", toml);
-        fs::write("site/_data/stats.toml", toml).expect("Unable to w rite file");
+        fs::write(format!("{}/site/_data/stats.toml", self.target_dir.display()), toml).expect("Unable to w rite file");
 
         println!(
             "ending stats processer, busy time: {}s",

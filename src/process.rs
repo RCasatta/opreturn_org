@@ -10,11 +10,13 @@ use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
 use time::Duration;
+use std::path::PathBuf;
 
 pub struct Process {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
     op_return_data: OpReturnData,
     script_type: ScriptType,
+    target_dir: PathBuf,
 }
 
 struct OpReturnData {
@@ -41,11 +43,12 @@ struct ScriptType {
 }
 
 impl Process {
-    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>) -> Process {
+    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, target_dir: &PathBuf) -> Process {
         Process {
             receiver,
             op_return_data: OpReturnData::new(),
             script_type: ScriptType::new(),
+            target_dir: target_dir.clone(),
         }
     }
 
@@ -74,7 +77,7 @@ impl Process {
 
         let toml = self.op_return_data.to_toml();
         //println!("{}", toml);
-        fs::write("site/_data/op_return.toml", toml).expect("Unable to write file");
+        fs::write(format!("{}/site/_data/op_return.toml", self.target_dir.display()), toml).expect("Unable to write file");
 
         self.script_type.all.pop();
         self.script_type.p2pkh.pop();
@@ -85,7 +88,7 @@ impl Process {
         self.script_type.other.pop();
         let toml = self.script_type.to_toml();
         //println!("{}", toml);
-        fs::write("site/_data/script_type.toml", toml).expect("Unable to write file");
+        fs::write(format!("{}site/_data/script_type.toml", self.target_dir.display()), toml).expect("Unable to write file");
 
         println!("{:?}", self.script_type.multisig_tx);
 

@@ -5,17 +5,29 @@ use crate::process_bip158::ProcessBip158Stats;
 use crate::process_stats::ProcessStats;
 use blocks_iterator::log::{info, log};
 use blocks_iterator::{periodic_log_level, PipeIterator};
+use blocks_iterator::structopt::{StructOpt};
 use env_logger::Env;
 use std::sync::mpsc::sync_channel;
 use std::sync::Arc;
 use std::{io, thread};
+use std::path::PathBuf;
 
 mod process;
 mod process_stats;
 
+#[derive(StructOpt, Debug, Clone)]
+struct Params {
+    /// Where to produce the website
+    #[structopt(short, long)]
+    pub target_dir: PathBuf,
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     info!("start");
+
+    let params = Params::from_args();
+
     let blocks_size = 3;
 
     let iter = PipeIterator::new(io::stdin(), io::stdout());
@@ -25,17 +37,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (send_3, receive_3) = sync_channel(blocks_size);
     let senders = [send_1, send_2, send_3];
 
-    let mut process = Process::new(receive_1);
+    let mut process = Process::new(receive_1, &params.target_dir);
     let process_handle = thread::spawn(move || {
         process.start();
     });
 
-    let mut process_stats = ProcessStats::new(receive_2);
+    let mut process_stats = ProcessStats::new(receive_2, &params.target_dir);
     let process_stats_handle = thread::spawn(move || {
         process_stats.start();
     });
 
-    let mut process_bip158 = ProcessBip158Stats::new(receive_3);
+    let mut process_bip158 = ProcessBip158Stats::new(receive_3, &params.target_dir);
     let process_bip158_handle = thread::spawn(move || {
         process_bip158.start();
     });
