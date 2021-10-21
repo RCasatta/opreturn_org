@@ -88,7 +88,7 @@ impl Process {
         self.script_type.other.pop();
         let toml = self.script_type.to_toml();
         //println!("{}", toml);
-        fs::write(format!("{}site/_data/script_type.toml", self.target_dir.display()), toml).expect("Unable to write file");
+        fs::write(format!("{}/site/_data/script_type.toml", self.target_dir.display()), toml).expect("Unable to write file");
 
         println!("{:?}", self.script_type.multisig_tx);
 
