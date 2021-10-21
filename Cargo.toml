@@ -9,6 +9,6 @@ chrono = "0.4.6"
 time = "0.1.42"
 hex = "0.3.2"
 glob = "0.2.11"
-blocks_iterator = "0.9.0"
+blocks_iterator = "0.10.0"
 env_logger = "0.9.0"
 structopt = "0.3.21" # cannot use re-exported cause I need macros
