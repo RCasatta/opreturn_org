@@ -1,7 +1,6 @@
 use crate::charts::{Chart, Color, Dataset, Kind};
 use crate::pages::{cumulative, to_label_map, Page};
-use crate::process_bip158::Bip158Stats;
-use crate::process_stats::Stats;
+use crate::process::{Bip158Stats, Stats};
 
 pub fn blockchain_and_filter_size(stats: &Stats, bip158: &Bip158Stats) -> Page {
     let blockchain = to_label_map(&cumulative(&stats.block_size_per_month));

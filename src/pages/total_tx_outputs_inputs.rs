@@ -1,6 +1,6 @@
 use crate::charts::{Chart, Color, Dataset, Kind};
 use crate::pages::{to_label_map, Page};
-use crate::process_stats::Stats;
+use crate::process::Stats;
 
 pub fn total_tx_outputs_inputs(stats: &Stats) -> Page {
     let mut charts = vec![];

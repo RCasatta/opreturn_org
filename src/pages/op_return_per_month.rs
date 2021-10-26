@@ -34,7 +34,10 @@ pub fn op_return_per_month(opret: &OpReturnData) -> Page {
     );
     let dataset = Dataset {
         label: "OP_RETURN fee [bitcoin]".to_string(),
-        data: op_ret_fee_per_month.values().map(|sat| sat/100_000_000).collect(),
+        data: op_ret_fee_per_month
+            .values()
+            .map(|sat| sat / 100_000_000)
+            .collect(),
         background_color: vec![Color::Orange],
         border_color: vec![Color::Orange],
         fill: false,

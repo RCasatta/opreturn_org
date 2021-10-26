@@ -1,4 +1,4 @@
-use crate::process::*;
+use crate::process::{compress_amount, date_index, encoded_length_7bit_varint, month_array_len};
 use blocks_iterator::bitcoin::blockdata::script::Instruction;
 use blocks_iterator::bitcoin::consensus::{deserialize, encode, Decodable};
 use blocks_iterator::bitcoin::hashes::hex::FromHex;

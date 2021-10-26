@@ -13,9 +13,7 @@ mod witness_stats;
 
 use crate::charts::Chart;
 use crate::pages;
-use crate::process::{OpReturnData, ScriptType};
-use crate::process_bip158::Bip158Stats;
-use crate::process_stats::Stats;
+use crate::process::{Bip158Stats, OpReturnData, ScriptType, Stats};
 use crate::templates::page;
 use maud::html;
 use maud::Markup;

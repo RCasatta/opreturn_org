@@ -1,6 +1,6 @@
 use crate::charts::{Chart, Color, Dataset, Kind};
-use crate::pages::{Page, map_by_value};
-use crate::process_stats::Stats;
+use crate::pages::{map_by_value, Page};
+use crate::process::Stats;
 
 pub fn witness_stats(stats: &Stats) -> Page {
     let has_witness = map_by_value(&stats.has_witness);

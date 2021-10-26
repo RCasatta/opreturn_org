@@ -1,8 +1,4 @@
-mod process_bip158;
-
-use crate::process::Process;
-use crate::process_bip158::ProcessBip158Stats;
-use crate::process_stats::ProcessStats;
+use crate::process::{ProcessBip158Stats, ProcessOpRet, ProcessStats};
 use blocks_iterator::log::{info, log};
 use blocks_iterator::structopt::StructOpt;
 use blocks_iterator::{periodic_log_level, PipeIterator};
@@ -17,7 +13,6 @@ use std::{fs, io, thread};
 mod charts;
 mod pages;
 mod process;
-mod process_stats;
 mod templates;
 
 #[derive(StructOpt, Debug, Clone)]
@@ -42,7 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (send_3, receive_3) = sync_channel(blocks_size);
     let senders = [send_1, send_2, send_3];
 
-    let process = Process::new(receive_1);
+    let process = ProcessOpRet::new(receive_1);
     let process_handle = thread::spawn(move || process.start());
 
     let process_stats = ProcessStats::new(receive_2);

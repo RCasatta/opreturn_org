@@ -1,4 +1,4 @@
-use crate::process::*;
+use crate::process::{date_index, month_array_len};
 use blocks_iterator::bitcoin::util::bip158::BlockFilter;
 use blocks_iterator::bitcoin::util::bip158::Error;
 use blocks_iterator::bitcoin::Script;
