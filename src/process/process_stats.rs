@@ -1,8 +1,8 @@
-use crate::process::{compress_amount, date_index, encoded_length_7bit_varint, month_array_len};
+use crate::process::{date_index, month_array_len};
 use blocks_iterator::bitcoin::blockdata::script::Instruction;
 use blocks_iterator::bitcoin::consensus::{deserialize, encode, Decodable};
 use blocks_iterator::bitcoin::hashes::hex::FromHex;
-use blocks_iterator::bitcoin::{BlockHash, SigHashType, VarInt};
+use blocks_iterator::bitcoin::{BlockHash, SigHashType};
 use blocks_iterator::log::{info, log};
 use blocks_iterator::periodic_log_level;
 use blocks_iterator::BlockExtra;
@@ -13,6 +13,7 @@ use std::io::Write;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
+use std::path::PathBuf;
 
 pub struct ProcessStats {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
@@ -20,17 +21,13 @@ pub struct ProcessStats {
 }
 
 pub struct Stats {
-    pub rounded_amount: u64,
+
     pub max_block_size: (u64, Option<BlockHash>),
     pub max_tx_per_block: (u64, Option<BlockHash>),
     pub min_hash: BlockHash,
     pub total_spent_in_block: u64,
     pub total_spent_in_block_per_month: Vec<u64>,
-    pub total_bytes_output_value_varint: u64,
-    pub total_bytes_output_value_compressed_varint: u64,
-    pub total_bytes_output_value_bitcoin_varint: u64,
-    pub total_bytes_output_value_compressed_bitcoin_varint: u64,
-    pub rounded_amount_per_month: Vec<u64>,
+
     pub block_size_per_month: Vec<u64>,
     pub sighashtype: HashMap<String, u64>,
     pub sighash_file: File,
@@ -48,10 +45,10 @@ pub struct Stats {
 
 //TODO split again this one slower together with read
 impl ProcessStats {
-    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>) -> ProcessStats {
+    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, target_dir: &PathBuf) -> ProcessStats {
         ProcessStats {
             receiver,
-            stats: Stats::new(),
+            stats: Stats::new(target_dir),
         }
     }
 
@@ -76,7 +73,6 @@ impl ProcessStats {
         }
 
         self.stats.total_spent_in_block_per_month.pop();
-        self.stats.rounded_amount_per_month.pop();
         self.stats.block_size_per_month.pop();
         self.stats.fee_per_month.pop();
         let not_using = self.stats.witness_elements.remove("00").unwrap();
@@ -106,23 +102,6 @@ impl ProcessStats {
         let mut fees_from_this_block = vec![];
         let tx_hashes: HashSet<_> = block.block.txdata.iter().map(|tx| tx.txid()).collect();
         for tx in block.block.txdata.iter() {
-            for output in tx.output.iter() {
-                let len = VarInt(output.value).len() as u64;
-
-                self.stats.total_bytes_output_value_bitcoin_varint += len;
-                self.stats.total_bytes_output_value_varint +=
-                    encoded_length_7bit_varint(output.value);
-                let compressed = compress_amount(output.value);
-                self.stats
-                    .total_bytes_output_value_compressed_bitcoin_varint +=
-                    VarInt(compressed).len() as u64;
-                self.stats.total_bytes_output_value_compressed_varint +=
-                    encoded_length_7bit_varint(compressed);
-                if (output.value % 1000) == 0 {
-                    self.stats.rounded_amount_per_month[index] += 1;
-                    self.stats.rounded_amount += 1;
-                }
-            }
             let mut strange_sighash = vec![];
             let mut count_inputs_in_block = 0;
 
@@ -235,26 +214,16 @@ impl ProcessStats {
 }
 
 impl Stats {
-    pub fn new() -> Self {
-        let sighash_file = File::create("sighashes.txt").unwrap();
-        let fee_file = File::create("fee.txt").unwrap();
-        let blocks_len_file = File::create("blocks_len.txt").unwrap();
+    pub fn new(target_dir: &PathBuf) -> Self {
+        let sighash_file = File::create(format!("{}/sighashes.txt", target_dir.display())).unwrap();
+        let fee_file = File::create(format!("{}/fee.txt", target_dir.display()) ).unwrap();
+        let blocks_len_file = File::create(format!("{}/blocks_len.txt", target_dir.display()) ).unwrap();
         Stats {
-            rounded_amount: 0u64,
             total_spent_in_block: 0u64,
             max_block_size: (0u64, None),
             max_tx_per_block: (0u64, None),
-            min_hash: BlockHash::from_hex(
-                "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
-            )
-            .unwrap(),
-            total_bytes_output_value_varint: 0u64,
-            total_bytes_output_value_compressed_varint: 0u64,
-            total_bytes_output_value_bitcoin_varint: 0u64,
-            total_bytes_output_value_compressed_bitcoin_varint: 0u64,
+            min_hash: BlockHash::from_hex("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f" ).unwrap(),
             total_spent_in_block_per_month: vec![0u64; month_array_len()],
-            rounded_amount_per_month: vec![0u64; month_array_len()],
-
             block_size_per_month: vec![0u64; month_array_len()],
             sighashtype: HashMap::new(),
             witness_elements: HashMap::new(),

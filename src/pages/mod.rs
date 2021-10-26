@@ -130,7 +130,7 @@ pub fn get_pages(
     pages.push(pages::op_return_protocols(&opret));
     pages.push(pages::op_return_sizes(&opret));
     pages.push(pages::script_types(&script_type));
-    pages.push(pages::rounded_amount(&stats));
+    pages.push(pages::rounded_amount(&tx_stats));
     pages.push(pages::segwit_multisig(&script_type));
     pages.push(pages::spent_same_block(&stats, &tx_stats));
     pages.push(pages::sighash_types(&stats));

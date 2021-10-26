@@ -1,6 +1,6 @@
-use crate::process::{date_index, month_array_len};
+use crate::process::{date_index, month_array_len, encoded_length_7bit_varint, compress_amount};
 use blocks_iterator::bitcoin::consensus::{encode, Decodable};
-use blocks_iterator::bitcoin::{SigHashType, Transaction, Txid};
+use blocks_iterator::bitcoin::{SigHashType, Transaction, Txid, VarInt};
 use blocks_iterator::log::{info, log};
 use blocks_iterator::periodic_log_level;
 use blocks_iterator::BlockExtra;
@@ -27,6 +27,13 @@ pub struct TxStats {
     pub total_tx_per_month: Vec<u64>,
     pub in_out: HashMap<String, u64>,
     pub amount_over_32: usize,
+
+    pub total_bytes_output_value_varint: u64,
+    pub total_bytes_output_value_compressed_varint: u64,
+    pub total_bytes_output_value_bitcoin_varint: u64,
+    pub total_bytes_output_value_compressed_bitcoin_varint: u64,
+    pub rounded_amount_per_month: Vec<u64>,
+    pub rounded_amount: u64,
 }
 
 //TODO split again this one slower together with read
@@ -61,6 +68,7 @@ impl ProcessTxStats {
         self.stats.total_inputs_per_month.pop();
         self.stats.total_outputs_per_month.pop();
         self.stats.total_tx_per_month.pop();
+        self.stats.rounded_amount_per_month.pop();
 
         busy_time += now.elapsed().as_nanos();
         info!(
@@ -107,6 +115,24 @@ impl ProcessTxStats {
         let in_out_key = format!("{:02}-{:02}", inputs, outputs);
         *self.stats.in_out.entry(in_out_key).or_insert(0) += 1;
         self.stats.amount_over_32 += tx.output.iter().filter(|o| o.value > 0xffff_ffff).count();
+
+        for output in tx.output.iter() {
+            let len = VarInt(output.value).len() as u64;
+
+            self.stats.total_bytes_output_value_bitcoin_varint += len;
+            self.stats.total_bytes_output_value_varint +=
+                encoded_length_7bit_varint(output.value);
+            let compressed = compress_amount(output.value);
+            self.stats
+                .total_bytes_output_value_compressed_bitcoin_varint +=
+                VarInt(compressed).len() as u64;
+            self.stats.total_bytes_output_value_compressed_varint +=
+                encoded_length_7bit_varint(compressed);
+            if (output.value % 1000) == 0 {
+                self.stats.rounded_amount_per_month[index] += 1;
+                self.stats.rounded_amount += 1;
+            }
+        }
     }
 }
 
@@ -124,6 +150,12 @@ impl TxStats {
             total_inputs_per_month: vec![0u64; month_array_len()],
             total_outputs_per_month: vec![0u64; month_array_len()],
             total_tx_per_month: vec![0u64; month_array_len()],
+            rounded_amount: 0u64,
+            rounded_amount_per_month: vec![0u64; month_array_len()],
+            total_bytes_output_value_varint: 0u64,
+            total_bytes_output_value_compressed_varint: 0u64,
+            total_bytes_output_value_bitcoin_varint: 0u64,
+            total_bytes_output_value_compressed_bitcoin_varint: 0u64,
         }
     }
 }

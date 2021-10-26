@@ -47,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let process = ProcessOpRet::new(receive_1);
     let process_handle = thread::spawn(move || process.start());
 
-    let process_stats = ProcessStats::new(receive_2);
+    let process_stats = ProcessStats::new(receive_2, &params.target_dir);
     let process_stats_handle = thread::spawn(move || process_stats.start());
 
     let process_bip158 = ProcessBip158Stats::new(receive_3, &params.target_dir);
