@@ -30,8 +30,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if !fs::metadata(&params.target_dir).unwrap().is_dir() {
         panic!("--target-dir must be a directory");
     }
-    if !params.target_dir.exists() {
-        fs::create_dir_all(&params.target_dir).unwrap();
+    let mut site_home = params.target_dir.clone();
+    site_home.push("site");
+    if !site_home.exists() {
+        fs::create_dir_all(&site_home).unwrap();
     }
 
     let blocks_size = 3;
@@ -88,30 +90,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     for page in pages.iter() {
         let page_html = page.to_html().into_string();
-        let filestring = format!(
-            "{}/{}/index.html",
-            params.target_dir.display(),
-            page.permalink
-        );
-        let file: PathBuf = filestring.into();
-        let parent_dir = file.parent().unwrap();
-        if !parent_dir.exists() {
-            fs::create_dir_all(&parent_dir).unwrap();
+        let mut page_path = site_home.clone();
+        page_path.push(&page.permalink);
+        if !page_path.exists() {
+            fs::create_dir_all(&page_path).unwrap();
         }
-        fs::write(file, page_html).unwrap();
+        page_path.push("index.html");
+        fs::write(page_path, page_html).unwrap();
     }
-    let indexstring = format!("{}/index.html", params.target_dir.display(),);
+    let mut index_path = site_home.clone();
+    index_path.push("index.html");
     let index = pages::create_index(&pages);
-    fs::write(indexstring, index.into_string()).unwrap();
+    fs::write(index_path, index.into_string()).unwrap();
 
-    let contact_string = format!("{}/contact/index.html", params.target_dir.display(),);
-    let contact_file: PathBuf = contact_string.into();
-    let parent_dir = contact_file.parent().unwrap();
-    if !parent_dir.exists() {
-        fs::create_dir_all(&parent_dir).unwrap();
+    let mut contact_path = site_home.clone();
+    contact_path.push("contact");
+    if !contact_path.exists() {
+        fs::create_dir_all(&contact_path).unwrap();
     }
+    contact_path.push("index.html");
     let contact = pages::create_contact();
-    fs::write(contact_file, contact.into_string()).unwrap();
+    fs::write(contact_path, contact.into_string()).unwrap();
 
     info!("end");
     Ok(())
