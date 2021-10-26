@@ -1,10 +1,10 @@
 use crate::charts::{Chart, Color, Dataset, Kind};
 use crate::pages::{to_label_map, Page};
-use crate::process::Stats;
+use crate::process::{Stats, TxStats};
 
-pub fn spent_same_block(stats: &Stats) -> Page {
+pub fn spent_same_block(stats: &Stats, tx_stats: &TxStats) -> Page {
     let mut charts = vec![];
-    let total = stats.total_outputs_per_month.clone();
+    let total = tx_stats.total_outputs_per_month.clone();
     let spent = stats.total_spent_in_block_per_month.clone();
     //let perc: Vec<_> = total.iter().zip(spent.iter()).map(|e| *e.1 / *e.0).collect();
     let labels: Vec<_> = to_label_map(&total).keys().cloned().collect();

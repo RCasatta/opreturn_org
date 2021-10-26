@@ -13,7 +13,7 @@ mod witness_stats;
 
 use crate::charts::Chart;
 use crate::pages;
-use crate::process::{Bip158Stats, OpReturnData, ScriptType, Stats};
+use crate::process::{Bip158Stats, OpReturnData, ScriptType, Stats, TxStats};
 use crate::templates::page;
 use maud::html;
 use maud::Markup;
@@ -119,21 +119,22 @@ pub fn get_pages(
     opret: &OpReturnData,
     script_type: &ScriptType,
     stats: &Stats,
+    tx_stats: &TxStats,
 ) -> Vec<Page> {
     let mut pages = vec![];
 
     pages.push(pages::blockchain_and_filter_size(&stats, &bip158));
     pages.push(pages::witness_stats(&stats));
-    pages.push(pages::number_of_inputs_and_outputs(&stats));
+    pages.push(pages::number_of_inputs_and_outputs(&tx_stats));
     pages.push(pages::op_return_per_month(&opret));
     pages.push(pages::op_return_protocols(&opret));
     pages.push(pages::op_return_sizes(&opret));
     pages.push(pages::script_types(&script_type));
     pages.push(pages::rounded_amount(&stats));
     pages.push(pages::segwit_multisig(&script_type));
-    pages.push(pages::spent_same_block(&stats));
+    pages.push(pages::spent_same_block(&stats, &tx_stats));
     pages.push(pages::sighash_types(&stats));
-    pages.push(pages::total_tx_outputs_inputs(&stats));
+    pages.push(pages::total_tx_outputs_inputs(&tx_stats));
 
     pages
 }

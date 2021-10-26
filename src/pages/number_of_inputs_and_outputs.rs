@@ -1,8 +1,8 @@
 use crate::charts::{Chart, Color, Dataset, Kind};
 use crate::pages::{map_by_value, Page};
-use crate::process::Stats;
+use crate::process::TxStats;
 
-pub fn number_of_inputs_and_outputs(stats: &Stats) -> Page {
+pub fn number_of_inputs_and_outputs(stats: &TxStats) -> Page {
     let mut charts = vec![];
     let map = map_by_value(&stats.in_out);
 

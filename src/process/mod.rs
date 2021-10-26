@@ -1,10 +1,12 @@
 mod process_bip158;
 mod process_opret;
 mod process_stats;
+mod process_tx;
 
 pub use process_bip158::{Bip158Stats, ProcessBip158Stats};
 pub use process_opret::{OpReturnData, ProcessOpRet, ScriptType};
 pub use process_stats::{ProcessStats, Stats};
+pub use process_tx::{ProcessTxStats, TxStats};
 
 use blocks_iterator::bitcoin::blockdata::opcodes;
 use chrono::{DateTime, Datelike, TimeZone, Utc};

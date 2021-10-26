@@ -2,7 +2,7 @@ use crate::process::{compress_amount, date_index, encoded_length_7bit_varint, mo
 use blocks_iterator::bitcoin::blockdata::script::Instruction;
 use blocks_iterator::bitcoin::consensus::{deserialize, encode, Decodable};
 use blocks_iterator::bitcoin::hashes::hex::FromHex;
-use blocks_iterator::bitcoin::{BlockHash, SigHashType, Transaction, Txid, VarInt};
+use blocks_iterator::bitcoin::{BlockHash, SigHashType, VarInt};
 use blocks_iterator::log::{info, log};
 use blocks_iterator::periodic_log_level;
 use blocks_iterator::BlockExtra;
@@ -20,13 +20,6 @@ pub struct ProcessStats {
 }
 
 pub struct Stats {
-    pub max_outputs_per_tx: (u64, Option<Txid>),
-    pub min_weight_tx: (u64, Option<Txid>),
-    pub max_inputs_per_tx: (u64, Option<Txid>),
-    pub max_weight_tx: (u64, Option<Txid>),
-    pub total_outputs: u64,
-    pub total_inputs: u64,
-    pub amount_over_32: usize,
     pub rounded_amount: u64,
     pub max_block_size: (u64, Option<BlockHash>),
     pub max_tx_per_block: (u64, Option<BlockHash>),
@@ -40,13 +33,9 @@ pub struct Stats {
     pub rounded_amount_per_month: Vec<u64>,
     pub block_size_per_month: Vec<u64>,
     pub sighashtype: HashMap<String, u64>,
-    pub in_out: HashMap<String, u64>,
     pub sighash_file: File,
     pub fee_file: File,
     pub blocks_len_file: File,
-    pub total_outputs_per_month: Vec<u64>,
-    pub total_inputs_per_month: Vec<u64>,
-    pub total_tx_per_month: Vec<u64>,
     pub fee_per_month: Vec<u64>,
 
     /// number of inputs using witness (number of element > 0) and not using witness
@@ -89,9 +78,6 @@ impl ProcessStats {
         self.stats.total_spent_in_block_per_month.pop();
         self.stats.rounded_amount_per_month.pop();
         self.stats.block_size_per_month.pop();
-        self.stats.total_inputs_per_month.pop();
-        self.stats.total_outputs_per_month.pop();
-        self.stats.total_tx_per_month.pop();
         self.stats.fee_per_month.pop();
         let not_using = self.stats.witness_elements.remove("00").unwrap();
         let using = self.stats.witness_elements.values().sum();
@@ -199,7 +185,6 @@ impl ProcessStats {
             if count_inputs_in_block == tx.input.len() {
                 fees_from_this_block.push(block.tx_fee(&tx).unwrap())
             }
-            self.process_stats(&tx, index);
         }
         let tx_len = block.block.txdata.len();
         let tx_with_fee_in_block_len = fees_from_this_block.len();
@@ -247,35 +232,6 @@ impl ProcessStats {
             self.stats.max_tx_per_block = (l, Some(hash));
         }
     }
-
-    fn process_stats(&mut self, tx: &Transaction, index: usize) {
-        let weight = tx.get_weight() as u64;
-        let outputs = tx.output.len() as u64;
-        let inputs = tx.input.len() as u64;
-        self.stats.total_outputs_per_month[index] += outputs;
-        self.stats.total_inputs_per_month[index] += inputs;
-        self.stats.total_tx_per_month[index] += 1;
-        let txid = tx.txid();
-        self.stats.total_outputs += outputs as u64;
-        self.stats.total_inputs += inputs as u64;
-        if self.stats.max_outputs_per_tx.0 < outputs {
-            self.stats.max_outputs_per_tx = (outputs, Some(txid));
-        }
-        if self.stats.max_inputs_per_tx.0 < inputs {
-            self.stats.max_inputs_per_tx = (inputs, Some(txid));
-        }
-        if self.stats.max_weight_tx.0 < weight {
-            self.stats.max_weight_tx = (weight, Some(txid));
-        }
-        if self.stats.min_weight_tx.0 > weight {
-            self.stats.min_weight_tx = (weight, Some(txid));
-        }
-
-        let in_out_key = format!("{:02}-{:02}", inputs, outputs);
-        *self.stats.in_out.entry(in_out_key).or_insert(0) += 1;
-
-        self.stats.amount_over_32 += tx.output.iter().filter(|o| o.value > 0xffff_ffff).count();
-    }
 }
 
 impl Stats {
@@ -284,13 +240,6 @@ impl Stats {
         let fee_file = File::create("fee.txt").unwrap();
         let blocks_len_file = File::create("blocks_len.txt").unwrap();
         Stats {
-            max_outputs_per_tx: (100u64, None),
-            max_inputs_per_tx: (100u64, None),
-            min_weight_tx: (10000u64, None),
-            max_weight_tx: (0u64, None),
-            total_outputs: 0u64,
-            total_inputs: 0u64,
-            amount_over_32: 0usize,
             rounded_amount: 0u64,
             total_spent_in_block: 0u64,
             max_block_size: (0u64, None),
@@ -311,13 +260,9 @@ impl Stats {
             witness_elements: HashMap::new(),
             witness_byte_size: HashMap::new(),
             has_witness: HashMap::new(),
-            in_out: HashMap::new(),
             sighash_file,
             fee_file,
             blocks_len_file,
-            total_inputs_per_month: vec![0u64; month_array_len()],
-            total_outputs_per_month: vec![0u64; month_array_len()],
-            total_tx_per_month: vec![0u64; month_array_len()],
             fee_per_month: vec![0u64; month_array_len()],
         }
     }

@@ -1,4 +1,4 @@
-use crate::process::{ProcessBip158Stats, ProcessOpRet, ProcessStats};
+use crate::process::{ProcessBip158Stats, ProcessOpRet, ProcessStats, ProcessTxStats};
 use blocks_iterator::log::{info, log};
 use blocks_iterator::structopt::StructOpt;
 use blocks_iterator::{periodic_log_level, PipeIterator};
@@ -41,7 +41,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (send_1, receive_1) = sync_channel(blocks_size);
     let (send_2, receive_2) = sync_channel(blocks_size);
     let (send_3, receive_3) = sync_channel(blocks_size);
-    let senders = [send_1, send_2, send_3];
+    let (send_4, receive_4) = sync_channel(blocks_size);
+    let senders = [send_1, send_2, send_3, send_4];
 
     let process = ProcessOpRet::new(receive_1);
     let process_handle = thread::spawn(move || process.start());
@@ -51,6 +52,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let process_bip158 = ProcessBip158Stats::new(receive_3, &params.target_dir);
     let process_bip158_handle = thread::spawn(move || process_bip158.start());
+
+    let process_tx_stats = ProcessTxStats::new(receive_4);
+    let process_tx_stats_handle = thread::spawn(move || process_tx_stats.start());
 
     for block_extra in iter {
         log!(
@@ -73,8 +77,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let bip158_stats = process_bip158_handle.join().expect("couldn't join");
     let process_stats = process_stats_handle.join().expect("couldn't join");
     let (opret, script_type) = process_handle.join().expect("couldn't join");
+    let tx_stats = process_tx_stats_handle.join().expect("couldn't join");
 
-    let pages = pages::get_pages(&bip158_stats, &opret, &script_type, &process_stats);
+    let pages = pages::get_pages(
+        &bip158_stats,
+        &opret,
+        &script_type,
+        &process_stats,
+        &tx_stats,
+    );
     for page in pages.iter() {
         let page_html = page.to_html().into_string();
         let filestring = format!(
