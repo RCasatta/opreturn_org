@@ -2,6 +2,7 @@ use crate::process::{date_index, month_array_len};
 use blocks_iterator::bitcoin::util::bip158::BlockFilter;
 use blocks_iterator::bitcoin::util::bip158::Error;
 use blocks_iterator::bitcoin::Script;
+use blocks_iterator::log::{debug, info};
 use blocks_iterator::BlockExtra;
 use chrono::{TimeZone, Utc};
 use std::collections::HashSet;
@@ -80,12 +81,12 @@ impl ProcessBip158Stats {
         self.stats.bip158_filter_size_per_month.pop();
 
         busy_time += now.elapsed().as_nanos();
-        println!(
+        info!(
             "ending bip158 stats processer, busy time: {}s",
             (busy_time / 1_000_000_000)
         );
-        println!("scripts_1M: {:?}", self.scripts_1m_heights);
-        println!("scripts_1M: {}", self.scripts_1m_heights.len());
+        debug!("scripts_1M: {:?}", self.scripts_1m_heights);
+        info!("scripts_1M: {}", self.scripts_1m_heights.len());
 
         self.stats
     }

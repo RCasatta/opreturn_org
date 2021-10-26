@@ -3,6 +3,7 @@ use blocks_iterator::bitcoin::blockdata::script::Instruction;
 use blocks_iterator::bitcoin::consensus::{deserialize, encode, Decodable};
 use blocks_iterator::bitcoin::hashes::hex::FromHex;
 use blocks_iterator::bitcoin::{BlockHash, SigHashType, Transaction, Txid, VarInt};
+use blocks_iterator::log::info;
 use blocks_iterator::BlockExtra;
 use chrono::{TimeZone, Utc};
 use std::collections::{HashMap, HashSet};
@@ -96,7 +97,7 @@ impl ProcessStats {
         self.stats.witness_byte_size.remove("000");
 
         busy_time += now.elapsed().as_nanos();
-        println!(
+        info!(
             "ending stats processer, busy time: {}s",
             (busy_time / 1_000_000_000)
         );

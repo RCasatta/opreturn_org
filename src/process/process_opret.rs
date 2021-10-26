@@ -1,5 +1,6 @@
 use crate::process::{date_index, month_array_len, month_index, parse_multisig};
 use blocks_iterator::bitcoin::Script;
+use blocks_iterator::log::{debug, info};
 use blocks_iterator::BlockExtra;
 use chrono::{TimeZone, Utc};
 use std::collections::BTreeMap;
@@ -79,10 +80,10 @@ impl ProcessOpRet {
         self.script_type.v0_p2wsh.pop();
         self.script_type.other.pop();
 
-        println!("{:?}", self.script_type.multisig_tx);
+        debug!("{:?}", self.script_type.multisig_tx);
 
         busy_time += now.elapsed().as_nanos();
-        println!(
+        info!(
             "ending processer, busy time: {}s",
             (busy_time / 1_000_000_000)
         );
