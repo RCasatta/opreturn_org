@@ -9,7 +9,7 @@ fn header() -> Markup {
             meta name="viewport" content="width=device-width, initial-scale=1.0";
             script src="https://cdn.jsdelivr.net/npm/chart.js" { }
 
-            title { "OpReturn" }
+            title { "OP_RETURN" }
         }
     }
 }
@@ -40,8 +40,8 @@ pub fn page(content: Markup) -> Markup {
         (DOCTYPE)
         html lang = "en" {
             (header())
-            body {
-                h1 { a href="/" { "OpReturn" } }
+            body style="font-family: Arial, Helvetica, sans-serif;" {
+                h1 { a href="/" { "OP_RETURN" } }
                 (content)
                 (footer())
             }

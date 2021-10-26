@@ -40,7 +40,7 @@ pub fn blockchain_and_filter_size(stats: &Stats, bip158: &Bip158Stats) -> Page {
     charts.push(chart);
 
     Page {
-        title: "Blockhain and BIP158 filter size [MB]".to_string(),
+        title: "Blockhain and BIP158 filter size".to_string(),
         description: "Charts showing the Blockchain size and BIP158 filter size".to_string(),
         permalink: "blockchain-and-filter-size".to_string(),
         charts,

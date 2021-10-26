@@ -49,13 +49,14 @@ impl ProcessOpRet {
 
     pub fn start(mut self) -> (OpReturnData, ScriptType) {
         let mut busy_time = 0u128;
+        let mut now = Instant::now();
         loop {
+            busy_time += now.elapsed().as_nanos();
             let received = self.receiver.recv().expect("cannot receive fee block");
+            now = Instant::now();
             match *received {
                 Some(ref block) => {
-                    let now = Instant::now();
                     self.process_block(&block);
-                    busy_time = busy_time + now.elapsed().as_nanos();
                 }
                 None => break,
             }
@@ -80,6 +81,7 @@ impl ProcessOpRet {
 
         println!("{:?}", self.script_type.multisig_tx);
 
+        busy_time += now.elapsed().as_nanos();
         println!(
             "ending processer, busy time: {}s",
             (busy_time / 1_000_000_000)

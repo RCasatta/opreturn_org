@@ -60,13 +60,14 @@ impl ProcessBip158Stats {
 
     pub fn start(mut self) -> Bip158Stats {
         let mut busy_time = 0u128;
+        let mut now = Instant::now();
         loop {
+            busy_time += now.elapsed().as_nanos();
             let received = self.receiver.recv().expect("cannot receive fee block");
+            now = Instant::now();
             match *received {
                 Some(ref block) => {
-                    let now = Instant::now();
                     self.process_block(&block);
-                    busy_time = busy_time + now.elapsed().as_nanos();
                 }
                 None => break,
             }
@@ -78,6 +79,7 @@ impl ProcessBip158Stats {
 
         self.stats.bip158_filter_size_per_month.pop();
 
+        busy_time += now.elapsed().as_nanos();
         println!(
             "ending bip158 stats processer, busy time: {}s",
             (busy_time / 1_000_000_000)
