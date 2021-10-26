@@ -6,69 +6,65 @@ use blocks_iterator::bitcoin::{BlockHash, SigHashType, Transaction, Txid, VarInt
 use blocks_iterator::BlockExtra;
 use chrono::{TimeZone, Utc};
 use std::collections::{HashMap, HashSet};
-use std::fs;
 use std::fs::File;
 use std::io::Write;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
-use std::path::PathBuf;
 
 pub struct ProcessStats {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
-    stats: Stats,
-    target_dir: PathBuf,
+    pub stats: Stats,
 }
 
-struct Stats {
-    max_outputs_per_tx: (u64, Option<Txid>),
-    min_weight_tx: (u64, Option<Txid>),
-    max_inputs_per_tx: (u64, Option<Txid>),
-    max_weight_tx: (u64, Option<Txid>),
-    total_outputs: u64,
-    total_inputs: u64,
-    amount_over_32: usize,
-    rounded_amount: u64,
-    max_block_size: (u64, Option<BlockHash>),
-    max_tx_per_block: (u64, Option<BlockHash>),
-    min_hash: BlockHash,
-    total_spent_in_block: u64,
-    total_spent_in_block_per_month: Vec<u64>,
-    total_bytes_output_value_varint: u64,
-    total_bytes_output_value_compressed_varint: u64,
-    total_bytes_output_value_bitcoin_varint: u64,
-    total_bytes_output_value_compressed_bitcoin_varint: u64,
-    rounded_amount_per_month: Vec<u64>,
-    block_size_per_month: Vec<u64>,
-    sighashtype: HashMap<String, u64>,
-    in_out: HashMap<String, u64>,
-    sighash_file: File,
-    fee_file: File,
-    blocks_len_file: File,
-    total_outputs_per_month: Vec<u64>,
-    total_inputs_per_month: Vec<u64>,
-    total_tx_per_month: Vec<u64>,
-    fee_per_month: Vec<u64>,
+pub struct Stats {
+    pub max_outputs_per_tx: (u64, Option<Txid>),
+    pub min_weight_tx: (u64, Option<Txid>),
+    pub max_inputs_per_tx: (u64, Option<Txid>),
+    pub max_weight_tx: (u64, Option<Txid>),
+    pub total_outputs: u64,
+    pub total_inputs: u64,
+    pub amount_over_32: usize,
+    pub rounded_amount: u64,
+    pub max_block_size: (u64, Option<BlockHash>),
+    pub max_tx_per_block: (u64, Option<BlockHash>),
+    pub min_hash: BlockHash,
+    pub total_spent_in_block: u64,
+    pub total_spent_in_block_per_month: Vec<u64>,
+    pub total_bytes_output_value_varint: u64,
+    pub total_bytes_output_value_compressed_varint: u64,
+    pub total_bytes_output_value_bitcoin_varint: u64,
+    pub total_bytes_output_value_compressed_bitcoin_varint: u64,
+    pub rounded_amount_per_month: Vec<u64>,
+    pub block_size_per_month: Vec<u64>,
+    pub sighashtype: HashMap<String, u64>,
+    pub in_out: HashMap<String, u64>,
+    pub sighash_file: File,
+    pub fee_file: File,
+    pub blocks_len_file: File,
+    pub total_outputs_per_month: Vec<u64>,
+    pub total_inputs_per_month: Vec<u64>,
+    pub total_tx_per_month: Vec<u64>,
+    pub fee_per_month: Vec<u64>,
 
     /// number of inputs using witness (number of element > 0) and not using witness
-    has_witness: HashMap<String, u64>,
+    pub has_witness: HashMap<String, u64>,
     /// number of witness elements
-    witness_elements: HashMap<String, u64>,
+    pub witness_elements: HashMap<String, u64>,
     /// witness byte size as sum of len of every element
-    witness_byte_size: HashMap<String, u64>,
+    pub witness_byte_size: HashMap<String, u64>,
 }
 
 //TODO split again this one slower together with read
 impl ProcessStats {
-    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, target_dir: &PathBuf) -> ProcessStats {
+    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>) -> ProcessStats {
         ProcessStats {
             receiver,
             stats: Stats::new(),
-            target_dir: target_dir.clone(),
         }
     }
 
-    pub fn start(&mut self) {
+    pub fn start(mut self) -> Stats {
         let mut busy_time = 0u128;
         loop {
             let received = self.receiver.recv().expect("cannot receive fee block");
@@ -98,14 +94,12 @@ impl ProcessStats {
 
         self.stats.witness_byte_size.remove("000");
 
-        let toml = self.stats.to_toml();
-        //println!("{}", toml);
-        fs::write(format!("{}/site/_data/stats.toml", self.target_dir.display()), toml).expect("Unable to w rite file");
-
         println!(
             "ending stats processer, busy time: {}s",
             (busy_time / 1_000_000_000)
         );
+
+        self.stats
     }
 
     fn process_block(&mut self, block: &BlockExtra) {
@@ -276,7 +270,7 @@ impl ProcessStats {
 }
 
 impl Stats {
-    fn new() -> Self {
+    pub fn new() -> Self {
         let sighash_file = File::create("sighashes.txt").unwrap();
         let fee_file = File::create("fee.txt").unwrap();
         let blocks_len_file = File::create("blocks_len.txt").unwrap();
@@ -318,138 +312,6 @@ impl Stats {
             fee_per_month: vec![0u64; month_array_len()],
         }
     }
-
-    fn to_toml(&self) -> String {
-        let mut s = String::new();
-
-        s.push_str(&toml_section_hash(
-            "max_outputs_per_tx",
-            &self.max_outputs_per_tx,
-        ));
-        s.push_str(&toml_section_hash(
-            "max_inputs_per_tx",
-            &self.max_inputs_per_tx,
-        ));
-
-        s.push_str(&toml_section_block_hash(
-            "max_block_size",
-            &self.max_block_size,
-        ));
-
-        s.push_str(&toml_section_block_hash(
-            "max_tx_per_block",
-            &self.max_tx_per_block,
-        ));
-
-        s.push_str(&toml_section_hash("min_weight_tx", &self.min_weight_tx));
-        s.push_str(&toml_section_hash("max_weight_tx", &self.max_weight_tx));
-        //s.push_str(&toml_section_hash("max_block_size", &self.max_block_size));
-
-        s.push_str("\n[totals]\n");
-        s.push_str(&format!("min_hash = \"{:?}\"\n", self.min_hash));
-        s.push_str(&format!("outputs = {}\n", self.total_outputs));
-        s.push_str(&format!("inputs = {}\n", self.total_inputs));
-        s.push_str(&format!("amount_over_32 = {}\n", self.amount_over_32));
-        s.push_str(&format!("rounded_amount = {}\n", self.rounded_amount));
-        s.push_str(&format!(
-            "total_spent_in_block = {}\n",
-            self.total_spent_in_block
-        ));
-
-        s.push_str(&format!(
-            "bytes_output_value = {}\n",
-            self.total_outputs * 8
-        ));
-        s.push_str(&format!(
-            "bytes_output_value_bitcoin_varint = {}\n",
-            self.total_bytes_output_value_bitcoin_varint
-        ));
-        s.push_str(&format!(
-            "bytes_output_value_varint = {}\n",
-            self.total_bytes_output_value_varint
-        ));
-        s.push_str(&format!(
-            "bytes_output_value_compressed_bitcoin_varint = {}\n",
-            self.total_bytes_output_value_compressed_bitcoin_varint
-        ));
-        s.push_str(&format!(
-            "bytes_output_value_compressed_varint = {}\n",
-            self.total_bytes_output_value_compressed_varint
-        ));
-
-        s.push_str("\n\n");
-        s.push_str(&toml_section_vec(
-            "total_spent_in_block_per_month",
-            &self.total_spent_in_block_per_month,
-            None,
-        ));
-
-        s.push_str("\n\n");
-        s.push_str(&toml_section_vec(
-            "rounded_amount_per_month",
-            &self.rounded_amount_per_month,
-            None,
-        ));
-
-        s.push_str("\n\n");
-        s.push_str(&toml_section_vec(
-            "block_size_per_month",
-            &cumulative(&self.block_size_per_month),
-            None,
-        ));
-
-        s.push_str(&toml_section("in_out", &map_by_value(&self.in_out)));
-
-        s.push_str(&toml_section(
-            "sighashtype",
-            &map_by_value(&self.sighashtype),
-        ));
-
-        s.push_str(&toml_section(
-            "witness_elements",
-            &map_by_value(&self.witness_elements),
-        ));
-
-        s.push_str(&toml_section(
-            "witness_byte_size",
-            &map_by_value(&self.witness_byte_size),
-        ));
-
-        s.push_str(&toml_section(
-            "has_witness",
-            &map_by_value(&self.has_witness),
-        ));
-
-        s.push_str("\n\n");
-        s.push_str(&toml_section_vec(
-            "total_outputs_per_month",
-            &self.total_outputs_per_month,
-            None,
-        ));
-
-        s.push_str("\n\n");
-        s.push_str(&toml_section_vec(
-            "total_inputs_per_month",
-            &self.total_inputs_per_month,
-            None,
-        ));
-
-        s.push_str("\n\n");
-        s.push_str(&toml_section_vec(
-            "total_tx_per_month",
-            &self.total_tx_per_month,
-            None,
-        ));
-
-        s.push_str("\n\n");
-        s.push_str(&toml_section_vec(
-            "fee_per_month",
-            &self.fee_per_month,
-            None,
-        ));
-
-        s
-    }
 }
 
 struct SignatureHash(pub SigHashType);
@@ -485,6 +347,7 @@ impl Decodable for SignatureHash {
     }
 }
 
+/*
 #[cfg(test)]
 mod test {
     use crate::process::cumulative;
@@ -577,3 +440,5 @@ mod test {
         assert_eq!(signatureHash.0, SigHashType::SinglePlusAnyoneCanPay);
     }
 }
+
+ */

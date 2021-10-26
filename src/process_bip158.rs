@@ -17,21 +17,26 @@ use std::{env, fs};
 
 pub struct ProcessBip158Stats {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
-    stats: Bip158Stats,
-    scripts_1m: HashSet<Script>, // counter of elements
+    pub stats: Bip158Stats,
+
+    /// counter of different scripts, when reach 1M elements, it resets and insert the height in `scripts_1m_heights`
+    scripts_1m: HashSet<Script>,
     scripts_1m_heights: Vec<u32>,
-    scripts_10m: HashSet<Script>, // counter of elements
+
+    /// counter of different scripts, when reach 10M elements, it resets and insert the height in `scripts_10m_heights`
+    scripts_10m: HashSet<Script>,
     scripts_10m_heights: Vec<u32>,
+
+    /// cache the value of the BIP158 filter
     cache: Vec<u32>,
-    target_dir: PathBuf,
 }
 
-struct Bip158Stats {
-    bip158_filter_size_per_month: Vec<u64>,
+pub struct Bip158Stats {
+    pub bip158_filter_size_per_month: Vec<u64>,
 }
 
 impl ProcessBip158Stats {
-    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, target_dir: &PathBuf) -> Self {
+    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>) -> Self {
         let cache = match File::open("bip138_size_cache") {
             Ok(mut file) => {
                 let mut buffer = Vec::new();
@@ -53,12 +58,10 @@ impl ProcessBip158Stats {
             scripts_1m_heights: vec![],
             scripts_10m: HashSet::new(),
             scripts_10m_heights: vec![],
-            target_dir: target_dir.clone(),
-
         }
     }
 
-    pub fn start(&mut self) {
+    pub fn start(mut self) -> Bip158Stats {
         let mut busy_time = 0u128;
         loop {
             let received = self.receiver.recv().expect("cannot receive fee block");
@@ -77,9 +80,6 @@ impl ProcessBip158Stats {
         }
 
         self.stats.bip158_filter_size_per_month.pop();
-        let toml = self.stats.to_toml();
-        //println!("{}", toml);
-        fs::write(format!("{}/site/_data/bip158_stats.toml", self.target_dir.display()), toml).expect("Unable to w rite file");
 
         println!(
             "ending bip158 stats processer, busy time: {}s",
@@ -89,6 +89,8 @@ impl ProcessBip158Stats {
         println!("scripts_1M: {}", self.scripts_1m_heights.len());
         println!("scripts_10M: {:?}", self.scripts_10m_heights);
         println!("scripts_10M: {}", self.scripts_10m_heights.len());
+
+        self.stats
     }
 
     fn process_block(&mut self, block: &BlockExtra) {
@@ -157,25 +159,5 @@ impl Bip158Stats {
         Self {
             bip158_filter_size_per_month: vec![0u64; month_array_len()],
         }
-    }
-
-    fn to_toml(&self) -> String {
-        let mut s = String::new();
-
-        s.push_str("\n\n");
-        s.push_str(&toml_section_vec(
-            "bip158_filter_size_per_month",
-            &self.bip158_filter_size_per_month,
-            None,
-        ));
-
-        s.push_str("\n\n");
-        s.push_str(&toml_section_vec(
-            "bip158_filter_size_per_month_cum",
-            &cumulative(&self.bip158_filter_size_per_month),
-            None,
-        ));
-
-        s
     }
 }

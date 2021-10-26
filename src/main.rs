@@ -1,19 +1,26 @@
 mod process_bip158;
 
+use crate::pages::{create_index, get_pages};
 use crate::process::Process;
 use crate::process_bip158::ProcessBip158Stats;
 use crate::process_stats::ProcessStats;
+use crate::templates::create_contact;
 use blocks_iterator::log::{info, log};
+use blocks_iterator::structopt::StructOpt;
 use blocks_iterator::{periodic_log_level, PipeIterator};
-use blocks_iterator::structopt::{StructOpt};
+use chrono::format::StrftimeItems;
+use chrono::Utc;
 use env_logger::Env;
+use std::path::PathBuf;
 use std::sync::mpsc::sync_channel;
 use std::sync::Arc;
-use std::{io, thread};
-use std::path::PathBuf;
+use std::{fs, io, thread};
 
+mod charts;
+mod pages;
 mod process;
 mod process_stats;
+mod templates;
 
 #[derive(StructOpt, Debug, Clone)]
 struct Params {
@@ -37,20 +44,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (send_3, receive_3) = sync_channel(blocks_size);
     let senders = [send_1, send_2, send_3];
 
-    let mut process = Process::new(receive_1, &params.target_dir);
-    let process_handle = thread::spawn(move || {
-        process.start();
-    });
+    let process = Process::new(receive_1);
+    let process_handle = thread::spawn(move || process.start());
 
-    let mut process_stats = ProcessStats::new(receive_2, &params.target_dir);
-    let process_stats_handle = thread::spawn(move || {
-        process_stats.start();
-    });
+    let process_stats = ProcessStats::new(receive_2);
+    let process_stats_handle = thread::spawn(move || process_stats.start());
 
-    let mut process_bip158 = ProcessBip158Stats::new(receive_3, &params.target_dir);
-    let process_bip158_handle = thread::spawn(move || {
-        process_bip158.start();
-    });
+    let process_bip158 = ProcessBip158Stats::new(receive_3);
+    let process_bip158_handle = thread::spawn(move || process_bip158.start());
 
     for block_extra in iter {
         log!(
@@ -70,9 +71,44 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         sender.send(end.clone()).unwrap();
     }
 
-    process_bip158_handle.join().expect("couldn't join");
-    process_stats_handle.join().expect("couldn't join");
-    process_handle.join().expect("couldn't join");
+    let bip158_stats = process_bip158_handle.join().expect("couldn't join");
+    let process_stats = process_stats_handle.join().expect("couldn't join");
+    let (opret, script_type) = process_handle.join().expect("couldn't join");
+
+    let pages = get_pages(&bip158_stats, &opret, &script_type, &process_stats);
+    for page in pages.iter() {
+        let page_html = page.to_html().into_string();
+        let filestring = format!(
+            "{}/{}/index.html",
+            params.target_dir.display(),
+            page.permalink
+        );
+        let file: PathBuf = filestring.into();
+        let parent_dir = file.parent().unwrap();
+        if !parent_dir.exists() {
+            fs::create_dir_all(&parent_dir).unwrap();
+        }
+        fs::write(file, page_html).unwrap();
+    }
+    let indexstring = format!("{}/index.html", params.target_dir.display(),);
+    let index = create_index(&pages);
+    fs::write(indexstring, index.into_string()).unwrap();
+
+    let contact_string = format!("{}/contact/index.html", params.target_dir.display(),);
+    let contact_file: PathBuf = contact_string.into();
+    let parent_dir = contact_file.parent().unwrap();
+    if !parent_dir.exists() {
+        fs::create_dir_all(&parent_dir).unwrap();
+    }
+    let contact = create_contact();
+    fs::write(contact_file, contact.into_string()).unwrap();
+
     info!("end");
     Ok(())
+}
+
+fn now() -> String {
+    let now = Utc::now().naive_utc();
+    let fmt = StrftimeItems::new("%Y-%m-%d %H:%M:%S");
+    format!("{}", now.format_with_items(fmt))
 }

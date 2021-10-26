@@ -1,58 +1,54 @@
 use blocks_iterator::bitcoin::blockdata::opcodes;
-use blocks_iterator::bitcoin::{BlockHash, Script, Txid};
+use blocks_iterator::bitcoin::Script;
 use blocks_iterator::BlockExtra;
 use chrono::DateTime;
 use chrono::{Datelike, TimeZone, Utc};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
-use std::fs;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
 use time::Duration;
-use std::path::PathBuf;
 
 pub struct Process {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
-    op_return_data: OpReturnData,
-    script_type: ScriptType,
-    target_dir: PathBuf,
+    pub op_return_data: OpReturnData,
+    pub script_type: ScriptType,
 }
 
-struct OpReturnData {
-    op_ret_per_month: Vec<u64>,
-    op_ret_size: BTreeMap<String, u64>, //pad with spaces usize of len up to 3
-    op_ret_fee_per_month: Vec<u64>,
-    op_ret_per_proto: HashMap<String, u64>,
-    op_ret_per_proto_last_month: HashMap<String, u64>,
-    op_ret_per_proto_last_year: HashMap<String, u64>,
-    month_ago: u32,
-    year_ago: u32,
+pub struct OpReturnData {
+    pub op_ret_per_month: Vec<u64>,
+    pub op_ret_size: BTreeMap<String, u64>, //pad with spaces usize of len up to 3
+    pub op_ret_fee_per_month: Vec<u64>,
+    pub op_ret_per_proto: HashMap<String, u64>,
+    pub op_ret_per_proto_last_month: HashMap<String, u64>,
+    pub op_ret_per_proto_last_year: HashMap<String, u64>,
+    pub month_ago: u32,
+    pub year_ago: u32,
 }
 
-struct ScriptType {
-    all: Vec<u64>,
-    p2pkh: Vec<u64>,
-    p2pk: Vec<u64>,
-    v0_p2wpkh: Vec<u64>,
-    v0_p2wsh: Vec<u64>,
-    p2sh: Vec<u64>,
-    other: Vec<u64>,
-    multisig: HashMap<String, u64>,
-    multisig_tx: HashMap<String, String>,
+pub struct ScriptType {
+    pub all: Vec<u64>,
+    pub p2pkh: Vec<u64>,
+    pub p2pk: Vec<u64>,
+    pub v0_p2wpkh: Vec<u64>,
+    pub v0_p2wsh: Vec<u64>,
+    pub p2sh: Vec<u64>,
+    pub other: Vec<u64>,
+    pub multisig: HashMap<String, u64>,
+    pub multisig_tx: HashMap<String, String>,
 }
 
 impl Process {
-    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, target_dir: &PathBuf) -> Process {
+    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>) -> Process {
         Process {
             receiver,
             op_return_data: OpReturnData::new(),
             script_type: ScriptType::new(),
-            target_dir: target_dir.clone(),
         }
     }
 
-    pub fn start(&mut self) {
+    pub fn start(mut self) -> (OpReturnData, ScriptType) {
         let mut busy_time = 0u128;
         loop {
             let received = self.receiver.recv().expect("cannot receive fee block");
@@ -75,10 +71,6 @@ impl Process {
             self.op_return_data.op_ret_fee_per_month[month_index("201501".to_string())..].to_vec();
         self.op_return_data.op_ret_fee_per_month.pop();
 
-        let toml = self.op_return_data.to_toml();
-        //println!("{}", toml);
-        fs::write(format!("{}/site/_data/op_return.toml", self.target_dir.display()), toml).expect("Unable to write file");
-
         self.script_type.all.pop();
         self.script_type.p2pkh.pop();
         self.script_type.p2pk.pop();
@@ -86,9 +78,6 @@ impl Process {
         self.script_type.v0_p2wpkh.pop();
         self.script_type.v0_p2wsh.pop();
         self.script_type.other.pop();
-        let toml = self.script_type.to_toml();
-        //println!("{}", toml);
-        fs::write(format!("{}/site/_data/script_type.toml", self.target_dir.display()), toml).expect("Unable to write file");
 
         println!("{:?}", self.script_type.multisig_tx);
 
@@ -96,6 +85,8 @@ impl Process {
             "ending processer, busy time: {}s",
             (busy_time / 1_000_000_000)
         );
+
+        (self.op_return_data, self.script_type)
     }
 
     fn process_block(&mut self, block: &BlockExtra) {
@@ -208,28 +199,6 @@ impl ScriptType {
             multisig_tx: HashMap::new(),
         }
     }
-
-    fn to_toml(&self) -> String {
-        let mut s = String::new();
-
-        s.push_str(&toml_section_vec("all", &self.all, None));
-        s.push_str(&toml_section_vec("p2pkh", &self.p2pkh, None));
-        s.push_str(&toml_section_vec("p2pk", &self.p2pk, None));
-        s.push_str(&toml_section_vec("v0_p2wpkh", &self.v0_p2wpkh, None));
-        s.push_str(&toml_section_vec("v0_p2wsh", &self.v0_p2wsh, None));
-        s.push_str(&toml_section_vec("p2sh", &self.p2sh, None));
-        s.push_str(&toml_section_vec("other", &self.other, None));
-        s.push_str(&toml_section(
-            "segwit_multisig",
-            &hash_to_tree(&self.multisig),
-        ));
-        s.push_str(&toml_section(
-            "segwit_multisig_other",
-            &map_by_value(&self.multisig),
-        ));
-
-        s
-    }
 }
 
 impl OpReturnData {
@@ -247,44 +216,6 @@ impl OpReturnData {
             month_ago,
             year_ago,
         }
-    }
-
-    fn to_toml(&self) -> String {
-        let mut s = String::new();
-
-        s.push_str(&toml_section_vec(
-            "op_ret_per_month",
-            &self.op_ret_per_month,
-            Some(month_index("201501".to_string())),
-        ));
-        s.push_str(&toml_section("op_ret_size", &self.op_ret_size));
-        s.push_str(&toml_section(
-            "op_ret_per_proto",
-            &map_by_value(&self.op_ret_per_proto),
-        ));
-        s.push_str(&toml_section(
-            "op_ret_per_proto_last_month",
-            &map_by_value(&self.op_ret_per_proto_last_month),
-        ));
-        s.push_str(&toml_section(
-            "op_ret_per_proto_last_year",
-            &map_by_value(&self.op_ret_per_proto_last_year),
-        ));
-
-        s.push_str(&toml_section_vec_f64(
-            "op_ret_fee_per_month",
-            &convert_sat_to_bitcoin(&self.op_ret_fee_per_month),
-            Some(month_index("201501".to_string())),
-        ));
-
-        s.push_str("\n[totals]\n");
-        let op_ret_fee_total: u64 = self.op_ret_fee_per_month.iter().sum();
-        s.push_str(&format!(
-            "op_ret_fee = {}\n",
-            (op_ret_fee_total as f64 / 100_000_000f64)
-        ));
-
-        s
     }
 }
 
@@ -310,96 +241,6 @@ pub fn read_pushnum(value: u8) -> Option<u8> {
     } else {
         None
     }
-}
-
-pub fn convert_sat_to_bitcoin(map: &Vec<u64>) -> Vec<f64> {
-    map.iter().map(|v| *v as f64 / 100_000_000f64).collect()
-}
-
-pub fn toml_section_vec_f64(title: &str, vec: &Vec<f64>, shift: Option<usize>) -> String {
-    let mut s = String::new();
-    s.push_str(&format!("\n[{}]\n", title));
-    let labels: Vec<String> = vec
-        .iter()
-        .enumerate()
-        .map(|el| index_month(el.0 + shift.unwrap_or(0)))
-        .collect();
-    s.push_str(&format!("labels={:?}\n", labels));
-    s.push_str(&format!("values={:?}\n\n", vec));
-    s
-}
-
-pub fn toml_section_vec(title: &str, vec: &Vec<u64>, shift: Option<usize>) -> String {
-    let mut s = String::new();
-    s.push_str(&format!("\n[{}]\n", title));
-    let labels: Vec<String> = vec
-        .iter()
-        .enumerate()
-        .map(|el| index_month(el.0 + shift.unwrap_or(0)))
-        .collect();
-    s.push_str(&format!("labels={:?}\n", labels));
-    s.push_str(&format!("values={:?}\n\n", vec));
-    s
-}
-
-pub fn toml_section(title: &str, map: &BTreeMap<String, u64>) -> String {
-    let mut s = String::new();
-    s.push_str(&format!("\n[{}]\n", title));
-    let labels: Vec<String> = map.keys().cloned().collect();
-    s.push_str(&format!("labels={:?}\n", labels));
-    let values: Vec<u64> = map.values().cloned().collect();
-    s.push_str(&format!("values={:?}\n\n", values));
-    s
-}
-
-pub fn hash_to_tree(map: &HashMap<String, u64>) -> BTreeMap<String, u64> {
-    let mut tree: BTreeMap<String, u64> = BTreeMap::new();
-    for (key, value) in map.iter() {
-        tree.insert(key.to_string(), *value);
-    }
-    tree
-}
-
-pub fn map_by_value(map: &HashMap<String, u64>) -> BTreeMap<String, u64> {
-    let mut tree: BTreeMap<String, u64> = BTreeMap::new();
-    let mut count_vec: Vec<(&String, &u64)> = map.iter().collect();
-    count_vec.sort_by(|a, b| b.1.cmp(a.1));
-    for (key, value) in count_vec.iter().take(10) {
-        tree.insert(key.to_string(), **value);
-    }
-    let other = count_vec.iter().skip(10).fold(0, |acc, x| acc + x.1);
-    if other > 0 {
-        tree.insert("other".to_owned(), other);
-    }
-    tree
-}
-
-pub fn cumulative(values: &Vec<u64>) -> Vec<u64> {
-    let mut result = Vec::with_capacity(values.len());
-    let mut cum = 0;
-    for val in values {
-        cum += val;
-        result.push(cum);
-    }
-    result
-}
-
-pub fn toml_section_hash(title: &str, value: &(u64, Option<Txid>)) -> String {
-    let mut s = String::new();
-    s.push_str(&format!("\n[{}]\n", title));
-    s.push_str(&format!("hash=\"{:?}\"\n", value.1.unwrap()));
-    s.push_str(&format!("value={:?}\n\n", value.0));
-
-    s
-}
-
-pub fn toml_section_block_hash(title: &str, value: &(u64, Option<BlockHash>)) -> String {
-    let mut s = String::new();
-    s.push_str(&format!("\n[{}]\n", title));
-    s.push_str(&format!("hash=\"{:?}\"\n", value.1.unwrap()));
-    s.push_str(&format!("value={:?}\n\n", value.0));
-
-    s
 }
 
 pub fn encoded_length_7bit_varint(mut value: u64) -> u64 {
@@ -467,12 +308,6 @@ pub fn date_index(date: DateTime<Utc>) -> usize {
     return (date.year() as usize - 2009) * 12 + (date.month() as usize - 1);
 }
 
-pub fn index_month(index: usize) -> String {
-    let year = 2009 + index / 12;
-    let month = (index % 12) + 1;
-    format!("{:04}{:02}", year, month)
-}
-
 pub fn month_date(yyyymm: String) -> DateTime<Utc> {
     let year: i32 = yyyymm[0..4].parse().unwrap();
     let month: u32 = yyyymm[4..6].parse().unwrap();
@@ -487,6 +322,7 @@ pub fn month_array_len() -> usize {
     date_index(Utc::now()) + 1
 }
 
+/*
 #[cfg(test)]
 mod test {
     use crate::process::cumulative;
@@ -579,3 +415,5 @@ mod test {
         assert_eq!(signatureHash.0, SigHashType::SinglePlusAnyoneCanPay);
     }
 }
+
+*/

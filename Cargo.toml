@@ -1,14 +1,22 @@
 [package]
-name = "rustat"
+name = "opreturn_org"
 version = "0.2.0"
 authors = ["Riccardo Casatta <riccardo@casatta.it>"]
 edition = "2018"
 
 [dependencies]
-chrono = "0.4.6"
 time = "0.1.42"
 hex = "0.3.2"
 glob = "0.2.11"
 blocks_iterator = "0.10.0"
 env_logger = "0.9.0"
 structopt = "0.3.21" # cannot use re-exported cause I need macros
+maud = "0.22.3"
+chrono = "0.4.19"
+serde = { version="1.0.130", features = [ "derive" ] }
+serde_json = "1.0.68"
+regex = "1"
+rand = "0.8.4"
+
+[dev-dependencies]
+base64 = "0.13.0"
