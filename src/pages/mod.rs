@@ -57,7 +57,9 @@ pub fn create_index(pages: &[Page]) -> Markup {
         ul {
             @for page in pages {
                 li  {
-                    a href=(page.permalink) { (page.title) }
+                    p {
+                        a href=(page.permalink) { (page.title) }
+                    }
                 }
             }
         }
