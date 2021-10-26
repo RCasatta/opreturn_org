@@ -1,10 +1,8 @@
 mod process_bip158;
 
-use crate::pages::{create_index, get_pages};
 use crate::process::Process;
 use crate::process_bip158::ProcessBip158Stats;
 use crate::process_stats::ProcessStats;
-use crate::templates::create_contact;
 use blocks_iterator::log::{info, log};
 use blocks_iterator::structopt::StructOpt;
 use blocks_iterator::{periodic_log_level, PipeIterator};
@@ -75,7 +73,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let process_stats = process_stats_handle.join().expect("couldn't join");
     let (opret, script_type) = process_handle.join().expect("couldn't join");
 
-    let pages = get_pages(&bip158_stats, &opret, &script_type, &process_stats);
+    let pages = pages::get_pages(&bip158_stats, &opret, &script_type, &process_stats);
     for page in pages.iter() {
         let page_html = page.to_html().into_string();
         let filestring = format!(
@@ -91,7 +89,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         fs::write(file, page_html).unwrap();
     }
     let indexstring = format!("{}/index.html", params.target_dir.display(),);
-    let index = create_index(&pages);
+    let index = pages::create_index(&pages);
     fs::write(indexstring, index.into_string()).unwrap();
 
     let contact_string = format!("{}/contact/index.html", params.target_dir.display(),);
@@ -100,7 +98,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if !parent_dir.exists() {
         fs::create_dir_all(&parent_dir).unwrap();
     }
-    let contact = create_contact();
+    let contact = pages::create_contact();
     fs::write(contact_file, contact.into_string()).unwrap();
 
     info!("end");

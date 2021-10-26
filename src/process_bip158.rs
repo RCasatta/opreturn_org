@@ -37,6 +37,7 @@ pub struct Bip158Stats {
 
 impl ProcessBip158Stats {
     pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>) -> Self {
+        //TODO read from target_dir
         let cache = match File::open("bip138_size_cache") {
             Ok(mut file) => {
                 let mut buffer = Vec::new();

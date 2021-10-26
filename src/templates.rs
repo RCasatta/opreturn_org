@@ -25,7 +25,7 @@ fn header() -> Markup {
 fn footer() -> Markup {
     html! {
         footer {
-            p { a href="/" { "Home" } " | " a href="/about" { "About" } " | " a href="/contact" { "Contact" }  }
+            p { a href="/" { "Home" } " | " a href="/contact" { "Contact" }  }
             p { "Page created " (now()) }
         }
 
@@ -47,29 +47,6 @@ pub fn page(content: Markup) -> Markup {
             }
         }
     }
-}
-
-pub fn create_contact() -> Markup {
-    let content = html! {
-        h2 { "Contact" }
-        form action="https://formspree.io/f/xnqlrbey" method="POST" {
-            label {
-                p { "Your email:"}
-                input type="email" name="_replyto" { }
-            }
-            br {}
-            label {
-                p { "Your message:"}
-                textarea name="message" rows="4" cols="50" { }
-            }
-            input type="hidden" name="_tags" value="opreturn.org" { }
-            br {}
-            button type="submit" { "Send" }
-            br {}
-        }
-    };
-
-    page(content)
 }
 
 /*

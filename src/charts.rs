@@ -103,7 +103,7 @@ struct ChartData {
     datasets: Vec<Dataset>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Dataset {
     pub label: String,
