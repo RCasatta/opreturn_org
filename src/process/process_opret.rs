@@ -1,6 +1,7 @@
 use crate::process::{date_index, month_array_len, month_index, parse_multisig};
 use blocks_iterator::bitcoin::Script;
-use blocks_iterator::log::{debug, info};
+use blocks_iterator::log::{debug, info, log};
+use blocks_iterator::periodic_log_level;
 use blocks_iterator::BlockExtra;
 use chrono::{TimeZone, Utc};
 use std::collections::BTreeMap;
@@ -58,6 +59,11 @@ impl ProcessOpRet {
             match *received {
                 Some(ref block) => {
                     self.process_block(&block);
+                    log!(
+                        periodic_log_level(block.height, 10_000),
+                        "busy_time:{}",
+                        (busy_time / 1_000_000_000)
+                    );
                 }
                 None => break,
             }

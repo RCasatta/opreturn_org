@@ -3,7 +3,8 @@ use blocks_iterator::bitcoin::blockdata::script::Instruction;
 use blocks_iterator::bitcoin::consensus::{deserialize, encode, Decodable};
 use blocks_iterator::bitcoin::hashes::hex::FromHex;
 use blocks_iterator::bitcoin::{BlockHash, SigHashType, Transaction, Txid, VarInt};
-use blocks_iterator::log::info;
+use blocks_iterator::log::{info, log};
+use blocks_iterator::periodic_log_level;
 use blocks_iterator::BlockExtra;
 use chrono::{TimeZone, Utc};
 use std::collections::{HashMap, HashSet};
@@ -75,6 +76,11 @@ impl ProcessStats {
             match *received {
                 Some(ref block) => {
                     self.process_block(&block);
+                    log!(
+                        periodic_log_level(block.height, 10_000),
+                        "busy_time:{}",
+                        (busy_time / 1_000_000_000)
+                    );
                 }
                 None => break,
             }
