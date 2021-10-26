@@ -27,6 +27,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("start");
 
     let params = Params::from_args();
+    if !fs::metadata(&params.target_dir).unwrap().is_dir() {
+        panic!("--target-dir must be a directory");
+    }
+    if !params.target_dir.exists() {
+        fs::create_dir_all(&params.target_dir).unwrap();
+    }
 
     let blocks_size = 3;
 
@@ -43,7 +49,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let process_stats = ProcessStats::new(receive_2);
     let process_stats_handle = thread::spawn(move || process_stats.start());
 
-    let process_bip158 = ProcessBip158Stats::new(receive_3);
+    let process_bip158 = ProcessBip158Stats::new(receive_3, &params.target_dir);
     let process_bip158_handle = thread::spawn(move || process_bip158.start());
 
     for block_extra in iter {

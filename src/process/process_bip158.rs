@@ -23,10 +23,6 @@ pub struct ProcessBip158Stats {
     scripts_1m: HashSet<Script>,
     scripts_1m_heights: Vec<u32>,
 
-    /// counter of different scripts, when reach 10M elements, it resets and insert the height in `scripts_10m_heights`
-    scripts_10m: HashSet<Script>,
-    scripts_10m_heights: Vec<u32>,
-
     /// cache the value of the BIP158 filter
     cache: Vec<u32>,
 }
@@ -36,9 +32,11 @@ pub struct Bip158Stats {
 }
 
 impl ProcessBip158Stats {
-    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>) -> Self {
+    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, target_dir: &PathBuf) -> Self {
         //TODO read from target_dir
-        let cache = match File::open("bip138_size_cache") {
+        let mut path = target_dir.clone();
+        path.push("bip138_size_cache");
+        let cache = match File::open(path) {
             Ok(mut file) => {
                 let mut buffer = Vec::new();
                 file.read_to_end(&mut buffer).unwrap();
@@ -57,8 +55,6 @@ impl ProcessBip158Stats {
             stats: Bip158Stats::new(),
             scripts_1m: HashSet::new(),
             scripts_1m_heights: vec![],
-            scripts_10m: HashSet::new(),
-            scripts_10m_heights: vec![],
         }
     }
 
@@ -88,8 +84,6 @@ impl ProcessBip158Stats {
         );
         println!("scripts_1M: {:?}", self.scripts_1m_heights);
         println!("scripts_1M: {}", self.scripts_1m_heights.len());
-        println!("scripts_10M: {:?}", self.scripts_10m_heights);
-        println!("scripts_10M: {}", self.scripts_10m_heights.len());
 
         self.stats
     }
@@ -146,11 +140,6 @@ impl ProcessBip158Stats {
         if self.scripts_1m.len() >= 1_000_000 {
             self.scripts_1m.clear();
             self.scripts_1m_heights.push(height);
-        }
-        self.scripts_10m.insert(script.clone());
-        if self.scripts_10m.len() >= 10_000_000 {
-            self.scripts_10m.clear();
-            self.scripts_10m_heights.push(height);
         }
     }
 }
