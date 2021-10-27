@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use std::sync::mpsc::sync_channel;
 use std::sync::Arc;
 use std::{fs, io, thread};
+use std::time::Instant;
 
 mod charts;
 mod pages;
@@ -23,6 +24,7 @@ struct Params {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let now = Instant::now();
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     info!("start");
 
@@ -112,7 +114,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let contact = pages::create_contact();
     fs::write(contact_path, contact.into_string()).unwrap();
 
-    info!("end");
+    info!("end, elapsed:{}s", now.elapsed().as_secs());
     Ok(())
 }
 
