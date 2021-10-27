@@ -1,4 +1,4 @@
-use crate::process::{date_index, month_array_len, encoded_length_7bit_varint, compress_amount};
+use crate::process::{compress_amount, date_index, encoded_length_7bit_varint, month_array_len};
 use blocks_iterator::bitcoin::consensus::{encode, Decodable};
 use blocks_iterator::bitcoin::{SigHashType, Transaction, Txid, VarInt};
 use blocks_iterator::log::{info, log};
@@ -120,8 +120,7 @@ impl ProcessTxStats {
             let len = VarInt(output.value).len() as u64;
 
             self.stats.total_bytes_output_value_bitcoin_varint += len;
-            self.stats.total_bytes_output_value_varint +=
-                encoded_length_7bit_varint(output.value);
+            self.stats.total_bytes_output_value_varint += encoded_length_7bit_varint(output.value);
             let compressed = compress_amount(output.value);
             self.stats
                 .total_bytes_output_value_compressed_bitcoin_varint +=

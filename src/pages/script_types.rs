@@ -14,10 +14,10 @@ pub fn script_types(script_type: &ScriptType) -> Page {
         data: script_type.all.clone(),
         background_color: vec![Color::Blue],
         border_color: vec![Color::Blue],
-        fill: false,
         hidden: true,
+        ..Default::default()
     };
-    chart.add_dataset(dataset);
+    chart.add_dataset(dataset, None);
 
     let dataset = Dataset {
         label: "p2pkh".to_string(),
@@ -27,7 +27,7 @@ pub fn script_types(script_type: &ScriptType) -> Page {
         fill: false,
         ..Default::default()
     };
-    chart.add_dataset(dataset);
+    chart.add_dataset(dataset, None);
 
     let dataset = Dataset {
         label: "p2pk".to_string(),
@@ -37,7 +37,7 @@ pub fn script_types(script_type: &ScriptType) -> Page {
         fill: false,
         ..Default::default()
     };
-    chart.add_dataset(dataset);
+    chart.add_dataset(dataset, None);
 
     let dataset = Dataset {
         label: "v0_p2wpkh".to_string(),
@@ -47,7 +47,7 @@ pub fn script_types(script_type: &ScriptType) -> Page {
         fill: false,
         ..Default::default()
     };
-    chart.add_dataset(dataset);
+    chart.add_dataset(dataset, None);
 
     let dataset = Dataset {
         label: "v0_p2wsh".to_string(),
@@ -57,7 +57,7 @@ pub fn script_types(script_type: &ScriptType) -> Page {
         fill: false,
         ..Default::default()
     };
-    chart.add_dataset(dataset);
+    chart.add_dataset(dataset, None);
 
     let dataset = Dataset {
         label: "p2sh".to_string(),
@@ -67,7 +67,7 @@ pub fn script_types(script_type: &ScriptType) -> Page {
         fill: false,
         ..Default::default()
     };
-    chart.add_dataset(dataset);
+    chart.add_dataset(dataset, None);
 
     let dataset = Dataset {
         label: "Other".to_string(),
@@ -77,7 +77,7 @@ pub fn script_types(script_type: &ScriptType) -> Page {
         fill: false,
         ..Default::default()
     };
-    chart.add_dataset(dataset);
+    chart.add_dataset(dataset, None);
 
     charts.push(chart);
 

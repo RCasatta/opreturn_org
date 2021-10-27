@@ -1,5 +1,5 @@
 use crate::charts::{Chart, Color, Dataset, Kind};
-use crate::pages::{to_label_map, Page};
+use crate::pages::{perc_1000, to_label_map, Page};
 use crate::process::TxStats;
 
 pub fn total_tx_outputs_inputs(tx_stats: &TxStats) -> Page {
@@ -16,7 +16,7 @@ pub fn total_tx_outputs_inputs(tx_stats: &TxStats) -> Page {
         border_color: vec![Color::Blue],
         ..Default::default()
     };
-    chart.add_dataset(dataset);
+    chart.add_dataset(dataset, None);
 
     let dataset = Dataset {
         label: "Total inputs".to_string(),
@@ -25,7 +25,7 @@ pub fn total_tx_outputs_inputs(tx_stats: &TxStats) -> Page {
         border_color: vec![Color::Orange],
         ..Default::default()
     };
-    chart.add_dataset(dataset);
+    chart.add_dataset(dataset, None);
 
     let dataset = Dataset {
         label: "Total outputs".to_string(),
@@ -34,9 +34,35 @@ pub fn total_tx_outputs_inputs(tx_stats: &TxStats) -> Page {
         border_color: vec![Color::Red],
         ..Default::default()
     };
-    chart.add_dataset(dataset);
+    chart.add_dataset(dataset, None);
 
-    //TODO add percentage ot outputs_per_tx and inputs_per
+    let perc_outputs = perc_1000(
+        &tx_stats.total_inputs_per_month,
+        &tx_stats.total_tx_per_month,
+    );
+    let dataset = Dataset {
+        label: "Average Outputs *1000".to_string(),
+        data: perc_outputs,
+        background_color: vec![Color::Purple],
+        border_color: vec![Color::Purple],
+        border_dash: Some([5, 5]),
+        ..Default::default()
+    };
+    chart.add_dataset(dataset, Some("y2".to_string()));
+
+    let perc_inputs = perc_1000(
+        &tx_stats.total_outputs_per_month,
+        &tx_stats.total_tx_per_month,
+    );
+    let dataset = Dataset {
+        label: "Average inputs *1000".to_string(),
+        data: perc_inputs,
+        background_color: vec![Color::Green],
+        border_color: vec![Color::Green],
+        border_dash: Some([5, 5]),
+        ..Default::default()
+    };
+    chart.add_dataset(dataset, Some("y2".to_string()));
 
     charts.push(chart);
 

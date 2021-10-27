@@ -21,7 +21,7 @@ pub fn op_return_per_month(opret: &OpReturnData) -> Page {
         fill: false,
         ..Default::default()
     };
-    chart.add_dataset(dataset);
+    chart.add_dataset(dataset, None);
     charts.push(chart);
     drop(op_ret_per_month);
 
@@ -43,7 +43,7 @@ pub fn op_return_per_month(opret: &OpReturnData) -> Page {
         fill: false,
         ..Default::default()
     };
-    chart.add_dataset(dataset);
+    chart.add_dataset(dataset, None);
     charts.push(chart);
     drop(op_ret_fee_per_month);
 

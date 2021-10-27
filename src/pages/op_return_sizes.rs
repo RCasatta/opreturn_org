@@ -18,7 +18,7 @@ pub fn op_return_sizes(opret: &OpReturnData) -> Page {
         fill: true,
         ..Default::default()
     };
-    chart.add_dataset(dataset);
+    chart.add_dataset(dataset, None);
 
     charts.push(chart);
 

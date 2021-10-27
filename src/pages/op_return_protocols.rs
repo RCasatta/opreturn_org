@@ -17,7 +17,7 @@ pub fn op_return_protocols(opret: &OpReturnData) -> Page {
         fill: true,
         ..Default::default()
     };
-    chart1.add_dataset(dataset);
+    chart1.add_dataset(dataset, None);
     drop(map1);
 
     let map2 = map_by_value(&opret.op_ret_per_proto_last_year);
@@ -34,7 +34,7 @@ pub fn op_return_protocols(opret: &OpReturnData) -> Page {
         fill: true,
         ..Default::default()
     };
-    chart2.add_dataset(dataset);
+    chart2.add_dataset(dataset, None);
 
     let map3 = map_by_value(&opret.op_ret_per_proto);
     let mut chart3 = Chart::new(
@@ -50,7 +50,7 @@ pub fn op_return_protocols(opret: &OpReturnData) -> Page {
         fill: true,
         ..Default::default()
     };
-    chart3.add_dataset(dataset);
+    chart3.add_dataset(dataset, None);
 
     Page {
         title: "OP_RETURN protocols".to_string(),

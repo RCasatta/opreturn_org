@@ -17,7 +17,7 @@ pub fn witness_stats(stats: &Stats) -> Page {
         fill: true,
         ..Default::default()
     };
-    chart1.add_dataset(dataset);
+    chart1.add_dataset(dataset, None);
 
     let witness_elements = map_by_value(&stats.witness_elements);
     let mut chart2 = Chart::new(
@@ -33,7 +33,7 @@ pub fn witness_stats(stats: &Stats) -> Page {
         fill: true,
         ..Default::default()
     };
-    chart2.add_dataset(dataset);
+    chart2.add_dataset(dataset, None);
 
     let witness_byte_size = map_by_value(&stats.witness_byte_size);
     let mut chart3 = Chart::new(
@@ -49,7 +49,7 @@ pub fn witness_stats(stats: &Stats) -> Page {
         fill: true,
         ..Default::default()
     };
-    chart3.add_dataset(dataset);
+    chart3.add_dataset(dataset, None);
 
     Page {
         title: "Witness stats".to_string(),

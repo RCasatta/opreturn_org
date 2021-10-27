@@ -19,7 +19,7 @@ pub fn spent_same_block(stats: &Stats, tx_stats: &TxStats) -> Page {
         fill: true,
         ..Default::default()
     };
-    chart.add_dataset(dataset);
+    chart.add_dataset(dataset, None);
 
     let dataset = Dataset {
         label: "spent in same block".to_string(),
@@ -29,7 +29,7 @@ pub fn spent_same_block(stats: &Stats, tx_stats: &TxStats) -> Page {
         fill: true,
         ..Default::default()
     };
-    chart.add_dataset(dataset);
+    chart.add_dataset(dataset, None);
 
     /*
     let dataset = Dataset {

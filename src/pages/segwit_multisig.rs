@@ -17,7 +17,7 @@ pub fn segwit_multisig(script_type: &ScriptType) -> Page {
         fill: true,
         ..Default::default()
     };
-    chart.add_dataset(dataset);
+    chart.add_dataset(dataset, None);
 
     Page {
         title: "Native segwit multisig".to_string(),

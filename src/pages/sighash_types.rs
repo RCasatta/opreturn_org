@@ -15,9 +15,9 @@ pub fn sighash_types(stats: &Stats) -> Page {
         background_color: Color::rainbow(),
         border_color: vec![],
         fill: true,
-        hidden: false,
+        ..Default::default()
     };
-    chart.add_dataset(dataset);
+    chart.add_dataset(dataset, None);
 
     Page {
         title: "Number of sighash type used".to_string(),

@@ -25,7 +25,7 @@ pub fn blockchain_and_filter_size(stats: &Stats, bip158: &Bip158Stats) -> Page {
         fill: false,
         ..Default::default()
     };
-    chart.add_dataset(dataset);
+    chart.add_dataset(dataset, None);
 
     let dataset = Dataset {
         label: "BIP158 filter size".to_string(),
@@ -35,7 +35,7 @@ pub fn blockchain_and_filter_size(stats: &Stats, bip158: &Bip158Stats) -> Page {
         fill: false,
         ..Default::default()
     };
-    chart.add_dataset(dataset);
+    chart.add_dataset(dataset, None);
 
     charts.push(chart);
 

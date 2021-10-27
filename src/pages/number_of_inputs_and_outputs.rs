@@ -22,7 +22,7 @@ pub fn number_of_inputs_and_outputs(stats: &TxStats) -> Page {
         fill: true,
         ..Default::default()
     };
-    chart.add_dataset(dataset);
+    chart.add_dataset(dataset, None);
 
     charts.push(chart);
 

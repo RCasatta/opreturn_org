@@ -209,3 +209,11 @@ mod test {
         format!("data:{};base64,{}", content_type, base64)
     }
 }
+
+pub fn perc_1000(over: &[u64], under: &[u64]) -> Vec<u64> {
+    over.iter()
+        .map(|e| *e as f64)
+        .zip(under.iter().map(|e| *e as f64))
+        .map(|(over, under)| ((over / under) * 1000.0) as u64)
+        .collect()
+}

@@ -1,6 +1,6 @@
 use crate::charts::{Chart, Color, Dataset, Kind};
 use crate::pages::{to_label_map, Page};
-use crate::process::{TxStats};
+use crate::process::TxStats;
 
 pub fn rounded_amount(tx_stats: &TxStats) -> Page {
     let mut charts = vec![];
@@ -18,7 +18,7 @@ pub fn rounded_amount(tx_stats: &TxStats) -> Page {
         fill: false,
         ..Default::default()
     };
-    chart.add_dataset(dataset);
+    chart.add_dataset(dataset, None);
 
     charts.push(chart);
 

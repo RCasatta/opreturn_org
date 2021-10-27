@@ -10,10 +10,10 @@ use chrono::{TimeZone, Utc};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Write;
+use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
-use std::path::PathBuf;
 
 pub struct ProcessStats {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
@@ -21,7 +21,6 @@ pub struct ProcessStats {
 }
 
 pub struct Stats {
-
     pub max_block_size: (u64, Option<BlockHash>),
     pub max_tx_per_block: (u64, Option<BlockHash>),
     pub min_hash: BlockHash,
@@ -216,13 +215,17 @@ impl ProcessStats {
 impl Stats {
     pub fn new(target_dir: &PathBuf) -> Self {
         let sighash_file = File::create(format!("{}/sighashes.txt", target_dir.display())).unwrap();
-        let fee_file = File::create(format!("{}/fee.txt", target_dir.display()) ).unwrap();
-        let blocks_len_file = File::create(format!("{}/blocks_len.txt", target_dir.display()) ).unwrap();
+        let fee_file = File::create(format!("{}/fee.txt", target_dir.display())).unwrap();
+        let blocks_len_file =
+            File::create(format!("{}/blocks_len.txt", target_dir.display())).unwrap();
         Stats {
             total_spent_in_block: 0u64,
             max_block_size: (0u64, None),
             max_tx_per_block: (0u64, None),
-            min_hash: BlockHash::from_hex("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f" ).unwrap(),
+            min_hash: BlockHash::from_hex(
+                "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
+            )
+            .unwrap(),
             total_spent_in_block_per_month: vec![0u64; month_array_len()],
             block_size_per_month: vec![0u64; month_array_len()],
             sighashtype: HashMap::new(),

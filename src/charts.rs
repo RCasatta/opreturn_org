@@ -113,6 +113,10 @@ pub struct Dataset {
     pub border_color: Vec<Color>,
     pub fill: bool,
     pub hidden: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub border_dash: Option<[u8; 2]>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "yAxisID")]
+    pub y_axis_id: Option<String>,
 }
 
 /// This type is used as an hack to represent reference in json dictionary which comes without quotes
@@ -167,7 +171,8 @@ impl Chart {
         }
     }
 
-    pub fn add_dataset(&mut self, dataset: Dataset) {
+    pub fn add_dataset(&mut self, mut dataset: Dataset, y_axis_id: Option<String>) {
+        dataset.y_axis_id = y_axis_id;
         self.data.datasets.push(dataset)
     }
 
