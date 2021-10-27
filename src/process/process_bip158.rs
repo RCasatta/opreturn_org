@@ -27,6 +27,7 @@ pub struct ProcessBip158Stats {
 
     /// cache the value of the BIP158 filter
     cache: Vec<u32>,
+    cache_path: PathBuf,
 }
 
 pub struct Bip158Stats {
@@ -35,10 +36,10 @@ pub struct Bip158Stats {
 
 impl ProcessBip158Stats {
     pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, target_dir: &PathBuf) -> Self {
-        //TODO read from target_dir
-        let mut path = target_dir.clone();
-        path.push("bip138_size_cache");
-        let cache = match File::open(path) {
+        let mut cache_path = target_dir.clone();
+        cache_path.push("bip138_size_cache");
+
+        let cache = match File::open(&cache_path) {
             Ok(mut file) => {
                 let mut buffer = Vec::new();
                 file.read_to_end(&mut buffer).unwrap();
@@ -54,6 +55,7 @@ impl ProcessBip158Stats {
         Self {
             receiver,
             cache,
+            cache_path,
             stats: Bip158Stats::new(),
             scripts_1m: HashSet::new(),
             scripts_1m_heights: vec![],
@@ -79,7 +81,7 @@ impl ProcessBip158Stats {
                 None => break,
             }
         }
-        let mut file = File::create("bip138_size_cache").unwrap();
+        let mut file = File::create(self.cache_path).unwrap();
         for size in self.cache.iter() {
             file.write(&size.to_be_bytes()).unwrap();
         }

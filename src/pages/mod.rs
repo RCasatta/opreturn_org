@@ -54,6 +54,7 @@ impl Page {
 
 pub fn create_index(pages: &[Page]) -> Markup {
     let links = html! {
+        br { }
         ul {
             @for page in pages {
                 li  {
@@ -63,6 +64,7 @@ pub fn create_index(pages: &[Page]) -> Markup {
                 }
             }
         }
+        br { }
     };
     page(links)
 }
