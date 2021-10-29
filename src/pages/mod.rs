@@ -44,8 +44,7 @@ impl Page {
         let charts = html! {
             @for chart in self.charts.iter() {
                 (chart.to_html())
-                br { }
-                br { }
+                p { "&nbsp;" }
             }
         };
         page(charts)
@@ -54,7 +53,7 @@ impl Page {
 
 pub fn create_index(pages: &[Page]) -> Markup {
     let links = html! {
-        br { }
+        p { "&nbsp;" }
         ul {
             @for page in pages {
                 li  {
@@ -64,7 +63,6 @@ pub fn create_index(pages: &[Page]) -> Markup {
                 }
             }
         }
-        br { }
     };
     page(links)
 }
@@ -77,15 +75,15 @@ pub fn create_contact() -> Markup {
                 p { "Your email:"}
                 input type="email" name="_replyto" { }
             }
-            br {}
+            p { "&nbsp;" }
             label {
                 p { "Your message:"}
                 textarea name="message" rows="4" cols="50" { }
             }
             input type="hidden" name="_tags" value="opreturn.org" { }
-            br {}
+            p { "&nbsp;" }
             button type="submit" { "Send" }
-            br {}
+            p { "&nbsp;" }
         }
     };
 

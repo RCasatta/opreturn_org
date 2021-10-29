@@ -24,6 +24,7 @@ fn header() -> Markup {
 /// A static footer.
 fn footer() -> Markup {
     html! {
+        p { "&nbsp;" }
         footer {
             p { a href="/" { "Home" } " | " a href="/contact" { "Contact" }  }
             p { "Page created " (now()) }
