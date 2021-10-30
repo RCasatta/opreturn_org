@@ -8,13 +8,12 @@ use env_logger::Env;
 use std::path::PathBuf;
 use std::sync::mpsc::sync_channel;
 use std::sync::Arc;
-use std::{fs, io, thread};
 use std::time::Instant;
+use std::{fs, io, thread};
 
 mod charts;
 mod pages;
 mod process;
-mod templates;
 
 #[derive(StructOpt, Debug, Clone)]
 struct Params {

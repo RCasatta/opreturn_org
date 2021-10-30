@@ -12,11 +12,9 @@ mod total_tx_outputs_inputs;
 mod witness_stats;
 
 use crate::charts::Chart;
-use crate::pages;
+use crate::now;
 use crate::process::{Bip158Stats, OpReturnData, ScriptType, Stats, TxStats};
-use crate::templates::page;
-use maud::html;
-use maud::Markup;
+use maud::{html, Markup, PreEscaped, DOCTYPE};
 use std::collections::{BTreeMap, HashMap};
 
 pub use blockchain_and_filter_size::blockchain_and_filter_size;
@@ -39,12 +37,56 @@ pub struct Page {
     pub charts: Vec<Chart>,
 }
 
+const NBSP: PreEscaped<&str> = PreEscaped("&nbsp;");
+
+/// Pages headers.
+fn header() -> Markup {
+    html! {
+        head {
+            meta charset="utf-8";
+            meta name="viewport" content="width=device-width, initial-scale=1.0";
+            script src="https://cdn.jsdelivr.net/npm/chart.js" { }
+
+            title { "OP_RETURN" }
+        }
+    }
+}
+
+/// A static footer.
+fn footer() -> Markup {
+    html! {
+        p { (PreEscaped("&nbsp;")) }
+        footer {
+            p { a href="/" { "Home" } " | " a href="/contact" { "Contact" }  }
+            p { "Page created " (now()) }
+        }
+
+    }
+}
+
+/// The final Markup, including `header` and `footer`.
+///
+/// Additionally takes a `greeting_box` that's `Markup`, not `&str`.
+pub fn page(content: Markup) -> Markup {
+    html! {
+        (DOCTYPE)
+        html lang = "en" {
+            (header())
+            body style="font-family: Arial, Helvetica, sans-serif;" {
+                h1 { a href="/" { "OP_RETURN" } }
+                (content)
+                (footer())
+            }
+        }
+    }
+}
+
 impl Page {
     pub fn to_html(&self) -> Markup {
         let charts = html! {
             @for chart in self.charts.iter() {
                 (chart.to_html())
-                p { "&nbsp;" }
+                p { (NBSP) }
             }
         };
         page(charts)
@@ -53,7 +95,7 @@ impl Page {
 
 pub fn create_index(pages: &[Page]) -> Markup {
     let links = html! {
-        p { "&nbsp;" }
+        p { (NBSP) }
         ul {
             @for page in pages {
                 li  {
@@ -75,15 +117,15 @@ pub fn create_contact() -> Markup {
                 p { "Your email:"}
                 input type="email" name="_replyto" { }
             }
-            p { "&nbsp;" }
+            p { (NBSP) }
             label {
                 p { "Your message:"}
                 textarea name="message" rows="4" cols="50" { }
             }
             input type="hidden" name="_tags" value="opreturn.org" { }
-            p { "&nbsp;" }
+            p { (NBSP) }
             button type="submit" { "Send" }
-            p { "&nbsp;" }
+            p { (NBSP) }
         }
     };
 
@@ -123,18 +165,18 @@ pub fn get_pages(
 ) -> Vec<Page> {
     let mut pages = vec![];
 
-    pages.push(pages::blockchain_and_filter_size(&stats, &bip158));
-    pages.push(pages::witness_stats(&stats));
-    pages.push(pages::number_of_inputs_and_outputs(&tx_stats));
-    pages.push(pages::op_return_per_month(&opret));
-    pages.push(pages::op_return_protocols(&opret));
-    pages.push(pages::op_return_sizes(&opret));
-    pages.push(pages::script_types(&script_type));
-    pages.push(pages::rounded_amount(&tx_stats));
-    pages.push(pages::segwit_multisig(&script_type));
-    pages.push(pages::spent_same_block(&stats, &tx_stats));
-    pages.push(pages::sighash_types(&stats));
-    pages.push(pages::total_tx_outputs_inputs(&tx_stats));
+    pages.push(blockchain_and_filter_size(&stats, &bip158));
+    pages.push(witness_stats(&stats));
+    pages.push(number_of_inputs_and_outputs(&tx_stats));
+    pages.push(op_return_per_month(&opret));
+    pages.push(op_return_protocols(&opret));
+    pages.push(op_return_sizes(&opret));
+    pages.push(script_types(&script_type));
+    pages.push(rounded_amount(&tx_stats));
+    pages.push(segwit_multisig(&script_type));
+    pages.push(spent_same_block(&stats, &tx_stats));
+    pages.push(sighash_types(&stats));
+    pages.push(total_tx_outputs_inputs(&tx_stats));
 
     pages
 }
