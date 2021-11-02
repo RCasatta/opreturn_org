@@ -113,6 +113,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let contact = pages::create_contact();
     fs::write(contact_path, contact.into_string()).unwrap();
 
+    // favicon
+    let mut favicon_file = site_home.clone();
+    favicon_file.push("favicon.ico");
+    let favicon = include_bytes!("../target_dir/site/favicon.ico");
+    fs::write(favicon_file, &favicon).unwrap();
+
     info!("end, elapsed:{}s", now.elapsed().as_secs());
     Ok(())
 }
