@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
+use blocks_iterator::bitcoin::blockdata::opcodes;
 use time::Duration;
 
 pub struct ProcessOpRet {
@@ -35,6 +36,7 @@ pub struct ScriptType {
     pub v0_p2wpkh: Vec<u64>,
     pub v0_p2wsh: Vec<u64>,
     pub p2sh: Vec<u64>,
+    pub p2tr: Vec<u64>,
     pub other: Vec<u64>,
     pub multisig: HashMap<String, u64>,
     pub multisig_tx: HashMap<String, String>,
@@ -84,6 +86,7 @@ impl ProcessOpRet {
         self.script_type.p2sh.pop();
         self.script_type.v0_p2wpkh.pop();
         self.script_type.v0_p2wsh.pop();
+        self.script_type.p2tr.pop();
         self.script_type.other.pop();
 
         debug!("{:?}", self.script_type.multisig_tx);
@@ -141,6 +144,8 @@ impl ProcessOpRet {
             self.script_type.v0_p2wsh[index] += 1;
         } else if script.is_p2sh() {
             self.script_type.p2sh[index] += 1;
+        } else if is_p2tr(&script) {
+            self.script_type.p2tr[index] += 1;
         } else {
             self.script_type.other[index] += 1;
         }
@@ -202,6 +207,7 @@ impl ScriptType {
             v0_p2wpkh: vec![0; month_array_len()],
             v0_p2wsh: vec![0; month_array_len()],
             p2sh: vec![0; month_array_len()],
+            p2tr: vec![0; month_array_len()],
             other: vec![0; month_array_len()],
             multisig: HashMap::new(),
             multisig_tx: HashMap::new(),
@@ -225,6 +231,13 @@ impl OpReturnData {
             year_ago,
         }
     }
+}
+
+fn is_p2tr(script: &Script) -> bool {
+    let inner = script.as_ref();
+    inner.len() == 34 &&
+        inner[0] == opcodes::all::OP_PUSHBYTES_1.into_u8() &&
+        inner[1] == opcodes::all::OP_PUSHBYTES_32.into_u8()
 }
 
 /*

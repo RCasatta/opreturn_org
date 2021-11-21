@@ -59,6 +59,18 @@ pub fn script_types(script_type: &ScriptType) -> Page {
     };
     chart.add_dataset(dataset, None);
 
+
+    let color = Color::Custom(55, 11, 122, 0.8);
+    let dataset = Dataset {
+        label: "p2tr".to_string(),
+        data: script_type.p2tr.clone(),
+        background_color: vec![color],
+        border_color: vec![color],
+        fill: false,
+        ..Default::default()
+    };
+    chart.add_dataset(dataset, None);
+
     let dataset = Dataset {
         label: "p2sh".to_string(),
         data: script_type.p2sh.clone(),

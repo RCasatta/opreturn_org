@@ -16,7 +16,7 @@ pub enum Kind {
     Bar,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Color {
     Red,
     Orange,
