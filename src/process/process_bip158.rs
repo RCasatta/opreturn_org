@@ -1,11 +1,11 @@
-use crate::process::{date_index, month_array_len};
+use crate::counter::Counter;
+use crate::process::block_index;
 use blocks_iterator::bitcoin::util::bip158::BlockFilter;
 use blocks_iterator::bitcoin::util::bip158::Error;
 use blocks_iterator::bitcoin::Script;
 use blocks_iterator::log::{debug, info, log};
 use blocks_iterator::periodic_log_level;
 use blocks_iterator::BlockExtra;
-use chrono::{TimeZone, Utc};
 use std::collections::HashSet;
 use std::convert::TryInto;
 use std::fs::File;
@@ -31,7 +31,7 @@ pub struct ProcessBip158Stats {
 }
 
 pub struct Bip158Stats {
-    pub bip158_filter_size_per_month: Vec<u64>,
+    pub bip158_filter_size_per_month: Counter,
 }
 
 impl ProcessBip158Stats {
@@ -86,8 +86,6 @@ impl ProcessBip158Stats {
             file.write(&size.to_be_bytes()).unwrap();
         }
 
-        self.stats.bip158_filter_size_per_month.pop();
-
         busy_time += now.elapsed().as_nanos();
         info!(
             "ending bip158 stats processer, busy time: {}s",
@@ -100,9 +98,7 @@ impl ProcessBip158Stats {
     }
 
     fn process_block(&mut self, block: &BlockExtra) {
-        let time = block.block.header.time;
-        let date = Utc.timestamp(i64::from(time), 0);
-        let index = date_index(date);
+        let index = block_index(block.height);
 
         let (filter_len, insert) = match self.cache.get(block.height as usize) {
             Some(val) => (*val, false),
@@ -127,7 +123,9 @@ impl ProcessBip158Stats {
             self.cache.push(filter_len);
         }
 
-        self.stats.bip158_filter_size_per_month[index] += filter_len as u64;
+        self.stats
+            .bip158_filter_size_per_month
+            .add(index, filter_len as u64);
 
         for tx in block.block.txdata.iter() {
             for input in tx.input.iter() {
@@ -158,7 +156,7 @@ impl ProcessBip158Stats {
 impl Bip158Stats {
     fn new() -> Self {
         Self {
-            bip158_filter_size_per_month: vec![0u64; month_array_len()],
+            bip158_filter_size_per_month: Counter::new(),
         }
     }
 }

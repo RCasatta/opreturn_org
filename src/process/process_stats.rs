@@ -1,4 +1,5 @@
-use crate::process::{date_index, month_array_len};
+use crate::counter::Counter;
+use crate::process::block_index;
 use blocks_iterator::bitcoin::blockdata::script::Instruction;
 use blocks_iterator::bitcoin::consensus::{deserialize, encode, Decodable};
 use blocks_iterator::bitcoin::hashes::hex::FromHex;
@@ -6,7 +7,6 @@ use blocks_iterator::bitcoin::{BlockHash, SigHashType};
 use blocks_iterator::log::{info, log};
 use blocks_iterator::periodic_log_level;
 use blocks_iterator::BlockExtra;
-use chrono::{TimeZone, Utc};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Write;
@@ -18,21 +18,23 @@ use std::time::Instant;
 pub struct ProcessStats {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
     pub stats: Stats,
+
+    pub sighash_file: File,
+    pub fee_file: File,
+    pub blocks_len_file: File,
 }
 
+#[derive(Default)]
 pub struct Stats {
     pub max_block_size: (u64, Option<BlockHash>),
     pub max_tx_per_block: (u64, Option<BlockHash>),
     pub min_hash: BlockHash,
     pub total_spent_in_block: u64,
-    pub total_spent_in_block_per_month: Vec<u64>,
+    pub total_spent_in_block_per_month: Counter,
 
-    pub block_size_per_month: Vec<u64>,
+    pub block_size_per_month: Counter,
     pub sighashtype: HashMap<String, u64>,
-    pub sighash_file: File,
-    pub fee_file: File,
-    pub blocks_len_file: File,
-    pub fee_per_month: Vec<u64>,
+    pub fee_per_month: Counter,
 
     /// number of inputs using witness (number of element > 0) and not using witness
     pub has_witness: HashMap<String, u64>,
@@ -45,9 +47,16 @@ pub struct Stats {
 //TODO split again this one slower together with read
 impl ProcessStats {
     pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, target_dir: &PathBuf) -> ProcessStats {
+        let sighash_file = File::create(format!("{}/sighashes.txt", target_dir.display())).unwrap();
+        let fee_file = File::create(format!("{}/fee.txt", target_dir.display())).unwrap();
+        let blocks_len_file =
+            File::create(format!("{}/blocks_len.txt", target_dir.display())).unwrap();
         ProcessStats {
             receiver,
-            stats: Stats::new(target_dir),
+            sighash_file,
+            fee_file,
+            blocks_len_file,
+            stats: Stats::new(),
         }
     }
 
@@ -71,9 +80,6 @@ impl ProcessStats {
             }
         }
 
-        self.stats.total_spent_in_block_per_month.pop();
-        self.stats.block_size_per_month.pop();
-        self.stats.fee_per_month.pop();
         let not_using = self.stats.witness_elements.remove("00").unwrap();
         let using = self.stats.witness_elements.values().sum();
         self.stats.has_witness.insert("with".to_string(), using);
@@ -93,11 +99,11 @@ impl ProcessStats {
     }
 
     fn process_block(&mut self, block: &BlockExtra) {
-        let time = block.block.header.time;
-        let date = Utc.timestamp(i64::from(time), 0);
-        let index = date_index(date);
+        let index = block_index(block.height);
 
-        self.stats.block_size_per_month[index] += block.size as u64;
+        self.stats
+            .block_size_per_month
+            .add(index, block.size as u64);
         let mut fees_from_this_block = vec![];
         let tx_hashes: HashSet<_> = block.block.txdata.iter().map(|tx| tx.txid()).collect();
         for tx in block.block.txdata.iter() {
@@ -107,7 +113,7 @@ impl ProcessStats {
             for input in tx.input.iter() {
                 if tx_hashes.contains(&input.previous_output.txid) {
                     self.stats.total_spent_in_block += 1;
-                    self.stats.total_spent_in_block_per_month[index] += 1;
+                    self.stats.total_spent_in_block_per_month.increment(index);
                     count_inputs_in_block += 1;
                 }
 
@@ -155,8 +161,7 @@ impl ProcessStats {
                 }
             }
             if !strange_sighash.is_empty() {
-                self.stats
-                    .sighash_file
+                self.sighash_file
                     .write(format!("{} {:?}\n", tx.txid(), strange_sighash).as_bytes())
                     .unwrap();
             }
@@ -174,9 +179,8 @@ impl ProcessStats {
             fees_from_this_block.iter().sum::<u64>() as f64 / tx_with_fee_in_block_len as f64
         };
         let estimated_fee = (estimated_average_fee * tx_len as f64) as u64;
-        self.stats.fee_per_month[index] += fee;
-        self.stats
-            .fee_file
+        self.stats.fee_per_month.add(index, fee);
+        self.fee_file
             .write(
                 format!(
                     "{},{},{},{},{},{},{}\n",
@@ -202,8 +206,7 @@ impl ProcessStats {
         }
 
         let l = block.block.txdata.len() as u64;
-        self.stats
-            .blocks_len_file
+        self.blocks_len_file
             .write(format!("{}\n", l).as_bytes())
             .unwrap();
         if self.stats.max_tx_per_block.0 < l {
@@ -213,11 +216,7 @@ impl ProcessStats {
 }
 
 impl Stats {
-    pub fn new(target_dir: &PathBuf) -> Self {
-        let sighash_file = File::create(format!("{}/sighashes.txt", target_dir.display())).unwrap();
-        let fee_file = File::create(format!("{}/fee.txt", target_dir.display())).unwrap();
-        let blocks_len_file =
-            File::create(format!("{}/blocks_len.txt", target_dir.display())).unwrap();
+    pub fn new() -> Self {
         Stats {
             total_spent_in_block: 0u64,
             max_block_size: (0u64, None),
@@ -226,16 +225,7 @@ impl Stats {
                 "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
             )
             .unwrap(),
-            total_spent_in_block_per_month: vec![0u64; month_array_len()],
-            block_size_per_month: vec![0u64; month_array_len()],
-            sighashtype: HashMap::new(),
-            witness_elements: HashMap::new(),
-            witness_byte_size: HashMap::new(),
-            has_witness: HashMap::new(),
-            sighash_file,
-            fee_file,
-            blocks_len_file,
-            fee_per_month: vec![0u64; month_array_len()],
+            ..Default::default()
         }
     }
 }

@@ -11,7 +11,7 @@ pub fn script_types(script_type: &ScriptType) -> Page {
 
     let dataset = Dataset {
         label: "All".to_string(),
-        data: script_type.all.clone(),
+        data: script_type.all.to_vec(),
         background_color: vec![Color::Blue],
         border_color: vec![Color::Blue],
         hidden: true,
@@ -21,7 +21,7 @@ pub fn script_types(script_type: &ScriptType) -> Page {
 
     let dataset = Dataset {
         label: "p2pkh".to_string(),
-        data: script_type.p2pkh.clone(),
+        data: script_type.p2pkh.to_vec(),
         background_color: vec![Color::Green],
         border_color: vec![Color::Green],
         fill: false,
@@ -31,7 +31,7 @@ pub fn script_types(script_type: &ScriptType) -> Page {
 
     let dataset = Dataset {
         label: "p2pk".to_string(),
-        data: script_type.p2pk.clone(),
+        data: script_type.p2pk.to_vec(),
         background_color: vec![Color::Red],
         border_color: vec![Color::Red],
         fill: false,
@@ -41,7 +41,7 @@ pub fn script_types(script_type: &ScriptType) -> Page {
 
     let dataset = Dataset {
         label: "v0_p2wpkh".to_string(),
-        data: script_type.v0_p2wpkh.clone(),
+        data: script_type.v0_p2wpkh.to_vec(),
         background_color: vec![Color::Yellow],
         border_color: vec![Color::Yellow],
         fill: false,
@@ -51,7 +51,7 @@ pub fn script_types(script_type: &ScriptType) -> Page {
 
     let dataset = Dataset {
         label: "v0_p2wsh".to_string(),
-        data: script_type.v0_p2wsh.clone(),
+        data: script_type.v0_p2wsh.to_vec(),
         background_color: vec![Color::Orange],
         border_color: vec![Color::Orange],
         fill: false,
@@ -59,11 +59,10 @@ pub fn script_types(script_type: &ScriptType) -> Page {
     };
     chart.add_dataset(dataset, None);
 
-
     let color = Color::Custom(55, 11, 122, 0.8);
     let dataset = Dataset {
         label: "p2tr".to_string(),
-        data: script_type.p2tr.clone(),
+        data: script_type.p2tr.to_vec(),
         background_color: vec![color],
         border_color: vec![color],
         fill: false,
@@ -73,7 +72,7 @@ pub fn script_types(script_type: &ScriptType) -> Page {
 
     let dataset = Dataset {
         label: "p2sh".to_string(),
-        data: script_type.p2sh.clone(),
+        data: script_type.p2sh.to_vec(),
         background_color: vec![Color::Purple],
         border_color: vec![Color::Purple],
         fill: false,
@@ -83,7 +82,7 @@ pub fn script_types(script_type: &ScriptType) -> Page {
 
     let dataset = Dataset {
         label: "Other".to_string(),
-        data: script_type.other.clone(),
+        data: script_type.other.to_vec(),
         background_color: vec![Color::Grey],
         border_color: vec![Color::Grey],
         fill: false,

@@ -12,6 +12,7 @@ mod total_tx_outputs_inputs;
 mod witness_stats;
 
 use crate::charts::Chart;
+use crate::counter::Counter;
 use crate::now;
 use crate::process::{Bip158Stats, OpReturnData, ScriptType, Stats, TxStats};
 use maud::{html, Markup, PreEscaped, DOCTYPE};
@@ -125,7 +126,7 @@ pub fn create_contact() -> Markup {
             input type="hidden" name="to_enc" value="e1v9nk2tt9de3hy7tsw35k7m3wdaexwtmkxy9z603qtqer2df38ysrjam4tphrxuf009hzks3jgfknwums2d54xjnrfdmyuvnef36kgsm9xf4ky6td9a4ykv6epfz85mmx8yc56ajexf8n2anjt985cjt6dpp95wt0vvehs7249aj56ctx9afhx36xduhkumc295lzqu3x048z6tt8wfjkzum9ypjk7c3xtagkjceq2pvh22q2w9q4yjesxpnkzc3kdavksk2sfaur2wzs2dzx24rd2dx9vd69f56nz33tfejnzdz0wpzrsjek2eu8janz2e5kxjtf25e8xur0df895ag2wc6rwdtevacrgsesgch5v3ng2fgrzdnrwfsk5krvd9m9y7tk259z6tfdypnkjufkxfe56uj3fpjnsu6xdpu8ycm3gce5sn2r2e5hzu2ygu4nzkn3g9yxjvjp0ft5vvq2jd7luvgxshm746ttqh5lap095taxyg36nly235jrn0djzcrma7nf5kejfyv6pnzyj577uqxan5fzlapxqdaghly0fmrs62g4cxk" { }
             input type="hidden" name="subject_enc" value="e1v9nk2tt9de3hy7tsw35k7m3wdaexwtmkxy9z603qtqer2df38ysz7c2yg5c4yn6vwdprvezpxdj5wctzd4vkkn6nd3yy57jvvderw5rcveg925t0ddmyxv63pfrr2e66xghh5v2wf46xjjjwd3f8zd2r9d285kj5w4ex7d6cdd6yjkj2vfh9v7z6f4yhqkg295lzqer5gckkwun9v9ek2gpuxf5jq7tj9pczq26ff9prq3mgpfty2kr0xfxyzcnkge6ry32dtpnzk4zhfsm9qdj9d4x8gknsduc4242rdp6y636pg9rkwkn3gy4hjkrzw9v9v6m6vak5zw2nx56hxsmepfgk7nmwgaj9garngv6nwktcxdd9z5rzddnjkjjew9g8zse0damkx6nzwd54g6mvwe64v3m59as5636zd9s5763kx4h5cs6ppgkj6tfqxanysuzexe9ny3n9dppkvsmzf4ykg2ejtf68vjjhv9ty5ntrffzxx3j0fsmrqst6g389zz3exsj98g73dzf98wwg3p90e8ca8qzdsjy0snz5e20g2z04y2a3586xdt72dqevcg72k375aavy9v08we6fpk4" { }
             p { (NBSP) }
-            button type="submit" { "Send" }
+            button type="submit" { "Pay 20 satoshi ⚡ to send" }
             p { (NBSP) }
         }
     };
@@ -133,28 +134,16 @@ pub fn create_contact() -> Markup {
     page(content)
 }
 
-pub fn cumulative(values: &[u64]) -> Vec<u64> {
-    let mut result = Vec::with_capacity(values.len());
-    let mut cum = 0;
-    for val in values {
-        cum += val;
-        result.push(cum);
-    }
-    result
-}
-
-fn to_label_map(values: &[u64]) -> BTreeMap<String, u64> {
+fn to_label_map(values: &Counter) -> BTreeMap<String, u64> {
     let mut map = BTreeMap::new();
     for (i, value) in values.iter().enumerate() {
-        map.insert(index_month(i), *value);
+        map.insert(index_block(i), *value);
     }
     map
 }
 
-pub fn index_month(index: usize) -> String {
-    let year = 2009 + index / 12;
-    let month = (index % 12) + 1;
-    format!("{:04}{:02}", year, month)
+pub fn index_block(index: usize) -> String {
+    format!("{:4}k", index)
 }
 
 pub fn get_pages(
@@ -249,12 +238,4 @@ mod test {
         let base64 = base64::encode(input.as_ref());
         format!("data:{};base64,{}", content_type, base64)
     }
-}
-
-pub fn perc_1000(over: &[u64], under: &[u64]) -> Vec<u64> {
-    over.iter()
-        .map(|e| *e as f64)
-        .zip(under.iter().map(|e| *e as f64))
-        .map(|(over, under)| ((over / under) * 1000.0) as u64)
-        .collect()
 }

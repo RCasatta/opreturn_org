@@ -1,15 +1,16 @@
-use crate::process::{date_index, month_array_len, month_index, parse_multisig};
+use crate::counter::Counter;
+use crate::process::{block_index, parse_multisig};
+use blocks_iterator::bitcoin::blockdata::opcodes;
 use blocks_iterator::bitcoin::Script;
 use blocks_iterator::log::{debug, info, log};
 use blocks_iterator::periodic_log_level;
 use blocks_iterator::BlockExtra;
-use chrono::{TimeZone, Utc};
+use chrono::Utc;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
-use blocks_iterator::bitcoin::blockdata::opcodes;
 use time::Duration;
 
 pub struct ProcessOpRet {
@@ -18,10 +19,11 @@ pub struct ProcessOpRet {
     pub script_type: ScriptType,
 }
 
+#[derive(Default)]
 pub struct OpReturnData {
-    pub op_ret_per_month: Vec<u64>,
+    pub op_ret_per_month: Counter,
     pub op_ret_size: BTreeMap<String, u64>, //pad with spaces usize of len up to 3
-    pub op_ret_fee_per_month: Vec<u64>,
+    pub op_ret_fee_per_month: Counter,
     pub op_ret_per_proto: HashMap<String, u64>,
     pub op_ret_per_proto_last_month: HashMap<String, u64>,
     pub op_ret_per_proto_last_year: HashMap<String, u64>,
@@ -29,15 +31,16 @@ pub struct OpReturnData {
     pub year_ago: u32,
 }
 
+#[derive(Default)]
 pub struct ScriptType {
-    pub all: Vec<u64>,
-    pub p2pkh: Vec<u64>,
-    pub p2pk: Vec<u64>,
-    pub v0_p2wpkh: Vec<u64>,
-    pub v0_p2wsh: Vec<u64>,
-    pub p2sh: Vec<u64>,
-    pub p2tr: Vec<u64>,
-    pub other: Vec<u64>,
+    pub all: Counter,
+    pub p2pkh: Counter,
+    pub p2pk: Counter,
+    pub v0_p2wpkh: Counter,
+    pub v0_p2wsh: Counter,
+    pub p2sh: Counter,
+    pub p2tr: Counter,
+    pub other: Counter,
     pub multisig: HashMap<String, u64>,
     pub multisig_tx: HashMap<String, String>,
 }
@@ -71,24 +74,6 @@ impl ProcessOpRet {
             }
         }
 
-        //remove current month and cut initial months if not significant
-        self.op_return_data.op_ret_per_month.pop();
-        self.op_return_data.op_ret_per_month =
-            self.op_return_data.op_ret_per_month[month_index("201501".to_string())..].to_vec();
-        self.op_return_data.op_ret_fee_per_month.pop();
-        self.op_return_data.op_ret_fee_per_month =
-            self.op_return_data.op_ret_fee_per_month[month_index("201501".to_string())..].to_vec();
-        self.op_return_data.op_ret_fee_per_month.pop();
-
-        self.script_type.all.pop();
-        self.script_type.p2pkh.pop();
-        self.script_type.p2pk.pop();
-        self.script_type.p2sh.pop();
-        self.script_type.v0_p2wpkh.pop();
-        self.script_type.v0_p2wsh.pop();
-        self.script_type.p2tr.pop();
-        self.script_type.other.pop();
-
         debug!("{:?}", self.script_type.multisig_tx);
 
         busy_time += now.elapsed().as_nanos();
@@ -102,8 +87,7 @@ impl ProcessOpRet {
 
     fn process_block(&mut self, block: &BlockExtra) {
         let time = block.block.header.time;
-        let date = Utc.timestamp(i64::from(time), 0);
-        let index = date_index(date);
+        let index = block_index(block.height);
 
         for tx in block.block.txdata.iter() {
             for output in tx.output.iter() {
@@ -133,21 +117,21 @@ impl ProcessOpRet {
     }
 
     fn process_output_script(&mut self, script: &Script, index: usize) {
-        self.script_type.all[index] += 1;
+        self.script_type.all.increment(index);
         if script.is_p2pkh() {
-            self.script_type.p2pkh[index] += 1;
+            self.script_type.p2pkh.increment(index);
         } else if script.is_p2pk() {
-            self.script_type.p2pk[index] += 1;
+            self.script_type.p2pk.increment(index);
         } else if script.is_v0_p2wpkh() {
-            self.script_type.v0_p2wpkh[index] += 1;
+            self.script_type.v0_p2wpkh.increment(index);
         } else if script.is_v0_p2wsh() {
-            self.script_type.v0_p2wsh[index] += 1;
+            self.script_type.v0_p2wsh.increment(index);
         } else if script.is_p2sh() {
-            self.script_type.p2sh[index] += 1;
+            self.script_type.p2sh.increment(index);
         } else if is_p2tr(&script) {
-            self.script_type.p2tr[index] += 1;
+            self.script_type.p2tr.increment(index);
         } else {
-            self.script_type.other[index] += 1;
+            self.script_type.other.increment(index);
         }
     }
 
@@ -167,11 +151,11 @@ impl ProcessOpRet {
             .op_ret_size
             .entry(format!("{:>3}", script_len))
             .or_insert(0) += 1;
-        data.op_ret_per_month[index] += 1;
-        data.op_ret_fee_per_month[index] += fee;
+        data.op_ret_per_month.increment(index);
+        data.op_ret_fee_per_month.add(index, fee);
 
         if script_len > 4 {
-            let op_ret_proto = if script_hex.starts_with("6a4c") && script_hex.len() > 5 {
+            let op_ret_proto = if script_hex.starts_with("6a4c") && script_len > 5 {
                 // 4c = OP_PUSHDATA1
                 String::from(&script_hex[6..12])
             } else {
@@ -201,16 +185,7 @@ impl ProcessOpRet {
 impl ScriptType {
     fn new() -> Self {
         ScriptType {
-            all: vec![0; month_array_len()],
-            p2pkh: vec![0; month_array_len()],
-            p2pk: vec![0; month_array_len()],
-            v0_p2wpkh: vec![0; month_array_len()],
-            v0_p2wsh: vec![0; month_array_len()],
-            p2sh: vec![0; month_array_len()],
-            p2tr: vec![0; month_array_len()],
-            other: vec![0; month_array_len()],
-            multisig: HashMap::new(),
-            multisig_tx: HashMap::new(),
+            ..Default::default()
         }
     }
 }
@@ -219,25 +194,19 @@ impl OpReturnData {
     fn new() -> OpReturnData {
         let month_ago = (Utc::now() - Duration::days(30)).timestamp() as u32; // 1 month ago
         let year_ago = (Utc::now() - Duration::days(365)).timestamp() as u32; // 1 year ago
-        let len = month_array_len();
         OpReturnData {
-            op_ret_per_month: vec![0; len],
-            op_ret_size: BTreeMap::new(),
-            op_ret_fee_per_month: vec![0; len],
-            op_ret_per_proto: HashMap::new(),
-            op_ret_per_proto_last_month: HashMap::new(),
-            op_ret_per_proto_last_year: HashMap::new(),
             month_ago,
             year_ago,
+            ..Default::default()
         }
     }
 }
 
 fn is_p2tr(script: &Script) -> bool {
     let inner = script.as_ref();
-    inner.len() == 34 &&
-        inner[0] == opcodes::all::OP_PUSHBYTES_1.into_u8() &&
-        inner[1] == opcodes::all::OP_PUSHBYTES_32.into_u8()
+    inner.len() == 34
+        && inner[0] == opcodes::all::OP_PUSHBYTES_1.into_u8()
+        && inner[1] == opcodes::all::OP_PUSHBYTES_32.into_u8()
 }
 
 /*

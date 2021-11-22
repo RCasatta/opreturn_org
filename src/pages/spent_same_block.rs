@@ -13,7 +13,7 @@ pub fn spent_same_block(stats: &Stats, tx_stats: &TxStats) -> Page {
 
     let dataset = Dataset {
         label: "outputs".to_string(),
-        data: total,
+        data: total.to_vec(),
         background_color: vec![Color::Orange],
         border_color: vec![Color::Orange],
         fill: true,
@@ -23,7 +23,7 @@ pub fn spent_same_block(stats: &Stats, tx_stats: &TxStats) -> Page {
 
     let dataset = Dataset {
         label: "spent in same block".to_string(),
-        data: spent,
+        data: spent.to_vec(),
         background_color: vec![Color::Red],
         border_color: vec![Color::Red],
         fill: true,

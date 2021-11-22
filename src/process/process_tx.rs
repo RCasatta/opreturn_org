@@ -1,10 +1,10 @@
-use crate::process::{compress_amount, date_index, encoded_length_7bit_varint, month_array_len};
+use crate::counter::Counter;
+use crate::process::{block_index, compress_amount, encoded_length_7bit_varint};
 use blocks_iterator::bitcoin::consensus::{encode, Decodable};
 use blocks_iterator::bitcoin::{SigHashType, Transaction, Txid, VarInt};
 use blocks_iterator::log::{info, log};
 use blocks_iterator::periodic_log_level;
 use blocks_iterator::BlockExtra;
-use chrono::{TimeZone, Utc};
 use std::collections::HashMap;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
@@ -15,6 +15,7 @@ pub struct ProcessTxStats {
     pub stats: TxStats,
 }
 
+#[derive(Default)]
 pub struct TxStats {
     pub min_weight_tx: (u64, Option<Txid>),
     pub max_inputs_per_tx: (u64, Option<Txid>),
@@ -22,9 +23,9 @@ pub struct TxStats {
     pub max_outputs_per_tx: (u64, Option<Txid>),
     pub total_outputs: u64,
     pub total_inputs: u64,
-    pub total_outputs_per_month: Vec<u64>,
-    pub total_inputs_per_month: Vec<u64>,
-    pub total_tx_per_month: Vec<u64>,
+    pub total_outputs_per_month: Counter,
+    pub total_inputs_per_month: Counter,
+    pub total_tx_per_month: Counter,
     pub in_out: HashMap<String, u64>,
     pub amount_over_32: usize,
 
@@ -32,7 +33,7 @@ pub struct TxStats {
     pub total_bytes_output_value_compressed_varint: u64,
     pub total_bytes_output_value_bitcoin_varint: u64,
     pub total_bytes_output_value_compressed_bitcoin_varint: u64,
-    pub rounded_amount_per_month: Vec<u64>,
+    pub rounded_amount_per_month: Counter,
     pub rounded_amount: u64,
 }
 
@@ -65,11 +66,6 @@ impl ProcessTxStats {
             }
         }
 
-        self.stats.total_inputs_per_month.pop();
-        self.stats.total_outputs_per_month.pop();
-        self.stats.total_tx_per_month.pop();
-        self.stats.rounded_amount_per_month.pop();
-
         busy_time += now.elapsed().as_nanos();
         info!(
             "ending stats processer, busy time: {}s",
@@ -80,9 +76,7 @@ impl ProcessTxStats {
     }
 
     fn process_block(&mut self, block: &BlockExtra) {
-        let time = block.block.header.time;
-        let date = Utc.timestamp(i64::from(time), 0);
-        let index = date_index(date);
+        let index = block_index(block.height);
 
         for tx in block.block.txdata.iter() {
             self.process_tx(&tx, index);
@@ -93,9 +87,9 @@ impl ProcessTxStats {
         let weight = tx.get_weight() as u64;
         let outputs = tx.output.len() as u64;
         let inputs = tx.input.len() as u64;
-        self.stats.total_outputs_per_month[index] += outputs;
-        self.stats.total_inputs_per_month[index] += inputs;
-        self.stats.total_tx_per_month[index] += 1;
+        self.stats.total_outputs_per_month.add(index, outputs);
+        self.stats.total_inputs_per_month.add(index, inputs);
+        self.stats.total_tx_per_month.increment(index);
         let txid = tx.txid();
         self.stats.total_outputs += outputs as u64;
         self.stats.total_inputs += inputs as u64;
@@ -128,7 +122,7 @@ impl ProcessTxStats {
             self.stats.total_bytes_output_value_compressed_varint +=
                 encoded_length_7bit_varint(compressed);
             if (output.value % 1000) == 0 {
-                self.stats.rounded_amount_per_month[index] += 1;
+                self.stats.rounded_amount_per_month.increment(index);
                 self.stats.rounded_amount += 1;
             }
         }
@@ -142,19 +136,7 @@ impl TxStats {
             max_inputs_per_tx: (100u64, None),
             min_weight_tx: (10000u64, None),
             max_weight_tx: (0u64, None),
-            total_outputs: 0u64,
-            total_inputs: 0u64,
-            amount_over_32: 0usize,
-            in_out: HashMap::new(),
-            total_inputs_per_month: vec![0u64; month_array_len()],
-            total_outputs_per_month: vec![0u64; month_array_len()],
-            total_tx_per_month: vec![0u64; month_array_len()],
-            rounded_amount: 0u64,
-            rounded_amount_per_month: vec![0u64; month_array_len()],
-            total_bytes_output_value_varint: 0u64,
-            total_bytes_output_value_compressed_varint: 0u64,
-            total_bytes_output_value_bitcoin_varint: 0u64,
-            total_bytes_output_value_compressed_bitcoin_varint: 0u64,
+            ..Default::default()
         }
     }
 }

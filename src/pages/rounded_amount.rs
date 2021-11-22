@@ -12,7 +12,7 @@ pub fn rounded_amount(tx_stats: &TxStats) -> Page {
 
     let dataset = Dataset {
         label: "rounded amounts".to_string(),
-        data: tx_stats.rounded_amount_per_month.clone(),
+        data: tx_stats.rounded_amount_per_month.to_vec(),
         background_color: vec![Color::Blue],
         border_color: vec![Color::Blue],
         fill: false,

@@ -12,6 +12,7 @@ use std::time::Instant;
 use std::{fs, io, thread};
 
 mod charts;
+mod counter;
 mod pages;
 mod process;
 

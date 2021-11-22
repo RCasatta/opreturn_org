@@ -9,7 +9,6 @@ pub use process_stats::{ProcessStats, Stats};
 pub use process_tx::{ProcessTxStats, TxStats};
 
 use blocks_iterator::bitcoin::blockdata::opcodes;
-use chrono::{DateTime, Datelike, TimeZone, Utc};
 
 pub fn parse_multisig(witness_script: &Vec<u8>) -> Option<String> {
     let witness_script_len = witness_script.len();
@@ -96,20 +95,6 @@ pub fn decompress_amount(x: u64) -> u64 {
     n
 }
 
-pub fn date_index(date: DateTime<Utc>) -> usize {
-    return (date.year() as usize - 2009) * 12 + (date.month() as usize - 1);
-}
-
-pub fn month_date(yyyymm: String) -> DateTime<Utc> {
-    let year: i32 = yyyymm[0..4].parse().unwrap();
-    let month: u32 = yyyymm[4..6].parse().unwrap();
-    Utc.ymd(year, month, 1).and_hms(0, 0, 0)
-}
-
-pub fn month_index(yyyymm: String) -> usize {
-    date_index(month_date(yyyymm))
-}
-
-pub fn month_array_len() -> usize {
-    date_index(Utc::now()) + 1
+pub fn block_index(height: u32) -> usize {
+    return height as usize / 1000;
 }
