@@ -4,16 +4,17 @@ use crate::process::{Stats, TxStats};
 
 pub fn spent_same_block(stats: &Stats, tx_stats: &TxStats) -> Page {
     let mut charts = vec![];
-    let total = tx_stats.total_outputs_per_month.clone();
-    let spent = stats.total_spent_in_block_per_month.clone();
     //let perc: Vec<_> = total.iter().zip(spent.iter()).map(|e| *e.1 / *e.0).collect();
-    let labels: Vec<_> = to_label_map(&total).keys().cloned().collect();
+    let labels: Vec<_> = to_label_map(&tx_stats.total_outputs_per_month.finish())
+        .keys()
+        .cloned()
+        .collect();
 
     let mut chart = Chart::new("Spent in the same block".to_string(), Kind::Line, labels);
 
     let dataset = Dataset {
         label: "outputs".to_string(),
-        data: total.to_vec(),
+        data: tx_stats.total_outputs_per_month.finish(),
         background_color: vec![Color::Orange],
         border_color: vec![Color::Orange],
         fill: true,
@@ -23,7 +24,7 @@ pub fn spent_same_block(stats: &Stats, tx_stats: &TxStats) -> Page {
 
     let dataset = Dataset {
         label: "spent in same block".to_string(),
-        data: spent.to_vec(),
+        data: stats.total_spent_in_block_per_month.finish(),
         background_color: vec![Color::Red],
         border_color: vec![Color::Red],
         fill: true,

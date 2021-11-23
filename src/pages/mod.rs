@@ -12,7 +12,6 @@ mod total_tx_outputs_inputs;
 mod witness_stats;
 
 use crate::charts::Chart;
-use crate::counter::Counter;
 use crate::now;
 use crate::process::{Bip158Stats, OpReturnData, ScriptType, Stats, TxStats};
 use maud::{html, Markup, PreEscaped, DOCTYPE};
@@ -134,7 +133,7 @@ pub fn create_contact() -> Markup {
     page(content)
 }
 
-fn to_label_map(values: &Counter) -> BTreeMap<String, u64> {
+fn to_label_map(values: &[u64]) -> BTreeMap<String, u64> {
     let mut map = BTreeMap::new();
     for (i, value) in values.iter().enumerate() {
         map.insert(index_block(i), *value);
