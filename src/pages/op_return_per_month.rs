@@ -3,7 +3,8 @@ use crate::pages::{to_label_map, Page};
 use crate::process::OpReturnData;
 
 pub fn op_return_per_month(opret: &OpReturnData) -> Page {
-    let op_ret_per_month = to_label_map(&opret.op_ret_per_month.finish());
+    let (v, div) = opret.op_ret_per_month.finish();
+    let op_ret_per_month = to_label_map(&v, div);
 
     let mut charts = vec![];
 
@@ -25,7 +26,8 @@ pub fn op_return_per_month(opret: &OpReturnData) -> Page {
     charts.push(chart);
     drop(op_ret_per_month);
 
-    let op_ret_fee_per_month = to_label_map(&opret.op_ret_fee_per_month.finish());
+    let (vec, div) = opret.op_ret_fee_per_month.finish();
+    let op_ret_fee_per_month = to_label_map(&vec, div);
     let op_ret_per_month_labels: Vec<_> = op_ret_fee_per_month.keys().cloned().collect();
     let mut chart = Chart::new(
         "fees of OP_RETURN tx [bitcoin]".to_string(),

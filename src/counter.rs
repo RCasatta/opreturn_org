@@ -27,9 +27,9 @@ impl Counter {
     }
 
     /// return a vec, skipping the last element cause it's incomplete (the period is not complete)
-    pub fn finish(&self) -> Vec<u64> {
+    pub fn finish(&self) -> (Vec<u64>, usize) {
         let no_last = self.0[..self.0.len().checked_sub(1).unwrap_or(0)].to_vec();
-        merge_until(&no_last, DEFAULT_MAX_ELEMENTS)
+        merge_until(&no_last, DEFAULT_MAX_ELEMENTS, 1)
     }
 }
 
@@ -45,11 +45,11 @@ fn merge(data: &[u64]) -> Vec<u64> {
     result
 }
 
-pub fn merge_until(data: &[u64], max_elem: usize) -> Vec<u64> {
+pub fn merge_until(data: &[u64], max_elem: usize, div: usize) -> (Vec<u64>, usize) {
     if data.len() < max_elem {
-        data.to_vec()
+        (data.to_vec(), div)
     } else {
-        merge_until(&merge(data), max_elem)
+        merge_until(&merge(data), max_elem, div + 1)
     }
 }
 

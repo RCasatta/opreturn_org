@@ -133,10 +133,10 @@ pub fn create_contact() -> Markup {
     page(content)
 }
 
-fn to_label_map(values: &[u64]) -> BTreeMap<String, u64> {
+fn to_label_map(values: &[u64], divisions: usize) -> BTreeMap<String, u64> {
     let mut map = BTreeMap::new();
     for (i, value) in values.iter().enumerate() {
-        map.insert(index_block(i), *value);
+        map.insert(index_block(i * divisions), *value);
     }
     map
 }

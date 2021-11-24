@@ -5,16 +5,14 @@ use crate::process::ScriptType;
 pub fn script_types(script_type: &ScriptType) -> Page {
     let mut charts = vec![];
 
-    let labels: Vec<_> = to_label_map(&script_type.all.finish())
-        .keys()
-        .cloned()
-        .collect();
+    let (vec, div) = script_type.all.finish();
+    let labels: Vec<_> = to_label_map(&vec, div).keys().cloned().collect();
 
     let mut chart = Chart::new("Script types [-]".to_string(), Kind::Line, labels);
 
     let dataset = Dataset {
         label: "All".to_string(),
-        data: script_type.all.finish(),
+        data: vec,
         background_color: vec![Color::Blue],
         border_color: vec![Color::Blue],
         hidden: true,
@@ -24,7 +22,7 @@ pub fn script_types(script_type: &ScriptType) -> Page {
 
     let dataset = Dataset {
         label: "p2pkh".to_string(),
-        data: script_type.p2pkh.finish(),
+        data: script_type.p2pkh.finish().0,
         background_color: vec![Color::Green],
         border_color: vec![Color::Green],
         fill: false,
@@ -34,7 +32,7 @@ pub fn script_types(script_type: &ScriptType) -> Page {
 
     let dataset = Dataset {
         label: "p2pk".to_string(),
-        data: script_type.p2pk.finish(),
+        data: script_type.p2pk.finish().0,
         background_color: vec![Color::Red],
         border_color: vec![Color::Red],
         fill: false,
@@ -44,7 +42,7 @@ pub fn script_types(script_type: &ScriptType) -> Page {
 
     let dataset = Dataset {
         label: "v0_p2wpkh".to_string(),
-        data: script_type.v0_p2wpkh.finish(),
+        data: script_type.v0_p2wpkh.finish().0,
         background_color: vec![Color::Yellow],
         border_color: vec![Color::Yellow],
         fill: false,
@@ -54,7 +52,7 @@ pub fn script_types(script_type: &ScriptType) -> Page {
 
     let dataset = Dataset {
         label: "v0_p2wsh".to_string(),
-        data: script_type.v0_p2wsh.finish(),
+        data: script_type.v0_p2wsh.finish().0,
         background_color: vec![Color::Orange],
         border_color: vec![Color::Orange],
         fill: false,
@@ -65,7 +63,7 @@ pub fn script_types(script_type: &ScriptType) -> Page {
     let color = Color::Custom(55, 11, 122, 0.8);
     let dataset = Dataset {
         label: "p2tr".to_string(),
-        data: script_type.p2tr.finish(),
+        data: script_type.p2tr.finish().0,
         background_color: vec![color],
         border_color: vec![color],
         fill: false,
@@ -75,7 +73,7 @@ pub fn script_types(script_type: &ScriptType) -> Page {
 
     let dataset = Dataset {
         label: "p2sh".to_string(),
-        data: script_type.p2sh.finish(),
+        data: script_type.p2sh.finish().0,
         background_color: vec![Color::Purple],
         border_color: vec![Color::Purple],
         fill: false,
@@ -85,7 +83,7 @@ pub fn script_types(script_type: &ScriptType) -> Page {
 
     let dataset = Dataset {
         label: "Other".to_string(),
-        data: script_type.other.finish(),
+        data: script_type.other.finish().0,
         background_color: vec![Color::Grey],
         border_color: vec![Color::Grey],
         fill: false,

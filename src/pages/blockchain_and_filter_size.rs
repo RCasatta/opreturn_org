@@ -4,8 +4,10 @@ use crate::pages::{to_label_map, Page};
 use crate::process::{Bip158Stats, Stats};
 
 pub fn blockchain_and_filter_size(stats: &Stats, bip158: &Bip158Stats) -> Page {
-    let blockchain = to_label_map(&cumulative(&stats.block_size_per_month.finish()));
-    let filters = to_label_map(&cumulative(&bip158.bip158_filter_size_per_month.finish()));
+    let (vec, div) = stats.block_size_per_month.finish();
+    let blockchain = to_label_map(&cumulative(&vec), div);
+    let (vec, div) = bip158.bip158_filter_size_per_month.finish();
+    let filters = to_label_map(&cumulative(&vec), div);
 
     let mut charts = vec![];
 
