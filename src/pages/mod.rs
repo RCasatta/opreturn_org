@@ -136,13 +136,15 @@ pub fn create_contact() -> Markup {
 fn to_label_map(values: &[u64], mul: usize) -> BTreeMap<String, u64> {
     let mut map = BTreeMap::new();
     for (i, value) in values.iter().enumerate() {
-        map.insert(index_block(i * mul), *value);
+        map.insert(index_block(i, mul), *value);
     }
     map
 }
 
-pub fn index_block(index: usize) -> String {
-    format!("{:4}k", index)
+pub fn index_block(index: usize, mul: usize) -> String {
+    let from = index * mul;
+    let to = from + mul;
+    format!("{:4}k-{:4}k", from, to)
 }
 
 pub fn get_pages(
