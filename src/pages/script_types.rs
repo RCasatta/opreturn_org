@@ -5,8 +5,8 @@ use crate::process::ScriptType;
 pub fn script_types(script_type: &ScriptType) -> Page {
     let mut charts = vec![];
 
-    let (vec, div) = script_type.all.finish();
-    let labels: Vec<_> = to_label_map(&vec, div).keys().cloned().collect();
+    let (vec, mul) = script_type.all.finish();
+    let labels: Vec<_> = to_label_map(&vec, mul).keys().cloned().collect();
 
     let mut chart = Chart::new("Script types [-]".to_string(), Kind::Line, labels);
 

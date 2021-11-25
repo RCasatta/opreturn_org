@@ -45,11 +45,11 @@ fn merge(data: &[u64]) -> Vec<u64> {
     result
 }
 
-pub fn merge_until(data: &[u64], max_elem: usize, div: usize) -> (Vec<u64>, usize) {
+pub fn merge_until(data: &[u64], max_elem: usize, mul: usize) -> (Vec<u64>, usize) {
     if data.len() < max_elem {
-        (data.to_vec(), div)
+        (data.to_vec(), mul)
     } else {
-        merge_until(&merge(data), max_elem, div + 1)
+        merge_until(&merge(data), max_elem, mul * 2)
     }
 }
 

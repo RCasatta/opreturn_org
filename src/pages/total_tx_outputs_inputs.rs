@@ -5,8 +5,8 @@ use crate::process::TxStats;
 
 pub fn total_tx_outputs_inputs(tx_stats: &TxStats) -> Page {
     let mut charts = vec![];
-    let (vec, div) = tx_stats.total_outputs_per_month.finish();
-    let map = to_label_map(&vec, div);
+    let (vec, mul) = tx_stats.total_outputs_per_month.finish();
+    let map = to_label_map(&vec, mul);
     let labels: Vec<_> = map.keys().cloned().collect();
 
     let mut chart = Chart::new("Tx, inputs and outputs".to_string(), Kind::Line, labels);
