@@ -144,7 +144,7 @@ fn to_label_map(values: &[u64], mul: usize) -> BTreeMap<String, u64> {
 pub fn index_block(index: usize, mul: usize) -> String {
     let from = index * mul;
     let to = from + mul;
-    format!("{:4}k-{:4}k", from, to)
+    format!("{:4}k-{}k", from, to)
 }
 
 pub fn get_pages(
