@@ -22,7 +22,7 @@ pub fn spent_same_block(stats: &Stats, tx_stats: &TxStats) -> Page {
 
     let dataset = Dataset {
         label: "spent in same block".to_string(),
-        data: stats.total_spent_in_block_per_month.finish().0,
+        data: stats.total_spent_in_block_per_period.finish().0,
         background_color: vec![Color::Red],
         border_color: vec![Color::Red],
         fill: true,

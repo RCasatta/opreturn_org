@@ -129,6 +129,7 @@ impl ProcessOpRet {
         } else if script.is_p2sh() {
             self.script_type.p2sh.increment(index);
         } else if is_p2tr(&script) {
+            info!("p2tr!");
             self.script_type.p2tr.increment(index);
         } else {
             self.script_type.other.increment(index);

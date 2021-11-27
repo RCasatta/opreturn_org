@@ -4,10 +4,12 @@ use crate::pages::{to_label_map, Page};
 use crate::process::{Bip158Stats, Stats};
 
 pub fn blockchain_and_filter_size(stats: &Stats, bip158: &Bip158Stats) -> Page {
-    let (vec, mul) = stats.block_size_per_month.finish();
+    let (vec, mul) = stats.block_size_per_period.finish();
     let blockchain = to_label_map(&cumulative(&vec), mul);
-    let (vec, mul) = bip158.bip158_filter_size_per_month.finish();
+    let (vec, mul) = bip158.bip158_filter_size_per_period.finish();
     let filters = to_label_map(&cumulative(&vec), mul);
+    let (vec, mul) = stats.witness_size_per_period.finish();
+    let witness = to_label_map(&cumulative(&vec), mul);
 
     let mut charts = vec![];
 
@@ -40,11 +42,21 @@ pub fn blockchain_and_filter_size(stats: &Stats, bip158: &Bip158Stats) -> Page {
     };
     chart.add_dataset(dataset, None);
 
+    let dataset = Dataset {
+        label: "Witnesses size".to_string(),
+        data: witness.values().map(|e| *e >> 20).collect(),
+        background_color: vec![Color::Yellow],
+        border_color: vec![Color::Yellow],
+        fill: false,
+        ..Default::default()
+    };
+    chart.add_dataset(dataset, None);
+
     charts.push(chart);
 
     Page {
-        title: "Blockhain and BIP158 filter size".to_string(),
-        description: "Charts showing the Blockchain size and BIP158 filter size".to_string(),
+        title: "Blockhain, BIP158 filter size and witnesses size".to_string(),
+        description: "Charts showing the Blockchain size, BIP158 filter size and witnesses size".to_string(),
         permalink: "blockchain-and-filter-size".to_string(),
         charts,
     }

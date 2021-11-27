@@ -10,10 +10,7 @@ impl Counter {
 
     fn get_mut(&mut self, index: usize) -> &mut u64 {
         if index >= self.0.len() {
-            let missing = index - self.0.len() + 1;
-            for _ in 0..missing {
-                self.0.push(0);
-            }
+            self.0.resize(index+1,0);
         }
         self.0.get_mut(index).unwrap()
     }

@@ -30,11 +30,12 @@ pub struct Stats {
     pub max_tx_per_block: (u64, Option<BlockHash>),
     pub min_hash: BlockHash,
     pub total_spent_in_block: u64,
-    pub total_spent_in_block_per_month: Counter,
+    pub total_spent_in_block_per_period: Counter,
 
-    pub block_size_per_month: Counter,
+    pub block_size_per_period: Counter,
+    pub witness_size_per_period: Counter,
     pub sighashtype: HashMap<String, u64>,
-    pub fee_per_month: Counter,
+    pub fee_per_period: Counter,
 
     /// number of inputs using witness (number of element > 0) and not using witness
     pub has_witness: HashMap<String, u64>,
@@ -102,7 +103,7 @@ impl ProcessStats {
         let index = block_index(block.height);
 
         self.stats
-            .block_size_per_month
+            .block_size_per_period
             .add(index, block.size as u64);
         let mut fees_from_this_block = vec![];
         let tx_hashes: HashSet<_> = block.block.txdata.iter().map(|tx| tx.txid()).collect();
@@ -113,7 +114,7 @@ impl ProcessStats {
             for input in tx.input.iter() {
                 if tx_hashes.contains(&input.previous_output.txid) {
                     self.stats.total_spent_in_block += 1;
-                    self.stats.total_spent_in_block_per_month.increment(index);
+                    self.stats.total_spent_in_block_per_period.increment(index);
                     count_inputs_in_block += 1;
                 }
 
@@ -159,6 +160,8 @@ impl ProcessStats {
                         };
                     }
                 }
+                //TODO should be witness serialized len
+                self.stats.witness_size_per_period.add(index, input.witness.iter().map(|e| e.len()).sum::<usize>() as u64)
             }
             if !strange_sighash.is_empty() {
                 self.sighash_file
@@ -179,7 +182,7 @@ impl ProcessStats {
             fees_from_this_block.iter().sum::<u64>() as f64 / tx_with_fee_in_block_len as f64
         };
         let estimated_fee = (estimated_average_fee * tx_len as f64) as u64;
-        self.stats.fee_per_month.add(index, fee);
+        self.stats.fee_per_period.add(index, fee);
         self.fee_file
             .write(
                 format!(

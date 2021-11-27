@@ -31,7 +31,7 @@ pub struct ProcessBip158Stats {
 }
 
 pub struct Bip158Stats {
-    pub bip158_filter_size_per_month: Counter,
+    pub bip158_filter_size_per_period: Counter,
 }
 
 impl ProcessBip158Stats {
@@ -124,7 +124,7 @@ impl ProcessBip158Stats {
         }
 
         self.stats
-            .bip158_filter_size_per_month
+            .bip158_filter_size_per_period
             .add(index, filter_len as u64);
 
         for tx in block.block.txdata.iter() {
@@ -156,7 +156,7 @@ impl ProcessBip158Stats {
 impl Bip158Stats {
     fn new() -> Self {
         Self {
-            bip158_filter_size_per_month: Counter::new(),
+            bip158_filter_size_per_period: Counter::new(),
         }
     }
 }
