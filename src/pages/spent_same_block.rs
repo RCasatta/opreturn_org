@@ -5,14 +5,14 @@ use crate::process::{Stats, TxStats};
 pub fn spent_same_block(stats: &Stats, tx_stats: &TxStats) -> Page {
     let mut charts = vec![];
     //let perc: Vec<_> = total.iter().zip(spent.iter()).map(|e| *e.1 / *e.0).collect();
-    let (vec, mul) = tx_stats.total_outputs_per_month.finish();
+    let (vec, mul) = tx_stats.total_outputs_per_period.finish();
     let labels: Vec<_> = to_label_map(&vec, mul).keys().cloned().collect();
 
     let mut chart = Chart::new("Spent in the same block".to_string(), Kind::Line, labels);
 
     let dataset = Dataset {
         label: "outputs".to_string(),
-        data: tx_stats.total_outputs_per_month.finish().0,
+        data: tx_stats.total_outputs_per_period.finish().0,
         background_color: vec![Color::Orange],
         border_color: vec![Color::Orange],
         fill: true,

@@ -1,6 +1,6 @@
-mod blockchain_and_filter_size;
+mod blockchain_sizes;
 mod number_of_inputs_and_outputs;
-mod op_return_per_month;
+mod op_return;
 mod op_return_protocols;
 mod op_return_sizes;
 mod rounded_amount;
@@ -17,9 +17,9 @@ use crate::process::{Bip158Stats, OpReturnData, ScriptType, Stats, TxStats};
 use maud::{html, Markup, PreEscaped, DOCTYPE};
 use std::collections::{BTreeMap, HashMap};
 
-pub use blockchain_and_filter_size::blockchain_and_filter_size;
+pub use blockchain_sizes::blockchain_sizes;
 pub use number_of_inputs_and_outputs::number_of_inputs_and_outputs;
-pub use op_return_per_month::op_return_per_month;
+pub use op_return::op_return_per_month;
 pub use op_return_protocols::op_return_protocols;
 pub use op_return_sizes::op_return_sizes;
 pub use rounded_amount::rounded_amount;
@@ -156,7 +156,7 @@ pub fn get_pages(
 ) -> Vec<Page> {
     let mut pages = vec![];
 
-    pages.push(blockchain_and_filter_size(&stats, &bip158));
+    pages.push(blockchain_sizes(&stats, &bip158, &tx_stats));
     pages.push(witness_stats(&stats));
     pages.push(number_of_inputs_and_outputs(&tx_stats));
     pages.push(op_return_per_month(&opret));

@@ -21,9 +21,9 @@ pub struct ProcessOpRet {
 
 #[derive(Default)]
 pub struct OpReturnData {
-    pub op_ret_per_month: Counter,
+    pub op_ret_per_period: Counter,
     pub op_ret_size: BTreeMap<String, u64>, //pad with spaces usize of len up to 3
-    pub op_ret_fee_per_month: Counter,
+    pub op_ret_fee_per_period: Counter,
     pub op_ret_per_proto: HashMap<String, u64>,
     pub op_ret_per_proto_last_month: HashMap<String, u64>,
     pub op_ret_per_proto_last_year: HashMap<String, u64>,
@@ -152,8 +152,8 @@ impl ProcessOpRet {
             .op_ret_size
             .entry(format!("{:>3}", script_len))
             .or_insert(0) += 1;
-        data.op_ret_per_month.increment(index);
-        data.op_ret_fee_per_month.add(index, fee);
+        data.op_ret_per_period.increment(index);
+        data.op_ret_fee_per_period.add(index, fee);
 
         if script_len > 4 {
             let op_ret_proto = if script_hex.starts_with("6a4c") && script_len > 5 {

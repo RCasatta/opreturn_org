@@ -23,9 +23,10 @@ pub struct TxStats {
     pub max_outputs_per_tx: (u64, Option<Txid>),
     pub total_outputs: u64,
     pub total_inputs: u64,
-    pub total_outputs_per_month: Counter,
-    pub total_inputs_per_month: Counter,
-    pub total_tx_per_month: Counter,
+    pub total_outputs_per_period: Counter,
+    pub total_inputs_per_period: Counter,
+    pub script_pubkey_size_per_period: Counter,
+    pub total_tx_per_period: Counter,
     pub in_out: HashMap<String, u64>,
     pub amount_over_32: usize,
 
@@ -33,7 +34,7 @@ pub struct TxStats {
     pub total_bytes_output_value_compressed_varint: u64,
     pub total_bytes_output_value_bitcoin_varint: u64,
     pub total_bytes_output_value_compressed_bitcoin_varint: u64,
-    pub rounded_amount_per_month: Counter,
+    pub rounded_amount_per_period: Counter,
     pub rounded_amount: u64,
 }
 
@@ -87,9 +88,9 @@ impl ProcessTxStats {
         let weight = tx.get_weight() as u64;
         let outputs = tx.output.len() as u64;
         let inputs = tx.input.len() as u64;
-        self.stats.total_outputs_per_month.add(index, outputs);
-        self.stats.total_inputs_per_month.add(index, inputs);
-        self.stats.total_tx_per_month.increment(index);
+        self.stats.total_outputs_per_period.add(index, outputs);
+        self.stats.total_inputs_per_period.add(index, inputs);
+        self.stats.total_tx_per_period.increment(index);
         let txid = tx.txid();
         self.stats.total_outputs += outputs as u64;
         self.stats.total_inputs += inputs as u64;
@@ -122,9 +123,11 @@ impl ProcessTxStats {
             self.stats.total_bytes_output_value_compressed_varint +=
                 encoded_length_7bit_varint(compressed);
             if (output.value % 1000) == 0 {
-                self.stats.rounded_amount_per_month.increment(index);
+                self.stats.rounded_amount_per_period.increment(index);
                 self.stats.rounded_amount += 1;
             }
+
+            self.stats.script_pubkey_size_per_period.add(index, output.script_pubkey.len() as u64);
         }
     }
 }

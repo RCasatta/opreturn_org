@@ -3,20 +3,22 @@ use crate::pages::{to_label_map, Page};
 use crate::process::OpReturnData;
 
 pub fn op_return_per_month(opret: &OpReturnData) -> Page {
-    let (v, div) = opret.op_ret_per_month.finish();
-    let op_ret_per_month = to_label_map(&v, div);
+    let title = "OP_RETURN".to_string();
+    let (v, div) = opret.op_ret_per_period.finish();
+    let op_ret_per_period = to_label_map(&v, div);
 
     let mut charts = vec![];
 
-    let op_ret_per_month_labels: Vec<_> = op_ret_per_month.keys().cloned().collect();
+    let op_ret_per_period_labels: Vec<_> = op_ret_per_period.keys().cloned().collect();
+
     let mut chart = Chart::new(
-        "OP_RETURN per month".to_string(),
+        title.clone(),
         Kind::Line,
-        op_ret_per_month_labels,
+        op_ret_per_period_labels,
     );
     let dataset = Dataset {
         label: "OP_RETURN [-]".to_string(),
-        data: op_ret_per_month.values().cloned().collect(),
+        data: op_ret_per_period.values().cloned().collect(),
         background_color: vec![Color::Orange],
         border_color: vec![Color::Orange],
         fill: false,
@@ -24,9 +26,9 @@ pub fn op_return_per_month(opret: &OpReturnData) -> Page {
     };
     chart.add_dataset(dataset, None);
     charts.push(chart);
-    drop(op_ret_per_month);
+    drop(op_ret_per_period);
 
-    let (vec, mul) = opret.op_ret_fee_per_month.finish();
+    let (vec, mul) = opret.op_ret_fee_per_period.finish();
     let op_ret_fee_per_month = to_label_map(&vec, mul);
     let op_ret_per_month_labels: Vec<_> = op_ret_fee_per_month.keys().cloned().collect();
     let mut chart = Chart::new(
@@ -50,10 +52,10 @@ pub fn op_return_per_month(opret: &OpReturnData) -> Page {
     drop(op_ret_fee_per_month);
 
     Page {
-        title: "OP_RETURN per month".to_string(),
+        title,
         description: "Charts showing the number of OP_RETURN scripts and fee spent per month."
             .to_string(),
-        permalink: "op-return-per-month".to_string(),
+        permalink: "op-return".to_string(),
         charts,
     }
 }

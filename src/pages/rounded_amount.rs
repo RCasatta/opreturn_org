@@ -5,7 +5,7 @@ use crate::process::TxStats;
 pub fn rounded_amount(tx_stats: &TxStats) -> Page {
     let mut charts = vec![];
 
-    let (vec, mul) = tx_stats.rounded_amount_per_month.finish();
+    let (vec, mul) = tx_stats.rounded_amount_per_period.finish();
     let map = to_label_map(&vec, mul);
     let labels: Vec<_> = map.keys().cloned().collect();
 

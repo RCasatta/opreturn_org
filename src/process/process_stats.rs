@@ -34,6 +34,7 @@ pub struct Stats {
 
     pub block_size_per_period: Counter,
     pub witness_size_per_period: Counter,
+    pub script_sig_size_per_period: Counter,
     pub sighashtype: HashMap<String, u64>,
     pub fee_per_period: Counter,
 
@@ -161,7 +162,8 @@ impl ProcessStats {
                     }
                 }
                 //TODO should be witness serialized len
-                self.stats.witness_size_per_period.add(index, input.witness.iter().map(|e| e.len()).sum::<usize>() as u64)
+                self.stats.witness_size_per_period.add(index, input.witness.iter().map(|e| e.len()).sum::<usize>() as u64);
+                self.stats.script_sig_size_per_period.add(index, input.script_sig.len() as u64);
             }
             if !strange_sighash.is_empty() {
                 self.sighash_file

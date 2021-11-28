@@ -5,7 +5,7 @@ use crate::process::TxStats;
 
 pub fn total_tx_outputs_inputs(tx_stats: &TxStats) -> Page {
     let mut charts = vec![];
-    let (vec, mul) = tx_stats.total_outputs_per_month.finish();
+    let (vec, mul) = tx_stats.total_outputs_per_period.finish();
     let map = to_label_map(&vec, mul);
     let labels: Vec<_> = map.keys().cloned().collect();
 
@@ -13,7 +13,7 @@ pub fn total_tx_outputs_inputs(tx_stats: &TxStats) -> Page {
 
     let dataset = Dataset {
         label: "Total tx".to_string(),
-        data: tx_stats.total_tx_per_month.finish().0,
+        data: tx_stats.total_tx_per_period.finish().0,
         background_color: vec![Color::Blue],
         border_color: vec![Color::Blue],
         ..Default::default()
@@ -22,7 +22,7 @@ pub fn total_tx_outputs_inputs(tx_stats: &TxStats) -> Page {
 
     let dataset = Dataset {
         label: "Total inputs".to_string(),
-        data: tx_stats.total_inputs_per_month.finish().0,
+        data: tx_stats.total_inputs_per_period.finish().0,
         background_color: vec![Color::Orange],
         border_color: vec![Color::Orange],
         ..Default::default()
@@ -31,7 +31,7 @@ pub fn total_tx_outputs_inputs(tx_stats: &TxStats) -> Page {
 
     let dataset = Dataset {
         label: "Total outputs".to_string(),
-        data: tx_stats.total_outputs_per_month.finish().0,
+        data: tx_stats.total_outputs_per_period.finish().0,
         background_color: vec![Color::Red],
         border_color: vec![Color::Red],
         ..Default::default()
@@ -39,8 +39,8 @@ pub fn total_tx_outputs_inputs(tx_stats: &TxStats) -> Page {
     chart.add_dataset(dataset, None);
 
     let perc_outputs = perc_1000(
-        &tx_stats.total_inputs_per_month.finish().0,
-        &tx_stats.total_tx_per_month.finish().0,
+        &tx_stats.total_inputs_per_period.finish().0,
+        &tx_stats.total_tx_per_period.finish().0,
     );
     let dataset = Dataset {
         label: "Average Outputs *1000".to_string(),
@@ -53,8 +53,8 @@ pub fn total_tx_outputs_inputs(tx_stats: &TxStats) -> Page {
     chart.add_dataset(dataset, Some("y2".to_string()));
 
     let perc_inputs = perc_1000(
-        &tx_stats.total_outputs_per_month.finish().0,
-        &tx_stats.total_tx_per_month.finish().0,
+        &tx_stats.total_outputs_per_period.finish().0,
+        &tx_stats.total_tx_per_period.finish().0,
     );
     let dataset = Dataset {
         label: "Average inputs *1000".to_string(),
