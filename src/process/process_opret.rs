@@ -21,6 +21,7 @@ pub struct ProcessOpRet {
     pub op_return_data: OpReturnData,
     pub script_type: ScriptType,
     pub opret_json_file: File,
+    pub parse_pubkeys: bool,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -53,14 +54,15 @@ pub struct ScriptType {
 }
 
 impl ProcessOpRet {
-    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, target_dir: &PathBuf) -> ProcessOpRet {
+    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, target_dir: &PathBuf, parse_pubkeys: bool) -> ProcessOpRet {
         let opret_json_file =
-            File::create(format!("{}/stats.json", target_dir.display())).unwrap();
+            File::create(format!("{}/opret.json", target_dir.display())).unwrap();
         ProcessOpRet {
             receiver,
             op_return_data: OpReturnData::new(),
             script_type: ScriptType::new(),
             opret_json_file,
+            parse_pubkeys
         }
     }
 
@@ -127,11 +129,13 @@ impl ProcessOpRet {
                 }
             }
 
-            for p in parse_pubkeys_in_tx(tx) {
-                if p.compressed {
-                    self.op_return_data.compressed_starts_with.increment(p.to_bytes()[0] as usize);
-                } else {
-                    self.op_return_data.uncompressed_starts_with.increment(p.to_bytes()[0] as usize);
+            if self.parse_pubkeys {
+                for p in parse_pubkeys_in_tx(tx) {
+                    if p.compressed {
+                        self.op_return_data.compressed_starts_with.increment(p.to_bytes()[0] as usize);
+                    } else {
+                        self.op_return_data.uncompressed_starts_with.increment(p.to_bytes()[0] as usize);
+                    }
                 }
             }
         }

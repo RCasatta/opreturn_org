@@ -21,6 +21,10 @@ struct Params {
     /// Where to produce the website
     #[structopt(short, long)]
     pub target_dir: PathBuf,
+
+    /// Where to produce the website
+    #[structopt(short, long)]
+    pub parse_pubkeys: bool,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -48,7 +52,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (send_4, receive_4) = sync_channel(blocks_size);
     let senders = [send_1, send_2, send_3, send_4];
 
-    let process = ProcessOpRet::new(receive_1, &params.target_dir);
+    let process = ProcessOpRet::new(receive_1, &params.target_dir, params.parse_pubkeys);
     let process_handle = thread::spawn(move || process.start());
 
     let process_stats = ProcessStats::new(receive_2, &params.target_dir);
