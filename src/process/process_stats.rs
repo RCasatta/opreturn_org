@@ -3,7 +3,7 @@ use crate::process::block_index;
 use blocks_iterator::bitcoin::blockdata::script::Instruction;
 use blocks_iterator::bitcoin::consensus::{deserialize, encode, Decodable};
 use blocks_iterator::bitcoin::hashes::hex::FromHex;
-use blocks_iterator::bitcoin::{BlockHash, SigHashType};
+use blocks_iterator::bitcoin::{BlockHash, EcdsaSigHashType};
 use blocks_iterator::log::{info, log};
 use blocks_iterator::periodic_log_level;
 use blocks_iterator::BlockExtra;
@@ -14,6 +14,7 @@ use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
+use serde::{Serialize, Deserialize};
 
 pub struct ProcessStats {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
@@ -22,9 +23,10 @@ pub struct ProcessStats {
     pub sighash_file: File,
     pub fee_file: File,
     pub blocks_len_file: File,
+    pub stats_json_file: File,
 }
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct Stats {
     pub max_block_size: (u64, Option<BlockHash>),
     pub max_tx_per_block: (u64, Option<BlockHash>),
@@ -53,10 +55,13 @@ impl ProcessStats {
         let fee_file = File::create(format!("{}/fee.txt", target_dir.display())).unwrap();
         let blocks_len_file =
             File::create(format!("{}/blocks_len.txt", target_dir.display())).unwrap();
+        let stats_json_file =
+            File::create(format!("{}/stats.json", target_dir.display())).unwrap();
         ProcessStats {
             receiver,
             sighash_file,
             fee_file,
+            stats_json_file,
             blocks_len_file,
             stats: Stats::new(),
         }
@@ -90,6 +95,9 @@ impl ProcessStats {
             .insert("without".to_string(), not_using);
 
         self.stats.witness_byte_size.remove("000");
+
+        let stats_json= serde_json::to_string(&self.stats).unwrap();
+        self.stats_json_file.write_all(stats_json.as_bytes()).unwrap();
 
         busy_time += now.elapsed().as_nanos();
         info!(
@@ -128,7 +136,7 @@ impl ProcessStats {
                                 .entry(format!("{:?}", sighash.0))
                                 .or_insert(0) += 1;
                             match sighash.0 {
-                                SigHashType::All | SigHashType::AllPlusAnyoneCanPay => (),
+                                EcdsaSigHashType::All | EcdsaSigHashType::AllPlusAnyoneCanPay => (),
                                 _ => strange_sighash.push((sighash.0, input.sequence)),
                             };
                         }
@@ -156,7 +164,7 @@ impl ProcessStats {
                             .entry(format!("{:?}", sighash.0))
                             .or_insert(0) += 1;
                         match sighash.0 {
-                            SigHashType::All | SigHashType::AllPlusAnyoneCanPay => (),
+                            EcdsaSigHashType::All | EcdsaSigHashType::AllPlusAnyoneCanPay => (),
                             _ => strange_sighash.push((sighash.0, input.sequence)),
                         };
                     }
@@ -235,7 +243,7 @@ impl Stats {
     }
 }
 
-struct SignatureHash(pub SigHashType);
+struct SignatureHash(pub EcdsaSigHashType);
 
 impl Decodable for SignatureHash {
     fn consensus_decode<D: std::io::Read>(mut d: D) -> Result<Self, encode::Error> {
@@ -262,7 +270,7 @@ impl Decodable for SignatureHash {
         }
 
         let sighash_u8 = u8::consensus_decode(&mut d)?;
-        let sighash = SigHashType::from_u32_consensus(sighash_u8 as u32);
+        let sighash = EcdsaSigHashType::from_u32_consensus(sighash_u8 as u32);
 
         Ok(SignatureHash(sighash))
     }

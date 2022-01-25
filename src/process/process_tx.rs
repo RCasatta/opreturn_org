@@ -1,21 +1,26 @@
 use crate::counter::Counter;
 use crate::process::{block_index, compress_amount, encoded_length_7bit_varint};
 use blocks_iterator::bitcoin::consensus::{encode, Decodable};
-use blocks_iterator::bitcoin::{SigHashType, Transaction, Txid, VarInt};
+use blocks_iterator::bitcoin::{EcdsaSigHashType, Transaction, Txid, VarInt};
 use blocks_iterator::log::{info, log};
 use blocks_iterator::periodic_log_level;
 use blocks_iterator::BlockExtra;
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Write;
+use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
+use serde::{Serialize, Deserialize};
 
 pub struct ProcessTxStats {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
     pub stats: TxStats,
+    pub tx_stats_json_file: File,
 }
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct TxStats {
     pub min_weight_tx: (u64, Option<Txid>),
     pub max_inputs_per_tx: (u64, Option<Txid>),
@@ -36,14 +41,18 @@ pub struct TxStats {
     pub total_bytes_output_value_compressed_bitcoin_varint: u64,
     pub rounded_amount_per_period: Counter,
     pub rounded_amount: u64,
+
 }
 
 //TODO split again this one slower together with read
 impl ProcessTxStats {
-    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>) -> ProcessTxStats {
+    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, target_dir: &PathBuf) -> ProcessTxStats {
+        let tx_stats_json_file =
+            File::create(format!("{}/tx_stats.json", target_dir.display())).unwrap();
         ProcessTxStats {
             receiver,
             stats: TxStats::new(),
+            tx_stats_json_file,
         }
     }
 
@@ -66,6 +75,9 @@ impl ProcessTxStats {
                 None => break,
             }
         }
+
+        let tx_stats_json = serde_json::to_string(&self.stats).unwrap();
+        self.tx_stats_json_file.write_all(tx_stats_json.as_bytes()).unwrap();
 
         busy_time += now.elapsed().as_nanos();
         info!(
@@ -107,7 +119,12 @@ impl ProcessTxStats {
             self.stats.min_weight_tx = (weight, Some(txid));
         }
 
-        let in_out_key = format!("{:02}-{:02}", inputs, outputs);
+        let in_out_key = if inputs > 9 || outputs > 9 {
+            "10+10".to_string()
+        } else {
+            format!("{:02}-{:02}", inputs, outputs)
+        };
+
         *self.stats.in_out.entry(in_out_key).or_insert(0) += 1;
         self.stats.amount_over_32 += tx.output.iter().filter(|o| o.value > 0xffff_ffff).count();
 
@@ -129,22 +146,23 @@ impl ProcessTxStats {
 
             self.stats.script_pubkey_size_per_period.add(index, output.script_pubkey.len() as u64);
         }
+
     }
 }
 
 impl TxStats {
     pub fn new() -> Self {
         TxStats {
-            max_outputs_per_tx: (100u64, None),
-            max_inputs_per_tx: (100u64, None),
-            min_weight_tx: (10000u64, None),
-            max_weight_tx: (0u64, None),
+            max_outputs_per_tx: (u64::MIN, None),
+            max_inputs_per_tx: (u64::MIN, None),
+            min_weight_tx: (u64::MAX, None),
+            max_weight_tx: (u64::MIN, None),
             ..Default::default()
         }
     }
 }
 
-struct SignatureHash(pub SigHashType);
+struct SignatureHash(pub EcdsaSigHashType);
 
 impl Decodable for SignatureHash {
     fn consensus_decode<D: std::io::Read>(mut d: D) -> Result<Self, encode::Error> {
@@ -171,7 +189,7 @@ impl Decodable for SignatureHash {
         }
 
         let sighash_u8 = u8::consensus_decode(&mut d)?;
-        let sighash = SigHashType::from_u32_consensus(sighash_u8 as u32);
+        let sighash = EcdsaSigHashType::from_u32_consensus(sighash_u8 as u32);
 
         Ok(SignatureHash(sighash))
     }

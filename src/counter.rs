@@ -1,4 +1,6 @@
-#[derive(Clone)]
+use serde::{Serialize, Deserialize};
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Counter(Vec<u64>);
 
 const DEFAULT_MAX_ELEMENTS: usize = 140;

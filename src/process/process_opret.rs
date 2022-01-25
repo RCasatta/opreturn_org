@@ -1,6 +1,5 @@
 use crate::counter::Counter;
-use crate::process::{block_index, parse_multisig};
-use blocks_iterator::bitcoin::blockdata::opcodes;
+use crate::process::{block_index, parse_multisig, parse_pubkeys_in_tx};
 use blocks_iterator::bitcoin::Script;
 use blocks_iterator::log::{debug, info, log};
 use blocks_iterator::periodic_log_level;
@@ -8,18 +7,23 @@ use blocks_iterator::BlockExtra;
 use chrono::Utc;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Write;
+use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
 use time::Duration;
+use serde::{Serialize, Deserialize};
 
 pub struct ProcessOpRet {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
     pub op_return_data: OpReturnData,
     pub script_type: ScriptType,
+    pub opret_json_file: File,
 }
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct OpReturnData {
     pub op_ret_per_period: Counter,
     pub op_ret_size: BTreeMap<String, u64>, //pad with spaces usize of len up to 3
@@ -29,6 +33,9 @@ pub struct OpReturnData {
     pub op_ret_per_proto_last_year: HashMap<String, u64>,
     pub month_ago: u32,
     pub year_ago: u32,
+
+    pub compressed_starts_with: Counter,
+    pub uncompressed_starts_with: Counter,
 }
 
 #[derive(Default)]
@@ -46,11 +53,14 @@ pub struct ScriptType {
 }
 
 impl ProcessOpRet {
-    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>) -> ProcessOpRet {
+    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, target_dir: &PathBuf) -> ProcessOpRet {
+        let opret_json_file =
+            File::create(format!("{}/stats.json", target_dir.display())).unwrap();
         ProcessOpRet {
             receiver,
             op_return_data: OpReturnData::new(),
             script_type: ScriptType::new(),
+            opret_json_file,
         }
     }
 
@@ -75,6 +85,9 @@ impl ProcessOpRet {
         }
 
         debug!("{:?}", self.script_type.multisig_tx);
+
+        let opret_json= serde_json::to_string(&self.op_return_data).unwrap();
+        self.opret_json_file.write_all(opret_json.as_bytes()).unwrap();
 
         busy_time += now.elapsed().as_nanos();
         info!(
@@ -113,6 +126,14 @@ impl ProcessOpRet {
                     }
                 }
             }
+
+            for p in parse_pubkeys_in_tx(tx) {
+                if p.compressed {
+                    self.op_return_data.compressed_starts_with.increment(p.to_bytes()[0] as usize);
+                } else {
+                    self.op_return_data.uncompressed_starts_with.increment(p.to_bytes()[0] as usize);
+                }
+            }
         }
     }
 
@@ -128,8 +149,7 @@ impl ProcessOpRet {
             self.script_type.v0_p2wsh.increment(index);
         } else if script.is_p2sh() {
             self.script_type.p2sh.increment(index);
-        } else if is_p2tr(&script) {
-            info!("p2tr!");
+        } else if script.is_v1_p2tr() {
             self.script_type.p2tr.increment(index);
         } else {
             self.script_type.other.increment(index);
@@ -201,13 +221,6 @@ impl OpReturnData {
             ..Default::default()
         }
     }
-}
-
-fn is_p2tr(script: &Script) -> bool {
-    let inner = script.as_ref();
-    inner.len() == 34
-        && inner[0] == opcodes::all::OP_PUSHBYTES_1.into_u8()
-        && inner[1] == opcodes::all::OP_PUSHBYTES_32.into_u8()
 }
 
 /*

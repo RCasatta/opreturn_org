@@ -9,8 +9,38 @@ pub use process_stats::{ProcessStats, Stats};
 pub use process_tx::{ProcessTxStats, TxStats};
 
 use blocks_iterator::bitcoin::blockdata::opcodes;
+use blocks_iterator::bitcoin::{PublicKey, Script, Transaction};
+use blocks_iterator::bitcoin::blockdata::script::Instruction;
 
-pub fn parse_multisig(witness_script: &Vec<u8>) -> Option<String> {
+pub fn parse_pubkeys_in_script(script: &Script) -> Vec<PublicKey> {
+    let mut r = vec![];
+    for el in script.instructions() {
+        if let Ok(Instruction::PushBytes(inst)) = el {
+            if let Ok(p) = PublicKey::from_slice(&inst) {
+                r.push(p);
+            }
+        }
+    }
+    r
+}
+
+pub fn parse_pubkeys_in_tx(tx: &Transaction) -> Vec<PublicKey> {
+    let mut r = vec![];
+    for input in tx.input.iter() {
+        for witness_el in input.witness.iter() {
+            if let Ok(p) = PublicKey::from_slice(&witness_el) {
+                r.push(p);
+            }
+        }
+        r.extend(parse_pubkeys_in_script(&input.script_sig));
+    }
+    for output in tx.output.iter() {
+        r.extend(parse_pubkeys_in_script(&output.script_pubkey));
+    }
+    r
+}
+
+pub fn parse_multisig(witness_script: &[u8]) -> Option<String> {
     let witness_script_len = witness_script.len();
     if witness_script.last() == Some(&opcodes::all::OP_CHECKMULTISIG.into_u8())
         && witness_script_len > 1

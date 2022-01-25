@@ -48,7 +48,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (send_4, receive_4) = sync_channel(blocks_size);
     let senders = [send_1, send_2, send_3, send_4];
 
-    let process = ProcessOpRet::new(receive_1);
+    let process = ProcessOpRet::new(receive_1, &params.target_dir);
     let process_handle = thread::spawn(move || process.start());
 
     let process_stats = ProcessStats::new(receive_2, &params.target_dir);
@@ -57,7 +57,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let process_bip158 = ProcessBip158Stats::new(receive_3, &params.target_dir);
     let process_bip158_handle = thread::spawn(move || process_bip158.start());
 
-    let process_tx_stats = ProcessTxStats::new(receive_4);
+    let process_tx_stats = ProcessTxStats::new(receive_4, &params.target_dir);
     let process_tx_stats_handle = thread::spawn(move || process_tx_stats.start());
 
     for block_extra in iter {
