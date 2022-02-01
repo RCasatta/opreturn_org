@@ -5,6 +5,7 @@ use blocks_iterator::log::{debug, info, log};
 use blocks_iterator::periodic_log_level;
 use blocks_iterator::BlockExtra;
 use chrono::Utc;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs::File;
@@ -14,7 +15,6 @@ use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
 use time::Duration;
-use serde::{Serialize, Deserialize};
 
 pub struct ProcessOpRet {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
@@ -54,15 +54,18 @@ pub struct ScriptType {
 }
 
 impl ProcessOpRet {
-    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, target_dir: &PathBuf, parse_pubkeys: bool) -> ProcessOpRet {
-        let opret_json_file =
-            File::create(format!("{}/opret.json", target_dir.display())).unwrap();
+    pub fn new(
+        receiver: Receiver<Arc<Option<BlockExtra>>>,
+        target_dir: &PathBuf,
+        parse_pubkeys: bool,
+    ) -> ProcessOpRet {
+        let opret_json_file = File::create(format!("{}/opret.json", target_dir.display())).unwrap();
         ProcessOpRet {
             receiver,
             op_return_data: OpReturnData::new(),
             script_type: ScriptType::new(),
             opret_json_file,
-            parse_pubkeys
+            parse_pubkeys,
         }
     }
 
@@ -88,8 +91,10 @@ impl ProcessOpRet {
 
         debug!("{:?}", self.script_type.multisig_tx);
 
-        let opret_json= serde_json::to_string(&self.op_return_data).unwrap();
-        self.opret_json_file.write_all(opret_json.as_bytes()).unwrap();
+        let opret_json = serde_json::to_string(&self.op_return_data).unwrap();
+        self.opret_json_file
+            .write_all(opret_json.as_bytes())
+            .unwrap();
 
         busy_time += now.elapsed().as_nanos();
         info!(
@@ -132,9 +137,13 @@ impl ProcessOpRet {
             if self.parse_pubkeys {
                 for p in parse_pubkeys_in_tx(tx) {
                     if p.compressed {
-                        self.op_return_data.compressed_starts_with.increment(p.to_bytes()[0] as usize);
+                        self.op_return_data
+                            .compressed_starts_with
+                            .increment(p.to_bytes()[0] as usize);
                     } else {
-                        self.op_return_data.uncompressed_starts_with.increment(p.to_bytes()[0] as usize);
+                        self.op_return_data
+                            .uncompressed_starts_with
+                            .increment(p.to_bytes()[0] as usize);
                     }
                 }
             }

@@ -9,8 +9,8 @@ pub use process_stats::{ProcessStats, Stats};
 pub use process_tx::{ProcessTxStats, TxStats};
 
 use blocks_iterator::bitcoin::blockdata::opcodes;
-use blocks_iterator::bitcoin::{PublicKey, Script, Transaction};
 use blocks_iterator::bitcoin::blockdata::script::Instruction;
+use blocks_iterator::bitcoin::{PublicKey, Script, Transaction};
 
 pub fn parse_pubkeys_in_script(script: &Script) -> Vec<PublicKey> {
     let mut r = vec![];

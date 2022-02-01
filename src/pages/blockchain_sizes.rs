@@ -22,11 +22,7 @@ pub fn blockchain_sizes(stats: &Stats, bip158: &Bip158Stats, tx_stats: &TxStats)
     let blockchain_labels: Vec<_> = blockchain.keys().cloned().collect();
     let filters_labels: Vec<_> = filters.keys().cloned().collect();
     assert_eq!(blockchain_labels, filters_labels);
-    let mut chart = Chart::new(
-        title.clone(),
-        Kind::Line,
-        blockchain_labels,
-    );
+    let mut chart = Chart::new(title.clone(), Kind::Line, blockchain_labels);
 
     let dataset = Dataset {
         label: "Blockchain size [MB]".to_string(),
@@ -68,7 +64,6 @@ pub fn blockchain_sizes(stats: &Stats, bip158: &Bip158Stats, tx_stats: &TxStats)
     };
     chart.add_dataset(dataset, None);
 
-
     let dataset = Dataset {
         label: "Script pubkey size [MB]".to_string(),
         data: script_pubkey.values().map(|e| *e >> 20).collect(),
@@ -80,7 +75,6 @@ pub fn blockchain_sizes(stats: &Stats, bip158: &Bip158Stats, tx_stats: &TxStats)
     chart.add_dataset(dataset, None);
 
     charts.push(chart);
-
 
     Page {
         title: title,

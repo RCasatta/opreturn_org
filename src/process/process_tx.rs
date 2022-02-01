@@ -5,6 +5,7 @@ use blocks_iterator::bitcoin::{EcdsaSigHashType, Transaction, Txid, VarInt};
 use blocks_iterator::log::{info, log};
 use blocks_iterator::periodic_log_level;
 use blocks_iterator::BlockExtra;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
@@ -12,7 +13,7 @@ use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
-use serde::{Serialize, Deserialize};
+use crate::bip69::is_bip69;
 
 pub struct ProcessTxStats {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
@@ -42,11 +43,15 @@ pub struct TxStats {
     pub rounded_amount_per_period: Counter,
     pub rounded_amount: u64,
 
+    pub is_bip69: [Counter;2],
 }
 
 //TODO split again this one slower together with read
 impl ProcessTxStats {
-    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, target_dir: &PathBuf) -> ProcessTxStats {
+    pub fn new(
+        receiver: Receiver<Arc<Option<BlockExtra>>>,
+        target_dir: &PathBuf,
+    ) -> ProcessTxStats {
         let tx_stats_json_file =
             File::create(format!("{}/tx_stats.json", target_dir.display())).unwrap();
         ProcessTxStats {
@@ -77,7 +82,9 @@ impl ProcessTxStats {
         }
 
         let tx_stats_json = serde_json::to_string(&self.stats).unwrap();
-        self.tx_stats_json_file.write_all(tx_stats_json.as_bytes()).unwrap();
+        self.tx_stats_json_file
+            .write_all(tx_stats_json.as_bytes())
+            .unwrap();
 
         busy_time += now.elapsed().as_nanos();
         info!(
@@ -144,9 +151,12 @@ impl ProcessTxStats {
                 self.stats.rounded_amount += 1;
             }
 
-            self.stats.script_pubkey_size_per_period.add(index, output.script_pubkey.len() as u64);
+            self.stats
+                .script_pubkey_size_per_period
+                .add(index, output.script_pubkey.len() as u64);
         }
 
+        self.stats.is_bip69.get_mut(is_bip69(&tx) as usize).expect("all keys inserted during init").increment(index);
     }
 }
 

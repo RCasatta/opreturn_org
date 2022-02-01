@@ -11,6 +11,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use std::{fs, io, thread};
 
+mod bip69;
 mod charts;
 mod counter;
 mod pages;
@@ -22,7 +23,7 @@ struct Params {
     #[structopt(short, long)]
     pub target_dir: PathBuf,
 
-    /// Where to produce the website
+    /// Parse pubkeys (which is expensive involving EC cryptography)
     #[structopt(short, long)]
     pub parse_pubkeys: bool,
 }

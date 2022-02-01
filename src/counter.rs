@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Counter(Vec<u64>);
@@ -12,7 +12,7 @@ impl Counter {
 
     fn get_mut(&mut self, index: usize) -> &mut u64 {
         if index >= self.0.len() {
-            self.0.resize(index+1,0);
+            self.0.resize(index + 1, 0);
         }
         self.0.get_mut(index).unwrap()
     }

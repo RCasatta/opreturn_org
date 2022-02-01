@@ -189,12 +189,10 @@ pub fn map_by_value(map: &HashMap<String, u64>) -> BTreeMap<String, u64> {
 #[cfg(test)]
 mod test {
     use crate::charts::test::{mock_lines_chart, mock_pie_chart};
-    use crate::charts::{Chart, Kind};
-    use crate::process_stats::Stats;
-    use crate::r#mod::{create_filter_and_blockchain_size, create_witness_stats, get_pages};
-    use crate::templates::page;
-    use std::collections::BTreeMap;
+    use crate::pages::{page, witness_stats};
+    use crate::process::Stats;
 
+    #[ignore]
     #[test]
     fn test_pie_page() {
         let chart = mock_pie_chart();
@@ -202,6 +200,7 @@ mod test {
         assert_eq!("", to_data_url(page, "text/html"));
     }
 
+    #[ignore]
     #[test]
     fn test_lines_page() {
         let chart = mock_lines_chart();
@@ -209,18 +208,7 @@ mod test {
         assert_eq!("", to_data_url(page, "text/html"));
     }
 
-    #[test]
-    fn test_create_bip_158_filter_size() {
-        let mut map = BTreeMap::new();
-        map.insert("200901".to_string(), 10);
-        map.insert("200902".to_string(), 15);
-        map.insert("200904".to_string(), 25);
-        map.insert("200905".to_string(), 45);
-
-        let page = create_filter_and_blockchain_size(&map);
-        assert_eq!("", to_data_url(page.to_html().into_string(), "text/html"));
-    }
-
+    #[ignore]
     #[test]
     fn test_witness_stats() {
         let mut stats = Stats::new();
@@ -231,7 +219,7 @@ mod test {
         stats.witness_byte_size.insert("200901".to_string(), 10);
         stats.witness_byte_size.insert("200902".to_string(), 15);
 
-        let page = create_witness_stats(&stats);
+        let page = witness_stats(&stats);
         assert_eq!("", to_data_url(page.to_html().into_string(), "text/html"));
     }
 

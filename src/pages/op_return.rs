@@ -11,11 +11,7 @@ pub fn op_return_per_month(opret: &OpReturnData) -> Page {
 
     let op_ret_per_period_labels: Vec<_> = op_ret_per_period.keys().cloned().collect();
 
-    let mut chart = Chart::new(
-        title.clone(),
-        Kind::Line,
-        op_ret_per_period_labels,
-    );
+    let mut chart = Chart::new(title.clone(), Kind::Line, op_ret_per_period_labels);
     let dataset = Dataset {
         label: "OP_RETURN [-]".to_string(),
         data: op_ret_per_period.values().cloned().collect(),

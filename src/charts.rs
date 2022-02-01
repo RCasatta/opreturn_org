@@ -207,7 +207,6 @@ impl Chart {
 pub mod test {
     use crate::charts::{Chart, Color, Dataset, Kind};
     use regex::Regex;
-    use serde::{Serialize, Serializer};
     use std::collections::BTreeMap;
 
     pub fn mock_pie_chart() -> Chart {
@@ -221,12 +220,19 @@ pub mod test {
             labels,
         );
         let data: Vec<_> = serie.values().cloned().collect();
-        chart.add_dataset(Dataset {
-            data,
-            label: "aaa".to_string(),
-            background_color: Color::Rainbow,
-            fill: true,
-        });
+        chart.add_dataset(
+            Dataset {
+                data,
+                label: "aaa".to_string(),
+                background_color: vec![Color::Yellow],
+                border_color: vec![],
+                fill: true,
+                hidden: false,
+                border_dash: None,
+                y_axis_id: None,
+            },
+            None,
+        );
 
         chart
     }
@@ -243,12 +249,19 @@ pub mod test {
             labels,
         );
         let data: Vec<_> = serie.values().cloned().collect();
-        chart.add_dataset(Dataset {
-            data,
-            label: "aaa".to_string(),
-            background_color: Color::Blue,
-            fill: true,
-        });
+        chart.add_dataset(
+            Dataset {
+                data,
+                label: "aaa".to_string(),
+                background_color: vec![Color::Blue],
+                border_color: vec![],
+                fill: true,
+                hidden: false,
+                border_dash: None,
+                y_axis_id: None,
+            },
+            None,
+        );
 
         chart
     }
@@ -261,6 +274,7 @@ pub mod test {
         assert_eq!(result, "azzo");
     }
 
+    #[ignore]
     #[test]
     fn test_chart() {
         let chart = mock_pie_chart();

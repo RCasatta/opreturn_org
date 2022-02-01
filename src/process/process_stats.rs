@@ -7,6 +7,7 @@ use blocks_iterator::bitcoin::{BlockHash, EcdsaSigHashType};
 use blocks_iterator::log::{info, log};
 use blocks_iterator::periodic_log_level;
 use blocks_iterator::BlockExtra;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Write;
@@ -14,7 +15,6 @@ use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
-use serde::{Serialize, Deserialize};
 
 pub struct ProcessStats {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
@@ -55,8 +55,7 @@ impl ProcessStats {
         let fee_file = File::create(format!("{}/fee.txt", target_dir.display())).unwrap();
         let blocks_len_file =
             File::create(format!("{}/blocks_len.txt", target_dir.display())).unwrap();
-        let stats_json_file =
-            File::create(format!("{}/stats.json", target_dir.display())).unwrap();
+        let stats_json_file = File::create(format!("{}/stats.json", target_dir.display())).unwrap();
         ProcessStats {
             receiver,
             sighash_file,
@@ -96,8 +95,10 @@ impl ProcessStats {
 
         self.stats.witness_byte_size.remove("000");
 
-        let stats_json= serde_json::to_string(&self.stats).unwrap();
-        self.stats_json_file.write_all(stats_json.as_bytes()).unwrap();
+        let stats_json = serde_json::to_string(&self.stats).unwrap();
+        self.stats_json_file
+            .write_all(stats_json.as_bytes())
+            .unwrap();
 
         busy_time += now.elapsed().as_nanos();
         info!(
@@ -170,8 +171,13 @@ impl ProcessStats {
                     }
                 }
                 //TODO should be witness serialized len
-                self.stats.witness_size_per_period.add(index, input.witness.iter().map(|e| e.len()).sum::<usize>() as u64);
-                self.stats.script_sig_size_per_period.add(index, input.script_sig.len() as u64);
+                self.stats.witness_size_per_period.add(
+                    index,
+                    input.witness.iter().map(|e| e.len()).sum::<usize>() as u64,
+                );
+                self.stats
+                    .script_sig_size_per_period
+                    .add(index, input.script_sig.len() as u64);
             }
             if !strange_sighash.is_empty() {
                 self.sighash_file
