@@ -1,24 +1,54 @@
-// Rust Bitcoin Library
-// Written in 2022 by
-//     Straylight <straylight_orbit AT protonmail DOT com>
-// To the extent possible under law, the author(s) have dedicated all
-// copyright and related and neighboring rights to this software to
-// the public domain worldwide. This software is distributed without
-// any warranty.
-//
-// You should have received a copy of the CC0 Public Domain Dedication
-// along with this software.
-// If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
-//
-
-//! BIP69 implementation.
-//!
-//! Implementation of BIP69 (Lexicographical Indexing of Transaction Inputs and Outputs).
-//! Original specification: https://github.com/bitcoin/bips/blob/master/bip-0069.mediawiki
+use crate::charts::{Chart, Color, Dataset, Kind};
+use crate::counter::cumulative;
+use crate::pages::{to_label_map, Page};
+use crate::process::TxStats;
 
 use core::cmp::Ordering;
 
 use blocks_iterator::bitcoin::{Transaction, TxIn, TxOut};
+
+pub fn bip69(tx_stats: &TxStats) -> Page {
+    let title = "BIP69 adoption".to_string();
+
+    let (vec, mul) = tx_stats.is_bip69[0].finish();
+    let no_bip69 = to_label_map(&cumulative(&vec), mul);
+    let (vec, mul) = tx_stats.is_bip69[1].finish();
+    let yes_bip69 = to_label_map(&cumulative(&vec), mul);
+
+    let mut charts = vec![];
+
+    let labels: Vec<_> = no_bip69.keys().cloned().collect();
+    let mut chart = Chart::new(title.clone(), Kind::Line, labels);
+
+    let dataset = Dataset {
+        label: "yes".to_string(),
+        data: yes_bip69.values().cloned().collect(),
+        background_color: vec![Color::Orange],
+        border_color: vec![Color::Orange],
+        fill: false,
+        ..Default::default()
+    };
+    chart.add_dataset(dataset, None);
+
+    let dataset = Dataset {
+        label: "no".to_string(),
+        data: no_bip69.values().cloned().collect(),
+        background_color: vec![Color::Red],
+        border_color: vec![Color::Red],
+        fill: false,
+        ..Default::default()
+    };
+    chart.add_dataset(dataset, None);
+
+    charts.push(chart);
+
+    Page {
+        title,
+        description: "BIP69 compliance, ordered transaction inputs and outputs".to_string(),
+        permalink: "bip69".to_string(),
+        charts,
+    }
+}
 
 fn cmp_inputs(a: &TxIn, b: &TxIn) -> Ordering {
     match a
@@ -34,10 +64,6 @@ fn cmp_inputs(a: &TxIn, b: &TxIn) -> Ordering {
     }
 }
 
-/// Lexicographically sorts a vector of transaction inputs according to BIP69.
-pub fn sort_inputs(inputs: &mut Vec<TxIn>) {
-    inputs.sort_by(cmp_inputs)
-}
 
 fn cmp_outputs(a: &TxOut, b: &TxOut) -> Ordering {
     match a.value.cmp(&b.value) {
@@ -59,28 +85,30 @@ pub fn is_bip69(tx: &Transaction) -> bool {
     !(inputs_not_ordered || outputs_not_ordered)
 }
 
-/// Lexicographically sorts a vector of transaction outputs according to BIP69.
-pub fn sort_outputs(outputs: &mut Vec<TxOut>) {
-    outputs.sort_by(cmp_outputs)
-}
 
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
 
-    use crate::bip69::is_bip69;
+    use crate::pages::bip69::{cmp_inputs, cmp_outputs, is_bip69};
     use blocks_iterator::bitcoin::consensus::deserialize;
     use blocks_iterator::bitcoin::hashes::hex::FromHex;
     use blocks_iterator::bitcoin::{OutPoint, Script, Transaction, TxIn, TxOut};
 
-    use super::{sort_inputs, sort_outputs};
+    fn sort_outputs(outputs: &mut Vec<TxOut>) {
+        outputs.sort_by(cmp_outputs)
+    }
+
+    fn sort_inputs(inputs: &mut Vec<TxIn>) {
+        inputs.sort_by(cmp_inputs)
+    }
 
     #[test]
     fn test_tx() {
         let v = Vec::<u8>::from_hex("010000000255605dc6f5c3dc148b6da58442b0b2cd422be385eab2ebea4119ee9c268d28350000000049483045022100aa46504baa86df8a33b1192b1b9367b4d729dc41e389f2c04f3e5c7f0559aae702205e82253a54bf5c4f65b7428551554b2045167d6d206dfe6a2e198127d3f7df1501ffffffff55605dc6f5c3dc148b6da58442b0b2cd422be385eab2ebea4119ee9c268d2835010000004847304402202329484c35fa9d6bb32a55a70c0982f606ce0e3634b69006138683bcd12cbb6602200c28feb1e2555c3210f1dddb299738b4ff8bbe9667b68cb8764b5ac17b7adf0001ffffffff0200e1f505000000004341046a0765b5865641ce08dd39690aade26dfbf5511430ca428a3089261361cef170e3929a68aee3d8d4848b0c5111b0a37b82b86ad559fd2a745b44d8e8d9dfdc0cac00180d8f000000004341044a656f065871a353f216ca26cef8dde2f03e8c16202d2e8ad769f02032cb86a5eb5e56842e92e19141d60a01928f8dd2c875a390f67c1f6c94cfc617c0ea45afac00000000").unwrap();
         let tx: Transaction = deserialize(&v).unwrap();
-        assert_eq!(tx.input.len(),2);
-        assert_eq!(tx.output.len(),2);
+        assert_eq!(tx.input.len(), 2);
+        assert_eq!(tx.output.len(), 2);
         assert!(is_bip69(&tx));
 
         let mut tx_swap_inputs = tx.clone();

@@ -11,7 +11,6 @@ use std::sync::Arc;
 use std::time::Instant;
 use std::{fs, io, thread};
 
-mod bip69;
 mod charts;
 mod counter;
 mod pages;

@@ -1,4 +1,5 @@
 use crate::counter::Counter;
+use crate::pages::bip69::is_bip69;
 use crate::process::{block_index, compress_amount, encoded_length_7bit_varint};
 use blocks_iterator::bitcoin::consensus::{encode, Decodable};
 use blocks_iterator::bitcoin::{EcdsaSigHashType, Transaction, Txid, VarInt};
@@ -13,7 +14,6 @@ use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
-use crate::bip69::is_bip69;
 
 pub struct ProcessTxStats {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
@@ -43,7 +43,7 @@ pub struct TxStats {
     pub rounded_amount_per_period: Counter,
     pub rounded_amount: u64,
 
-    pub is_bip69: [Counter;2],
+    pub is_bip69: [Counter; 2],
 }
 
 //TODO split again this one slower together with read
@@ -156,7 +156,11 @@ impl ProcessTxStats {
                 .add(index, output.script_pubkey.len() as u64);
         }
 
-        self.stats.is_bip69.get_mut(is_bip69(&tx) as usize).expect("all keys inserted during init").increment(index);
+        self.stats
+            .is_bip69
+            .get_mut(is_bip69(&tx) as usize)
+            .expect("all keys inserted during init")
+            .increment(index);
     }
 }
 

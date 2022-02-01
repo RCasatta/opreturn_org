@@ -1,3 +1,4 @@
+pub mod bip69;
 mod blockchain_sizes;
 mod number_of_inputs_and_outputs;
 mod op_return;
@@ -17,6 +18,7 @@ use crate::process::{Bip158Stats, OpReturnData, ScriptType, Stats, TxStats};
 use maud::{html, Markup, PreEscaped, DOCTYPE};
 use std::collections::{BTreeMap, HashMap};
 
+pub use bip69::bip69;
 pub use blockchain_sizes::blockchain_sizes;
 pub use number_of_inputs_and_outputs::number_of_inputs_and_outputs;
 pub use op_return::op_return_per_month;
@@ -168,6 +170,7 @@ pub fn get_pages(
     pages.push(spent_same_block(&stats, &tx_stats));
     pages.push(sighash_types(&stats));
     pages.push(total_tx_outputs_inputs(&tx_stats));
+    pages.push(bip69(&tx_stats));
 
     pages
 }
