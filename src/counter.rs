@@ -53,9 +53,17 @@ pub fn merge_until(data: &[u64], max_elem: usize, mul: usize) -> (Vec<u64>, usiz
 }
 
 pub fn perc_1000(over: &[u64], under: &[u64]) -> Vec<u64> {
+    perc(over,under, 1000.0)
+}
+
+pub fn perc_100(over: &[u64], under: &[u64]) -> Vec<u64> {
+    perc(over,under, 100.0)
+}
+
+pub fn perc(over: &[u64], under: &[u64], fraction: f64) -> Vec<u64> {
     over.iter()
         .zip(under.iter())
-        .map(|(over, under)| ((*over as f64 / *under as f64) * 1000.0) as u64)
+        .map(|(over, under)| ((*over as f64 / *under as f64) * fraction) as u64)
         .collect()
 }
 

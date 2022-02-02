@@ -1,5 +1,5 @@
 use crate::charts::{Chart, Color, Dataset, Kind};
-use crate::counter::cumulative;
+use crate::counter::{cumulative, perc_100};
 use crate::pages::{to_label_map, Page};
 use crate::process::TxStats;
 
@@ -10,10 +10,10 @@ use blocks_iterator::bitcoin::{Transaction, TxIn, TxOut};
 pub fn bip69(tx_stats: &TxStats) -> Page {
     let title = "BIP69 adoption".to_string();
 
-    let (vec, mul) = tx_stats.is_bip69[0].finish();
-    let no_bip69 = to_label_map(&cumulative(&vec), mul);
-    let (vec, mul) = tx_stats.is_bip69[1].finish();
-    let yes_bip69 = to_label_map(&cumulative(&vec), mul);
+    let (no_vec, mul) = tx_stats.is_bip69[0].finish();
+    let no_bip69 = to_label_map(&cumulative(&no_vec), mul);
+    let (yes_vec, mul) = tx_stats.is_bip69[1].finish();
+    let yes_bip69 = to_label_map(&cumulative(&yes_vec), mul);
 
     let mut charts = vec![];
 
@@ -39,6 +39,21 @@ pub fn bip69(tx_stats: &TxStats) -> Page {
         ..Default::default()
     };
     chart.add_dataset(dataset, None);
+
+    let sum_vec: Vec<u64> = yes_vec.iter().zip(no_vec.iter()).map(|(a,b)| a+b).collect();
+    let perc = perc_100(
+        &yes_vec,
+        &sum_vec,
+    );
+    let dataset = Dataset {
+        label: "% compliance".to_string(),
+        data: perc,
+        background_color: vec![Color::Green],
+        border_color: vec![Color::Green],
+        border_dash: Some([5, 5]),
+        ..Default::default()
+    };
+    chart.add_dataset(dataset, Some("y2".to_string()));
 
     charts.push(chart);
 
