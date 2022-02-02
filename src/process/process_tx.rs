@@ -1,5 +1,5 @@
 use crate::counter::Counter;
-use crate::pages::bip69::is_bip69;
+use crate::pages::bip69::{has_more_than_one_input_output, is_bip69};
 use crate::process::{block_index, compress_amount, encoded_length_7bit_varint};
 use blocks_iterator::bitcoin::consensus::{encode, Decodable};
 use blocks_iterator::bitcoin::{EcdsaSigHashType, Transaction, Txid, VarInt};
@@ -156,11 +156,13 @@ impl ProcessTxStats {
                 .add(index, output.script_pubkey.len() as u64);
         }
 
-        self.stats
-            .is_bip69
-            .get_mut(is_bip69(&tx) as usize)
-            .expect("all keys inserted during init")
-            .increment(index);
+        if has_more_than_one_input_output(&tx) {
+            self.stats
+                .is_bip69
+                .get_mut(is_bip69(&tx) as usize)
+                .expect("all keys inserted during init")
+                .increment(index);
+        }
     }
 }
 

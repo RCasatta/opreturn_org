@@ -73,6 +73,12 @@ fn cmp_outputs(a: &TxOut, b: &TxOut) -> Ordering {
     }
 }
 
+/// tx having 1-input/1-output or 1-input/0-output are bip69 compliance but they haven't a chance
+/// to be non compliant, so they are excluded from the counting
+pub fn has_more_than_one_input_output(tx: &Transaction) -> bool {
+    !(tx.input.len() <= 1 && tx.output.len() <= 1)
+}
+
 pub fn is_bip69(tx: &Transaction) -> bool {
     let inputs_not_ordered = tx
         .input
@@ -90,10 +96,13 @@ pub fn is_bip69(tx: &Transaction) -> bool {
 mod tests {
     use std::str::FromStr;
 
-    use crate::pages::bip69::{cmp_inputs, cmp_outputs, is_bip69};
+    use crate::pages::bip69::{cmp_inputs, cmp_outputs, has_more_than_one_input_output, is_bip69};
     use blocks_iterator::bitcoin::consensus::deserialize;
     use blocks_iterator::bitcoin::hashes::hex::FromHex;
     use blocks_iterator::bitcoin::{OutPoint, Script, Transaction, TxIn, TxOut};
+
+    // tx 28204cad1d7fc1d199e8ef4fa22f182de6258a3eaafe1bbe56ebdcacd3069a5f 2-inputs/2-outputs
+    const TX: &'static str = "010000000255605dc6f5c3dc148b6da58442b0b2cd422be385eab2ebea4119ee9c268d28350000000049483045022100aa46504baa86df8a33b1192b1b9367b4d729dc41e389f2c04f3e5c7f0559aae702205e82253a54bf5c4f65b7428551554b2045167d6d206dfe6a2e198127d3f7df1501ffffffff55605dc6f5c3dc148b6da58442b0b2cd422be385eab2ebea4119ee9c268d2835010000004847304402202329484c35fa9d6bb32a55a70c0982f606ce0e3634b69006138683bcd12cbb6602200c28feb1e2555c3210f1dddb299738b4ff8bbe9667b68cb8764b5ac17b7adf0001ffffffff0200e1f505000000004341046a0765b5865641ce08dd39690aade26dfbf5511430ca428a3089261361cef170e3929a68aee3d8d4848b0c5111b0a37b82b86ad559fd2a745b44d8e8d9dfdc0cac00180d8f000000004341044a656f065871a353f216ca26cef8dde2f03e8c16202d2e8ad769f02032cb86a5eb5e56842e92e19141d60a01928f8dd2c875a390f67c1f6c94cfc617c0ea45afac00000000";
 
     fn sort_outputs(outputs: &mut Vec<TxOut>) {
         outputs.sort_by(cmp_outputs)
@@ -103,10 +112,26 @@ mod tests {
         inputs.sort_by(cmp_inputs)
     }
 
+    fn tx() -> Transaction {
+        let v = Vec::<u8>::from_hex(TX).unwrap();
+        deserialize(&v).unwrap()
+    }
+
+    #[test]
+    fn test_has_more_than_one_input_output() {
+        let mut tx = tx();
+        assert!(has_more_than_one_input_output(&tx));
+        tx.input.pop();
+        assert!(has_more_than_one_input_output(&tx));
+        tx.output.pop();
+        assert!(!has_more_than_one_input_output(&tx));
+        tx.output.pop();
+        assert!(!has_more_than_one_input_output(&tx));
+    }
+
     #[test]
     fn test_tx() {
-        let v = Vec::<u8>::from_hex("010000000255605dc6f5c3dc148b6da58442b0b2cd422be385eab2ebea4119ee9c268d28350000000049483045022100aa46504baa86df8a33b1192b1b9367b4d729dc41e389f2c04f3e5c7f0559aae702205e82253a54bf5c4f65b7428551554b2045167d6d206dfe6a2e198127d3f7df1501ffffffff55605dc6f5c3dc148b6da58442b0b2cd422be385eab2ebea4119ee9c268d2835010000004847304402202329484c35fa9d6bb32a55a70c0982f606ce0e3634b69006138683bcd12cbb6602200c28feb1e2555c3210f1dddb299738b4ff8bbe9667b68cb8764b5ac17b7adf0001ffffffff0200e1f505000000004341046a0765b5865641ce08dd39690aade26dfbf5511430ca428a3089261361cef170e3929a68aee3d8d4848b0c5111b0a37b82b86ad559fd2a745b44d8e8d9dfdc0cac00180d8f000000004341044a656f065871a353f216ca26cef8dde2f03e8c16202d2e8ad769f02032cb86a5eb5e56842e92e19141d60a01928f8dd2c875a390f67c1f6c94cfc617c0ea45afac00000000").unwrap();
-        let tx: Transaction = deserialize(&v).unwrap();
+        let tx = tx();
         assert_eq!(tx.input.len(), 2);
         assert_eq!(tx.output.len(), 2);
         assert!(is_bip69(&tx));
