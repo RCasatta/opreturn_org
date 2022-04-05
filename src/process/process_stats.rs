@@ -4,9 +4,8 @@ use blocks_iterator::bitcoin::blockdata::script::Instruction;
 use blocks_iterator::bitcoin::consensus::{deserialize, encode, Decodable};
 use blocks_iterator::bitcoin::hashes::hex::FromHex;
 use blocks_iterator::bitcoin::{BlockHash, EcdsaSigHashType};
-use blocks_iterator::log::{info, log};
-use blocks_iterator::periodic_log_level;
-use blocks_iterator::BlockExtra;
+use blocks_iterator::log::info;
+use blocks_iterator::{BlockExtra, PeriodCounter};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
@@ -14,7 +13,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 pub struct ProcessStats {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
@@ -69,6 +68,7 @@ impl ProcessStats {
     pub fn start(mut self) -> Stats {
         let mut busy_time = 0u128;
         let mut now = Instant::now();
+        let mut period = PeriodCounter::new(Duration::from_secs(10));
         loop {
             busy_time += now.elapsed().as_nanos();
             let received = self.receiver.recv().expect("cannot receive fee block");
@@ -76,11 +76,9 @@ impl ProcessStats {
             match *received {
                 Some(ref block) => {
                     self.process_block(&block);
-                    log!(
-                        periodic_log_level(block.height, 10_000),
-                        "busy_time:{}",
-                        (busy_time / 1_000_000_000)
-                    );
+                    if period.period_elapsed().is_some() {
+                        info!("busy_time:{}", (busy_time / 1_000_000_000));
+                    }
                 }
                 None => break,
             }
@@ -276,7 +274,7 @@ impl Decodable for SignatureHash {
         }
 
         let sighash_u8 = u8::consensus_decode(&mut d)?;
-        let sighash = EcdsaSigHashType::from_u32_consensus(sighash_u8 as u32);
+        let sighash = EcdsaSigHashType::from_consensus(sighash_u8 as u32);
 
         Ok(SignatureHash(sighash))
     }

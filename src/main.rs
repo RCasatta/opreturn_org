@@ -1,14 +1,14 @@
 use crate::process::{ProcessBip158Stats, ProcessOpRet, ProcessStats, ProcessTxStats};
-use blocks_iterator::log::{info, log};
+use blocks_iterator::log::info;
 use blocks_iterator::structopt::StructOpt;
-use blocks_iterator::{periodic_log_level, PipeIterator};
+use blocks_iterator::{PeriodCounter, PipeIterator};
 use chrono::format::StrftimeItems;
 use chrono::Utc;
 use env_logger::Env;
 use std::path::PathBuf;
 use std::sync::mpsc::sync_channel;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use std::{fs, io, thread};
 
 mod charts;
@@ -44,7 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let blocks_size = 3;
 
-    let iter = PipeIterator::new(io::stdin(), io::stdout());
+    let iter = PipeIterator::new(io::stdin(), None);
 
     let (send_1, receive_1) = sync_channel(blocks_size);
     let (send_2, receive_2) = sync_channel(blocks_size);
@@ -64,14 +64,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let process_tx_stats = ProcessTxStats::new(receive_4, &params.target_dir);
     let process_tx_stats_handle = thread::spawn(move || process_tx_stats.start());
 
+    let mut period = PeriodCounter::new(Duration::from_secs(10));
+
     for block_extra in iter {
-        log!(
-            periodic_log_level(block_extra.height, 10_000),
-            "# {:7} {} {:?}",
-            block_extra.height,
-            block_extra.block_hash,
-            block_extra.fee()
-        );
+        if period.period_elapsed().is_some() {
+            info!(
+                "# {:7} {} {:?}",
+                block_extra.height,
+                block_extra.block_hash,
+                block_extra.fee()
+            );
+        }
         let block_extra = Arc::new(Some(block_extra));
         for sender in senders.iter() {
             sender.send(block_extra.clone()).unwrap();

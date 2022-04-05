@@ -3,9 +3,9 @@ use crate::pages::bip69::{has_more_than_one_input_output, is_bip69};
 use crate::process::{block_index, compress_amount, encoded_length_7bit_varint};
 use blocks_iterator::bitcoin::consensus::{encode, Decodable};
 use blocks_iterator::bitcoin::{EcdsaSigHashType, Transaction, Txid, VarInt};
-use blocks_iterator::log::{info, log};
-use blocks_iterator::periodic_log_level;
+use blocks_iterator::log::info;
 use blocks_iterator::BlockExtra;
+use blocks_iterator::PeriodCounter;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
@@ -13,7 +13,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 pub struct ProcessTxStats {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
@@ -64,6 +64,7 @@ impl ProcessTxStats {
     pub fn start(mut self) -> TxStats {
         let mut busy_time = 0u128;
         let mut now = Instant::now();
+        let mut period = PeriodCounter::new(Duration::from_secs(10));
         loop {
             busy_time += now.elapsed().as_nanos();
             let received = self.receiver.recv().expect("cannot receive fee block");
@@ -71,11 +72,9 @@ impl ProcessTxStats {
             match *received {
                 Some(ref block) => {
                     self.process_block(&block);
-                    log!(
-                        periodic_log_level(block.height, 10_000),
-                        "busy_time:{}",
-                        (busy_time / 1_000_000_000)
-                    );
+                    if period.period_elapsed().is_some() {
+                        info!("busy_time:{}", (busy_time / 1_000_000_000));
+                    }
                 }
                 None => break,
             }
@@ -104,7 +103,7 @@ impl ProcessTxStats {
     }
 
     fn process_tx(&mut self, tx: &Transaction, index: usize) {
-        let weight = tx.get_weight() as u64;
+        let weight = tx.weight() as u64;
         let outputs = tx.output.len() as u64;
         let inputs = tx.input.len() as u64;
         self.stats.total_outputs_per_period.add(index, outputs);
@@ -205,7 +204,7 @@ impl Decodable for SignatureHash {
         }
 
         let sighash_u8 = u8::consensus_decode(&mut d)?;
-        let sighash = EcdsaSigHashType::from_u32_consensus(sighash_u8 as u32);
+        let sighash = EcdsaSigHashType::from_consensus(sighash_u8 as u32);
 
         Ok(SignatureHash(sighash))
     }

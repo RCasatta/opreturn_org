@@ -3,9 +3,9 @@ use crate::process::block_index;
 use blocks_iterator::bitcoin::util::bip158::BlockFilter;
 use blocks_iterator::bitcoin::util::bip158::Error;
 use blocks_iterator::bitcoin::Script;
-use blocks_iterator::log::{debug, info, log};
-use blocks_iterator::periodic_log_level;
+use blocks_iterator::log::{debug, info};
 use blocks_iterator::BlockExtra;
+use blocks_iterator::PeriodCounter;
 use std::collections::HashSet;
 use std::convert::TryInto;
 use std::fs::File;
@@ -14,6 +14,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
+use std::time::Duration;
 use std::time::Instant;
 use std::{env, fs};
 
@@ -65,6 +66,7 @@ impl ProcessBip158Stats {
     pub fn start(mut self) -> Bip158Stats {
         let mut busy_time = 0u128;
         let mut now = Instant::now();
+        let mut period = PeriodCounter::new(Duration::from_secs(10));
         loop {
             busy_time += now.elapsed().as_nanos();
             let received = self.receiver.recv().expect("cannot receive fee block");
@@ -72,11 +74,9 @@ impl ProcessBip158Stats {
             match *received {
                 Some(ref block) => {
                     self.process_block(&block);
-                    log!(
-                        periodic_log_level(block.height, 10_000),
-                        "busy_time:{}",
-                        (busy_time / 1_000_000_000)
-                    );
+                    if period.period_elapsed().is_some() {
+                        info!("busy_time:{}", (busy_time / 1_000_000_000));
+                    }
                 }
                 None => break,
             }

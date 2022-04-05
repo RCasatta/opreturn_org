@@ -1,9 +1,9 @@
 use crate::counter::Counter;
 use crate::process::{block_index, parse_multisig, parse_pubkeys_in_tx};
 use blocks_iterator::bitcoin::Script;
-use blocks_iterator::log::{debug, info, log};
-use blocks_iterator::periodic_log_level;
+use blocks_iterator::log::{debug, info};
 use blocks_iterator::BlockExtra;
+use blocks_iterator::PeriodCounter;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -72,6 +72,7 @@ impl ProcessOpRet {
     pub fn start(mut self) -> (OpReturnData, ScriptType) {
         let mut busy_time = 0u128;
         let mut now = Instant::now();
+        let mut period = PeriodCounter::new(std::time::Duration::from_secs(10));
         loop {
             busy_time += now.elapsed().as_nanos();
             let received = self.receiver.recv().expect("cannot receive fee block");
@@ -79,11 +80,9 @@ impl ProcessOpRet {
             match *received {
                 Some(ref block) => {
                     self.process_block(&block);
-                    log!(
-                        periodic_log_level(block.height, 10_000),
-                        "busy_time:{}",
-                        (busy_time / 1_000_000_000)
-                    );
+                    if period.period_elapsed().is_some() {
+                        info!("busy_time:{}", (busy_time / 1_000_000_000));
+                    }
                 }
                 None => break,
             }
