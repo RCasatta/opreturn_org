@@ -3,7 +3,7 @@ use crate::process::block_index;
 use blocks_iterator::bitcoin::blockdata::script::Instruction;
 use blocks_iterator::bitcoin::consensus::{deserialize, encode, Decodable};
 use blocks_iterator::bitcoin::hashes::hex::FromHex;
-use blocks_iterator::bitcoin::{BlockHash, EcdsaSigHashType};
+use blocks_iterator::bitcoin::{BlockHash, EcdsaSighashType};
 use blocks_iterator::log::info;
 use blocks_iterator::{BlockExtra, PeriodCounter};
 use serde::{Deserialize, Serialize};
@@ -107,15 +107,15 @@ impl ProcessStats {
         self.stats
     }
 
-    fn process_block(&mut self, block: &BlockExtra) {
-        let index = block_index(block.height);
+    fn process_block(&mut self, block_extra: &BlockExtra) {
+        let index = block_index(block_extra.height);
 
         self.stats
             .block_size_per_period
-            .add(index, block.size as u64);
+            .add(index, block_extra.size as u64);
         let mut fees_from_this_block = vec![];
-        let tx_hashes: HashSet<_> = block.block.txdata.iter().map(|tx| tx.txid()).collect();
-        for tx in block.block.txdata.iter() {
+        let tx_hashes: HashSet<_> = block_extra.iter_tx().map(|e| e.0).collect();
+        for tx in block_extra.block.txdata.iter() {
             let mut strange_sighash = vec![];
             let mut count_inputs_in_block = 0;
 
@@ -135,7 +135,7 @@ impl ProcessStats {
                                 .entry(format!("{:?}", sighash.0))
                                 .or_insert(0) += 1;
                             match sighash.0 {
-                                EcdsaSigHashType::All | EcdsaSigHashType::AllPlusAnyoneCanPay => (),
+                                EcdsaSighashType::All | EcdsaSighashType::AllPlusAnyoneCanPay => (),
                                 _ => strange_sighash.push((sighash.0, input.sequence)),
                             };
                         }
@@ -163,7 +163,7 @@ impl ProcessStats {
                             .entry(format!("{:?}", sighash.0))
                             .or_insert(0) += 1;
                         match sighash.0 {
-                            EcdsaSigHashType::All | EcdsaSigHashType::AllPlusAnyoneCanPay => (),
+                            EcdsaSighashType::All | EcdsaSighashType::AllPlusAnyoneCanPay => (),
                             _ => strange_sighash.push((sighash.0, input.sequence)),
                         };
                     }
@@ -183,12 +183,12 @@ impl ProcessStats {
                     .unwrap();
             }
             if count_inputs_in_block == tx.input.len() {
-                fees_from_this_block.push(block.tx_fee(&tx).unwrap())
+                fees_from_this_block.push(block_extra.tx_fee(&tx).unwrap())
             }
         }
-        let tx_len = block.block.txdata.len();
+        let tx_len = block_extra.block.txdata.len();
         let tx_with_fee_in_block_len = fees_from_this_block.len();
-        let fee = block.fee().unwrap();
+        let fee = block_extra.fee().unwrap();
         let average_fee = fee as f64 / tx_len as f64;
         let estimated_average_fee = if tx_with_fee_in_block_len == 0 {
             0f64
@@ -201,7 +201,7 @@ impl ProcessStats {
             .write(
                 format!(
                     "{},{},{},{},{},{},{}\n",
-                    block.height,
+                    block_extra.height,
                     tx_len,
                     fee,
                     average_fee,
@@ -213,16 +213,16 @@ impl ProcessStats {
             )
             .unwrap();
 
-        let hash = block.block.header.block_hash();
+        let hash = block_extra.block.header.block_hash();
         if self.stats.min_hash > hash {
             self.stats.min_hash = hash;
         }
-        let size = u64::from(block.size);
+        let size = u64::from(block_extra.size);
         if self.stats.max_block_size.0 < size {
             self.stats.max_block_size = (size, Some(hash));
         }
 
-        let l = block.block.txdata.len() as u64;
+        let l = block_extra.block.txdata.len() as u64;
         self.blocks_len_file
             .write(format!("{}\n", l).as_bytes())
             .unwrap();
@@ -247,7 +247,7 @@ impl Stats {
     }
 }
 
-struct SignatureHash(pub EcdsaSigHashType);
+struct SignatureHash(pub EcdsaSighashType);
 
 impl Decodable for SignatureHash {
     fn consensus_decode<D: std::io::Read>(mut d: D) -> Result<Self, encode::Error> {
@@ -274,7 +274,7 @@ impl Decodable for SignatureHash {
         }
 
         let sighash_u8 = u8::consensus_decode(&mut d)?;
-        let sighash = EcdsaSigHashType::from_consensus(sighash_u8 as u32);
+        let sighash = EcdsaSighashType::from_consensus(sighash_u8 as u32);
 
         Ok(SignatureHash(sighash))
     }

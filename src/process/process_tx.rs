@@ -2,7 +2,7 @@ use crate::counter::Counter;
 use crate::pages::bip69::{has_more_than_one_input_output, is_bip69};
 use crate::process::{block_index, compress_amount, encoded_length_7bit_varint};
 use blocks_iterator::bitcoin::consensus::{encode, Decodable};
-use blocks_iterator::bitcoin::{EcdsaSigHashType, Transaction, Txid, VarInt};
+use blocks_iterator::bitcoin::{EcdsaSighashType, Transaction, Txid, VarInt};
 use blocks_iterator::log::info;
 use blocks_iterator::BlockExtra;
 use blocks_iterator::PeriodCounter;
@@ -44,6 +44,9 @@ pub struct TxStats {
     pub rounded_amount: u64,
 
     pub is_bip69: [Counter; 2],
+
+    /// number of txs with a nlocktime higher than confirmed block height minus 6
+    pub non_deeply_reorgable: Counter,
 }
 
 //TODO split again this one slower together with read
@@ -94,22 +97,21 @@ impl ProcessTxStats {
         self.stats
     }
 
-    fn process_block(&mut self, block: &BlockExtra) {
-        let index = block_index(block.height);
+    fn process_block(&mut self, block_extra: &BlockExtra) {
+        let index = block_index(block_extra.height);
 
-        for tx in block.block.txdata.iter() {
-            self.process_tx(&tx, index);
+        for (txid, tx) in block_extra.iter_tx() {
+            self.process_tx(*txid, &tx, index, block_extra.height);
         }
     }
 
-    fn process_tx(&mut self, tx: &Transaction, index: usize) {
+    fn process_tx(&mut self, txid: Txid, tx: &Transaction, index: usize, block_height: u32) {
         let weight = tx.weight() as u64;
         let outputs = tx.output.len() as u64;
         let inputs = tx.input.len() as u64;
         self.stats.total_outputs_per_period.add(index, outputs);
         self.stats.total_inputs_per_period.add(index, inputs);
         self.stats.total_tx_per_period.increment(index);
-        let txid = tx.txid();
         self.stats.total_outputs += outputs as u64;
         self.stats.total_inputs += inputs as u64;
         if self.stats.max_outputs_per_tx.0 < outputs {
@@ -162,6 +164,10 @@ impl ProcessTxStats {
                 .expect("all keys inserted during init")
                 .increment(index);
         }
+
+        if tx.lock_time > block_height.saturating_sub(6) {
+            self.stats.non_deeply_reorgable.increment(index);
+        }
     }
 }
 
@@ -177,7 +183,7 @@ impl TxStats {
     }
 }
 
-struct SignatureHash(pub EcdsaSigHashType);
+struct SignatureHash(pub EcdsaSighashType);
 
 impl Decodable for SignatureHash {
     fn consensus_decode<D: std::io::Read>(mut d: D) -> Result<Self, encode::Error> {
@@ -204,7 +210,7 @@ impl Decodable for SignatureHash {
         }
 
         let sighash_u8 = u8::consensus_decode(&mut d)?;
-        let sighash = EcdsaSigHashType::from_consensus(sighash_u8 as u32);
+        let sighash = EcdsaSighashType::from_consensus(sighash_u8 as u32);
 
         Ok(SignatureHash(sighash))
     }

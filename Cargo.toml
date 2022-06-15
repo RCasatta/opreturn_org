@@ -9,8 +9,8 @@ time = "0.1.42"
 hex = "0.3.2"
 glob = "0.2.11"
 #blocks_iterator = "0.10.0"
-blocks_iterator = { git="https://github.com/RCasatta/blocks_iterator", rev="10e921d6bcb7c737a02f721753a6ac0df6616fbd" }
-#blocks_iterator = { path="../blocks_iterator" }
+#blocks_iterator = { git="https://github.com/RCasatta/blocks_iterator", rev="10e921d6bcb7c737a02f721753a6ac0df6616fbd" }
+blocks_iterator = { path="../blocks_iterator" }
 env_logger = "0.9.0"
 structopt = "0.3.21" # cannot use re-exported cause I need macros
 maud = "0.22.3"

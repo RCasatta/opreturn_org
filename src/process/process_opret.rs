@@ -104,18 +104,18 @@ impl ProcessOpRet {
         (self.op_return_data, self.script_type)
     }
 
-    fn process_block(&mut self, block: &BlockExtra) {
-        let time = block.block.header.time;
-        let index = block_index(block.height);
+    fn process_block(&mut self, block_extra: &BlockExtra) {
+        let time = block_extra.block.header.time;
+        let index = block_index(block_extra.height);
 
-        for tx in block.block.txdata.iter() {
+        for (txid, tx) in block_extra.iter_tx() {
             for output in tx.output.iter() {
                 if output.script_pubkey.is_op_return() {
                     self.process_op_return_script(
                         &output.script_pubkey,
                         time,
                         index,
-                        block.tx_fee(&tx).unwrap(),
+                        block_extra.tx_fee(&tx).unwrap(),
                     );
                 }
                 self.process_output_script(&output.script_pubkey, index);
@@ -126,7 +126,7 @@ impl ProcessOpRet {
                         if self.script_type.multisig_tx.get(&key).is_none() {
                             self.script_type
                                 .multisig_tx
-                                .insert(key.clone(), format!("{}", tx.txid()));
+                                .insert(key.clone(), format!("{}", txid));
                         }
                         *self.script_type.multisig.entry(key).or_insert(0) += 1;
                     }

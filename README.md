@@ -5,7 +5,7 @@ Generate statistic charts about the Bitcoin blockchain.
 # Test
 
 ```
-cat testnet_blocks.dat | cargo run -- --target-dir /tmp >>/dev/null
+../blocks_iterator/target/release/blocks_iterator --network testnet --blocks-dir $HOME/.bitcoin/testnet3/blocks/ | ./target/release/opreturn_org --target-dir /tmp/
 ```
 
 # TODO

@@ -1,5 +1,6 @@
 pub mod bip69;
 mod blockchain_sizes;
+mod locktime;
 mod number_of_inputs_and_outputs;
 mod op_return;
 mod op_return_protocols;
@@ -20,6 +21,7 @@ use std::collections::{BTreeMap, HashMap};
 
 pub use bip69::bip69;
 pub use blockchain_sizes::blockchain_sizes;
+pub use locktime::locktime;
 pub use number_of_inputs_and_outputs::number_of_inputs_and_outputs;
 pub use op_return::op_return_per_month;
 pub use op_return_protocols::op_return_protocols;
@@ -171,6 +173,7 @@ pub fn get_pages(
     pages.push(sighash_types(&stats));
     pages.push(total_tx_outputs_inputs(&tx_stats));
     pages.push(bip69(&tx_stats));
+    pages.push(locktime(&tx_stats));
 
     pages
 }
