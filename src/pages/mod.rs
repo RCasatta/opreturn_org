@@ -49,7 +49,7 @@ fn header() -> Markup {
         head {
             meta charset="utf-8";
             meta name="viewport" content="width=device-width, initial-scale=1.0";
-            script src="https://cdn.jsdelivr.net/npm/chart.js" { }
+            script src="https://cdn.jsdelivr.net/npm/chart.js" defer? { }
 
             title { "OP_RETURN" }
         }

@@ -5,13 +5,12 @@ authors = ["Riccardo Casatta <riccardo@casatta.it>"]
 edition = "2018"
 
 [dependencies]
-time = "0.1.42"
-hex = "0.3.2"
-glob = "0.2.11"
+hex = "0.4.3"
+glob = "0.3.0"
 blocks_iterator = { version = "1.0.0", default-features = false }
 env_logger = "0.9.0"
 structopt = "0.3.21" # cannot use re-exported cause I need macros
-maud = "0.22.3"
+maud = "0.24.0"
 chrono = "0.4.19"
 serde = { version="1.0.130", features = [ "derive" ] }
 serde_json = "1.0.68"

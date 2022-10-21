@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
-use time::Duration;
+use chrono::Duration;
 
 pub struct ProcessOpRet {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
