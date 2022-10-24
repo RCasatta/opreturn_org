@@ -44,12 +44,18 @@ pub struct Page {
 const NBSP: PreEscaped<&str> = PreEscaped("&nbsp;");
 
 /// Pages headers.
-fn header() -> Markup {
+fn header(include_js: bool) -> Markup {
+    let js = if include_js {
+        html! {script src="https://cdn.jsdelivr.net/npm/chart.js" { } }
+    } else {
+        html! {}
+    };
+
     html! {
         head {
             meta charset="utf-8";
             meta name="viewport" content="width=device-width, initial-scale=1.0";
-            script src="https://cdn.jsdelivr.net/npm/chart.js" defer? { }
+            (js)
 
             title { "OP_RETURN" }
         }
@@ -71,11 +77,11 @@ fn footer() -> Markup {
 /// The final Markup, including `header` and `footer`.
 ///
 /// Additionally takes a `greeting_box` that's `Markup`, not `&str`.
-pub fn page(content: Markup) -> Markup {
+pub fn page(content: Markup, include_js:bool) -> Markup {
     html! {
         (DOCTYPE)
         html lang = "en" {
-            (header())
+            (header(include_js))
             body style="font-family: Arial, Helvetica, sans-serif;" {
                 h1 { a href="/" { "OP_RETURN" } }
                 (content)
@@ -93,7 +99,7 @@ impl Page {
                 p { (NBSP) }
             }
         };
-        page(charts)
+        page(charts, true)
     }
 }
 
@@ -110,7 +116,7 @@ pub fn create_index(pages: &[Page]) -> Markup {
             }
         }
     };
-    page(links)
+    page(links, false)
 }
 
 pub fn create_contact() -> Markup {
@@ -134,7 +140,7 @@ pub fn create_contact() -> Markup {
         }
     };
 
-    page(content)
+    page(content, false)
 }
 
 fn to_label_map(values: &[u64], mul: usize) -> BTreeMap<String, u64> {
@@ -202,7 +208,7 @@ mod test {
     #[test]
     fn test_pie_page() {
         let chart = mock_pie_chart();
-        let page = page(chart.to_html()).into_string();
+        let page = page(chart.to_html(), true).into_string();
         assert_eq!("", to_data_url(page, "text/html"));
     }
 
@@ -210,7 +216,7 @@ mod test {
     #[test]
     fn test_lines_page() {
         let chart = mock_lines_chart();
-        let page = page(chart.to_html()).into_string();
+        let page = page(chart.to_html(), true).into_string();
         assert_eq!("", to_data_url(page, "text/html"));
     }
 

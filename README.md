@@ -5,7 +5,7 @@ Generate statistic charts about the Bitcoin blockchain.
 # Test
 
 ```
-../blocks_iterator/target/release/blocks_iterator --network testnet --blocks-dir $HOME/.bitcoin/testnet3/blocks/ | ./target/release/opreturn_org --target-dir /tmp/
+blocks_iterator --network testnet --blocks-dir $HOME/.bitcoin/testnet3/blocks/ --stop-at-height 200000 | ./target/release/opreturn_org --target-dir /tmp/
 ```
 
 # TODO
