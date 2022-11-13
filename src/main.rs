@@ -121,6 +121,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let contact = pages::create_contact();
     fs::write(contact_path, contact.into_string()).unwrap();
 
+    let mut about_path = site_home.clone();
+    about_path.push("contact");
+    if !about_path.exists() {
+        fs::create_dir_all(&about_path).unwrap();
+    }
+    about_path.push("index.html");
+    let about = pages::create_about();
+    fs::write(about_path, about.into_string()).unwrap();
+
     // favicon
     let mut favicon_file = site_home.clone();
     favicon_file.push("favicon.ico");

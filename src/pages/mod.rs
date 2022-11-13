@@ -67,7 +67,7 @@ fn footer() -> Markup {
     html! {
         p { (PreEscaped("&nbsp;")) }
         footer {
-            p { a href="/" { "Home" } " | " a href="/contact" { "Contact" }  }
+            p { a href="/" { "Home" } " | " a href="/contact" { "Contact" }  " | " a href="/about" { "About" }  }
             p { "Page created " (now()) }
         }
 
@@ -138,6 +138,27 @@ pub fn create_contact() -> Markup {
             button type="submit" { "Pay 20 satoshi ⚡ to send" }
             p { (NBSP) }
         }
+    };
+
+    page(content, false)
+}
+
+
+pub fn create_about() -> Markup {
+
+    let blocks_iterator = html! {
+        a href="https://github.com/RCasatta/blocks_iterator" { "blocks iterator" }
+    };
+
+    let source = html! {
+        a href="https://github.com/RCasatta/rustat/" { "source" }
+    };
+    
+    let content = html! {
+        p { "OP_RETURN shows charts about Bitcoin." }
+        p { "The site is built once a day." }
+        p { "Show me the " (source) "." }
+        p { "Built with " (blocks_iterator) "." }
     };
 
     page(content, false)
