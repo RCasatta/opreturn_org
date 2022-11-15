@@ -122,7 +122,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     fs::write(contact_path, contact.into_string()).unwrap();
 
     let mut about_path = site_home.clone();
-    about_path.push("contact");
+    about_path.push("about");
     if !about_path.exists() {
         fs::create_dir_all(&about_path).unwrap();
     }
