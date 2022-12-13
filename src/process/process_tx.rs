@@ -35,6 +35,7 @@ pub struct TxStats {
     pub total_tx_per_period: Counter,
     pub in_out: HashMap<String, u64>,
     pub amount_over_32: usize,
+    pub many_inputs_tx: Vec<Txid>,
 
     pub total_bytes_output_value_varint: u64,
     pub total_bytes_output_value_compressed_varint: u64,
@@ -125,6 +126,9 @@ impl ProcessTxStats {
         }
         if self.stats.min_weight_tx.0 > weight {
             self.stats.min_weight_tx = (weight, Some(txid));
+        }
+        if inputs > 100 {
+            self.stats.many_inputs_tx.push(txid);
         }
 
         let in_out_key = if inputs > 9 || outputs > 9 {

@@ -84,6 +84,7 @@ pub fn page(content: Markup, include_js:bool) -> Markup {
             (header(include_js))
             body style="font-family: Arial, Helvetica, sans-serif;" {
                 h1 { a href="/" { "OP_RETURN" } }
+                p { (NBSP) }
                 (content)
                 (footer())
             }
@@ -105,7 +106,6 @@ impl Page {
 
 pub fn create_index(pages: &[Page]) -> Markup {
     let links = html! {
-        p { (NBSP) }
         ul {
             @for page in pages {
                 li  {
@@ -155,6 +155,8 @@ pub fn create_about() -> Markup {
     };
     
     let content = html! {
+        h2 { "About" }
+
         p { "OP_RETURN shows charts about Bitcoin." }
         p { "The site is built once a day." }
         p { "Show me the " (source) "." }
