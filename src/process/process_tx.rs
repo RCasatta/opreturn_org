@@ -127,7 +127,7 @@ impl ProcessTxStats {
         if self.stats.min_weight_tx.0 > weight {
             self.stats.min_weight_tx = (weight, Some(txid));
         }
-        if inputs > 100 {
+        if inputs > 500 {
             self.stats.many_inputs_tx.push(txid);
         }
 
