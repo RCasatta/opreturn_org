@@ -24,5 +24,6 @@ pub fn sighash_types(stats: &Stats) -> Page {
         description: "Show distribution of sighash type used".to_string(),
         permalink: "sighash-types".to_string(),
         charts: vec![chart],
+        text: "".to_string(),
     }
 }

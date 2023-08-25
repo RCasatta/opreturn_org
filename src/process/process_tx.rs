@@ -32,6 +32,7 @@ pub struct TxStats {
     pub total_outputs_per_period: Counter,
     pub total_inputs_per_period: Counter,
     pub script_pubkey_size_per_period: Counter,
+    pub total_tx: u64,
     pub total_tx_per_period: Counter,
     pub in_out: HashMap<String, u64>,
     pub amount_over_32: usize,
@@ -113,6 +114,7 @@ impl ProcessTxStats {
         self.stats.total_outputs_per_period.add(index, outputs);
         self.stats.total_inputs_per_period.add(index, inputs);
         self.stats.total_tx_per_period.increment(index);
+        self.stats.total_tx += 1;
         self.stats.total_outputs += outputs as u64;
         self.stats.total_inputs += inputs as u64;
         if self.stats.max_outputs_per_tx.0 < outputs {

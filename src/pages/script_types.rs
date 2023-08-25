@@ -98,5 +98,6 @@ pub fn script_types(script_type: &ScriptType) -> Page {
         description: "Charts showing the script types per month.".to_string(),
         permalink: "script-types".to_string(),
         charts,
+        text: "".to_string(),
     }
 }

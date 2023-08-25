@@ -56,5 +56,6 @@ pub fn witness_stats(stats: &Stats) -> Page {
         description: "Stats about the witnesses, number of elements and bytes used".to_string(),
         permalink: "witness-stats".to_string(),
         charts: vec![chart1, chart2, chart3],
+        text: "".to_string(),
     }
 }

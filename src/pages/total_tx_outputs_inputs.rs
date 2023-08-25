@@ -74,5 +74,9 @@ pub fn total_tx_outputs_inputs(tx_stats: &TxStats) -> Page {
             .to_string(),
         permalink: "total-tx-outputs-inputs".to_string(),
         charts,
+        text: format!(
+            "total tx: {}, total inputs: {}, total outputs: {}",
+            tx_stats.total_tx, tx_stats.total_inputs, tx_stats.total_outputs
+        ),
     }
 }

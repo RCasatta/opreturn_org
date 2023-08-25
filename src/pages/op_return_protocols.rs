@@ -57,5 +57,6 @@ pub fn op_return_protocols(opret: &OpReturnData) -> Page {
         description: "Protocols just mean the first 3 bytes of the OP_RETURN data, which can indicate the protocol but it's not an enfoced rule by the Bitcoin consensus.".to_string(),
         permalink: "op-return-protocols".to_string(),
         charts: vec![chart1, chart2, chart3],
+        text: "".to_string(),
     }
 }

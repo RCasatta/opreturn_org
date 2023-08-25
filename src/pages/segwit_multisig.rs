@@ -24,5 +24,6 @@ pub fn segwit_multisig(script_type: &ScriptType) -> Page {
         description: "Analyze segwit input scripts counting the occurence of the NofM".to_string(),
         permalink: "segwit-multisig".to_string(),
         charts: vec![chart],
+        text: "".to_string(),
     }
 }

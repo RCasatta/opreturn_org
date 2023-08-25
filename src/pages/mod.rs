@@ -39,6 +39,7 @@ pub struct Page {
     pub description: String,
     pub permalink: String,
     pub charts: Vec<Chart>,
+    pub text: String,
 }
 
 const NBSP: PreEscaped<&str> = PreEscaped("&nbsp;");
@@ -77,7 +78,7 @@ fn footer() -> Markup {
 /// The final Markup, including `header` and `footer`.
 ///
 /// Additionally takes a `greeting_box` that's `Markup`, not `&str`.
-pub fn page(content: Markup, include_js:bool) -> Markup {
+pub fn page(content: Markup, text: &str, include_js: bool) -> Markup {
     html! {
         (DOCTYPE)
         html lang = "en" {
@@ -86,6 +87,8 @@ pub fn page(content: Markup, include_js:bool) -> Markup {
                 h1 { a href="/" { "OP_RETURN" } }
                 p { (NBSP) }
                 (content)
+                p { (text) }
+
                 (footer())
             }
         }
@@ -100,7 +103,7 @@ impl Page {
                 p { (NBSP) }
             }
         };
-        page(charts, true)
+        page(charts, &self.text, true)
     }
 }
 
@@ -116,7 +119,7 @@ pub fn create_index(pages: &[Page]) -> Markup {
             }
         }
     };
-    page(links, false)
+    page(links, "", false)
 }
 
 pub fn create_contact() -> Markup {
@@ -140,12 +143,10 @@ pub fn create_contact() -> Markup {
         }
     };
 
-    page(content, false)
+    page(content, "", false)
 }
 
-
 pub fn create_about() -> Markup {
-
     let blocks_iterator = html! {
         a href="https://github.com/RCasatta/blocks_iterator" { "blocks iterator" }
     };
@@ -153,7 +154,7 @@ pub fn create_about() -> Markup {
     let source = html! {
         a href="https://github.com/RCasatta/rustat/" { "source" }
     };
-    
+
     let content = html! {
         h2 { "About" }
 
@@ -163,7 +164,7 @@ pub fn create_about() -> Markup {
         p { "Built with " (blocks_iterator) "." }
     };
 
-    page(content, false)
+    page(content, "", false)
 }
 
 fn to_label_map(values: &[u64], mul: usize) -> BTreeMap<String, u64> {

@@ -72,5 +72,6 @@ pub fn spent_same_block(stats: &Stats, tx_stats: &TxStats) -> Page {
                 .to_string(),
         permalink: "spent-same-block".to_string(),
         charts,
+        text: "".to_string(),
     }
 }

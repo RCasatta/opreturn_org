@@ -40,11 +40,12 @@ pub fn bip69(tx_stats: &TxStats) -> Page {
     };
     chart.add_dataset(dataset, None);
 
-    let sum_vec: Vec<u64> = yes_vec.iter().zip(no_vec.iter()).map(|(a,b)| a+b).collect();
-    let perc = perc_100(
-        &yes_vec,
-        &sum_vec,
-    );
+    let sum_vec: Vec<u64> = yes_vec
+        .iter()
+        .zip(no_vec.iter())
+        .map(|(a, b)| a + b)
+        .collect();
+    let perc = perc_100(&yes_vec, &sum_vec);
     let dataset = Dataset {
         label: "% compliance".to_string(),
         data: perc,
@@ -62,6 +63,7 @@ pub fn bip69(tx_stats: &TxStats) -> Page {
         description: "BIP69 compliance, ordered transaction inputs and outputs".to_string(),
         permalink: "bip69".to_string(),
         charts,
+        text: "".to_string(),
     }
 }
 
@@ -78,7 +80,6 @@ fn cmp_inputs(a: &TxIn, b: &TxIn) -> Ordering {
         Ordering::Equal => a.previous_output.vout.cmp(&b.previous_output.vout),
     }
 }
-
 
 fn cmp_outputs(a: &TxOut, b: &TxOut) -> Ordering {
     match a.value.cmp(&b.value) {
@@ -105,7 +106,6 @@ pub fn is_bip69(tx: &Transaction) -> bool {
         .any(|outputs| cmp_outputs(&outputs[0], &outputs[1]) == Ordering::Greater);
     !(inputs_not_ordered || outputs_not_ordered)
 }
-
 
 #[cfg(test)]
 mod tests {

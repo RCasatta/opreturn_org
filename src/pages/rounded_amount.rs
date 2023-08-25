@@ -28,5 +28,6 @@ pub fn rounded_amount(tx_stats: &TxStats) -> Page {
         description: "Charts showing the number of outputs which have a rounded amount as value (multiple of 1000)".to_string(),
         permalink: "rounded-amount".to_string(),
         charts,
+        text: "".to_string(),
     }
 }

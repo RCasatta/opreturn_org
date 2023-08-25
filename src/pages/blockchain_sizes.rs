@@ -81,5 +81,6 @@ pub fn blockchain_sizes(stats: &Stats, bip158: &Bip158Stats, tx_stats: &TxStats)
         description: "Megabyte size of: overall blockchain, BIP158 filters, witnesses, script sigs and script pubkey".to_string(),
         permalink: "blockchain-sizes".to_string(),  // old "blockchain-and-filter-size"
         charts,
+        text: "".to_string(),
     }
 }
