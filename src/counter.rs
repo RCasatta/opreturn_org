@@ -30,6 +30,10 @@ impl Counter {
         let no_last = self.0[..self.0.len().checked_sub(1).unwrap_or(0)].to_vec();
         merge_until(&no_last, DEFAULT_MAX_ELEMENTS, 1)
     }
+
+    pub fn sum_all(&self) -> u64 {
+        self.0.iter().sum()
+    }
 }
 
 fn merge(data: &[u64]) -> Vec<u64> {
@@ -53,11 +57,11 @@ pub fn merge_until(data: &[u64], max_elem: usize, mul: usize) -> (Vec<u64>, usiz
 }
 
 pub fn perc_1000(over: &[u64], under: &[u64]) -> Vec<u64> {
-    perc(over,under, 1000.0)
+    perc(over, under, 1000.0)
 }
 
 pub fn perc_100(over: &[u64], under: &[u64]) -> Vec<u64> {
-    perc(over,under, 100.0)
+    perc(over, under, 100.0)
 }
 
 pub fn perc(over: &[u64], under: &[u64], fraction: f64) -> Vec<u64> {

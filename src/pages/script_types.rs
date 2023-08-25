@@ -98,6 +98,16 @@ pub fn script_types(script_type: &ScriptType) -> Page {
         description: "Charts showing the script types per month.".to_string(),
         permalink: "script-types".to_string(),
         charts,
-        text: "".to_string(),
+        text: format!(
+            "all: {}, p2pkh: {}, p2pk: {}, v0_p2wpkh: {}, v0_p2wsh: {}, p2tr: {}, p2sh: {}, other: {} ",
+            script_type.all.sum_all(),
+            script_type.p2pkh.sum_all(),
+            script_type.p2pk.sum_all(),
+            script_type.v0_p2wpkh.sum_all(),
+            script_type.v0_p2wsh.sum_all(),
+            script_type.p2tr.sum_all(),
+            script_type.p2sh.sum_all(),
+            script_type.other.sum_all(),
+        ),
     }
 }
