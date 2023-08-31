@@ -28,6 +28,7 @@ pub struct TxStats {
     pub max_weight_tx: (u64, Option<Txid>),
     pub max_outputs_per_tx: (u64, Option<Txid>),
     pub total_outputs: u64,
+    pub total_spendable_outputs: u64,
     pub total_inputs: u64,
     pub total_outputs_per_period: Counter,
     pub total_inputs_per_period: Counter,
@@ -117,6 +118,11 @@ impl ProcessTxStats {
         self.stats.total_tx += 1;
         self.stats.total_outputs += outputs as u64;
         self.stats.total_inputs += inputs as u64;
+        self.stats.total_spendable_outputs += tx
+            .output
+            .iter()
+            .filter(|o| !o.script_pubkey.is_provably_unspendable())
+            .count() as u64;
         if self.stats.max_outputs_per_tx.0 < outputs {
             self.stats.max_outputs_per_tx = (outputs, Some(txid));
         }
