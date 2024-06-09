@@ -2,7 +2,6 @@
 /data/
 **/*.rs.bk
 *.iml
-Cargo.lock
 .idea/
 /samples_big/
 /outputs/
@@ -11,3 +10,4 @@ site/_site
 site/_data
 *.swp
 *~
+result

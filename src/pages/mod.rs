@@ -232,7 +232,7 @@ mod test {
     #[test]
     fn test_pie_page() {
         let chart = mock_pie_chart();
-        let page = page(chart.to_html(), true).into_string();
+        let page = page(chart.to_html(), "", true).into_string();
         assert_eq!("", to_data_url(page, "text/html"));
     }
 
@@ -240,7 +240,7 @@ mod test {
     #[test]
     fn test_lines_page() {
         let chart = mock_lines_chart();
-        let page = page(chart.to_html(), true).into_string();
+        let page = page(chart.to_html(), "", true).into_string();
         assert_eq!("", to_data_url(page, "text/html"));
     }
 
