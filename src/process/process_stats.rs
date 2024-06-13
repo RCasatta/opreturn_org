@@ -3,7 +3,7 @@ use crate::process::block_index;
 use blocks_iterator::bitcoin::blockdata::script::Instruction;
 use blocks_iterator::bitcoin::consensus::{deserialize, encode, Decodable};
 use blocks_iterator::bitcoin::hashes::hex::FromHex;
-use blocks_iterator::bitcoin::{BlockHash, EcdsaSighashType};
+use blocks_iterator::bitcoin::{BlockHash, EcdsaSighashType, VarInt};
 use blocks_iterator::log::info;
 use blocks_iterator::{BlockExtra, PeriodCounter};
 use serde::{Deserialize, Serialize};
@@ -23,6 +23,7 @@ pub struct ProcessStats {
     pub fee_file: File,
     pub blocks_len_file: File,
     pub stats_json_file: File,
+    pub varint_file: File,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -45,6 +46,8 @@ pub struct Stats {
     pub witness_elements: HashMap<String, u64>,
     /// witness byte size as sum of len of every element
     pub witness_byte_size: HashMap<String, u64>,
+
+    pub varint_length: Vec<u64>,
 }
 
 //TODO split again this one slower together with read
@@ -55,12 +58,16 @@ impl ProcessStats {
         let blocks_len_file =
             File::create(format!("{}/blocks_len.txt", target_dir.display())).unwrap();
         let stats_json_file = File::create(format!("{}/stats.json", target_dir.display())).unwrap();
+        let varint_file =
+            File::create(format!("{}/varint_file.txt", target_dir.display())).unwrap();
+
         ProcessStats {
             receiver,
             sighash_file,
             fee_file,
             stats_json_file,
             blocks_len_file,
+            varint_file,
             stats: Stats::new(),
         }
     }
@@ -98,6 +105,10 @@ impl ProcessStats {
             .write_all(stats_json.as_bytes())
             .unwrap();
 
+        self.varint_file
+            .write_all(format!("{:?}", self.stats.varint_length).as_bytes())
+            .unwrap();
+
         busy_time += now.elapsed().as_nanos();
         info!(
             "ending stats processer, busy time: {}s",
@@ -115,11 +126,18 @@ impl ProcessStats {
             .add(index, block_extra.size as u64);
         let mut fees_from_this_block = vec![];
         let tx_hashes: HashSet<_> = block_extra.iter_tx().map(|e| e.0).collect();
+        self.stats.count_varint_len(block_extra.block.txdata.len());
         for tx in block_extra.block.txdata.iter() {
             let mut strange_sighash = vec![];
             let mut count_inputs_in_block = 0;
 
+            self.stats.count_varint_len(tx.input.len());
+            self.stats.count_varint_len(tx.output.len());
+
             for input in tx.input.iter() {
+                self.stats.count_varint_len(input.script_sig.len());
+                self.stats.count_varint_len(input.witness.len());
+
                 if tx_hashes.contains(&input.previous_output.txid) {
                     self.stats.total_spent_in_block += 1;
                     self.stats.total_spent_in_block_per_period.increment(index);
@@ -156,6 +174,8 @@ impl ProcessStats {
                     .or_insert(0) += 1;
 
                 for vec in input.witness.iter() {
+                    self.stats.count_varint_len(vec.len());
+
                     if let Ok(sighash) = deserialize::<SignatureHash>(vec) {
                         *self
                             .stats
@@ -177,6 +197,10 @@ impl ProcessStats {
                     .script_sig_size_per_period
                     .add(index, input.script_sig.len() as u64);
             }
+            for output in tx.output.iter() {
+                self.stats.count_varint_len(output.script_pubkey.len());
+            }
+
             if !strange_sighash.is_empty() {
                 self.sighash_file
                     .write(format!("{} {:?}\n", tx.txid(), strange_sighash).as_bytes())
@@ -242,8 +266,14 @@ impl Stats {
                 "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
             )
             .unwrap(),
+            varint_length: vec![0u64; 10], // only 1,3,5,9 index are used
             ..Default::default()
         }
+    }
+
+    pub fn count_varint_len(&mut self, len: usize) {
+        let this = VarInt(len as u64).len();
+        self.varint_length[this] += 1;
     }
 }
 
