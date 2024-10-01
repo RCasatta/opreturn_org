@@ -38,6 +38,7 @@ pub struct Bip158Stats {
 impl ProcessBip158Stats {
     pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, target_dir: &PathBuf) -> Self {
         let mut cache_path = target_dir.clone();
+        cache_path.push("raw");
         cache_path.push("bip138_size_cache");
 
         let cache = match File::open(&cache_path) {

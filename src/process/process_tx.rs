@@ -59,7 +59,7 @@ impl ProcessTxStats {
         target_dir: &PathBuf,
     ) -> ProcessTxStats {
         let tx_stats_json_file =
-            File::create(format!("{}/tx_stats.json", target_dir.display())).unwrap();
+            File::create(format!("{}/raw/tx_stats.json", target_dir.display())).unwrap();
         ProcessTxStats {
             receiver,
             stats: TxStats::new(),
@@ -195,7 +195,7 @@ impl TxStats {
     }
 }
 
-struct SignatureHash(pub EcdsaSighashType);
+pub struct SignatureHash(pub EcdsaSighashType);
 
 impl Decodable for SignatureHash {
     fn consensus_decode<D: std::io::Read>(mut d: D) -> Result<Self, encode::Error> {

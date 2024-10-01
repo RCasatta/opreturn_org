@@ -4,6 +4,7 @@ use blocks_iterator::bitcoin::Script;
 use blocks_iterator::log::{debug, info};
 use blocks_iterator::BlockExtra;
 use blocks_iterator::PeriodCounter;
+use chrono::Duration;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -14,7 +15,6 @@ use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
-use chrono::Duration;
 
 pub struct ProcessOpRet {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
@@ -59,7 +59,8 @@ impl ProcessOpRet {
         target_dir: &PathBuf,
         parse_pubkeys: bool,
     ) -> ProcessOpRet {
-        let opret_json_file = File::create(format!("{}/opret.json", target_dir.display())).unwrap();
+        let opret_json_file =
+            File::create(format!("{}/raw/opret.json", target_dir.display())).unwrap();
         ProcessOpRet {
             receiver,
             op_return_data: OpReturnData::new(),

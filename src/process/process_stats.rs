@@ -53,13 +53,15 @@ pub struct Stats {
 //TODO split again this one slower together with read
 impl ProcessStats {
     pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, target_dir: &PathBuf) -> ProcessStats {
-        let sighash_file = File::create(format!("{}/sighashes.txt", target_dir.display())).unwrap();
-        let fee_file = File::create(format!("{}/fee.txt", target_dir.display())).unwrap();
+        let sighash_file =
+            File::create(format!("{}/raw/sighashes.txt", target_dir.display())).unwrap();
+        let fee_file = File::create(format!("{}/raw/fee.txt", target_dir.display())).unwrap();
         let blocks_len_file =
-            File::create(format!("{}/blocks_len.txt", target_dir.display())).unwrap();
-        let stats_json_file = File::create(format!("{}/stats.json", target_dir.display())).unwrap();
+            File::create(format!("{}/raw/blocks_len.txt", target_dir.display())).unwrap();
+        let stats_json_file =
+            File::create(format!("{}/raw/stats.json", target_dir.display())).unwrap();
         let varint_file =
-            File::create(format!("{}/varint_file.txt", target_dir.display())).unwrap();
+            File::create(format!("{}/raw/varint_file.txt", target_dir.display())).unwrap();
 
         ProcessStats {
             receiver,
