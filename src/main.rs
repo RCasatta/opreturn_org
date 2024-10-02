@@ -42,7 +42,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         fs::create_dir_all(&site_home).unwrap();
     }
     let mut raw_home = params.target_dir.clone();
-    raw_home.push("site");
+    raw_home.push("raw");
     if !raw_home.exists() {
         fs::create_dir_all(&raw_home).unwrap();
     }
