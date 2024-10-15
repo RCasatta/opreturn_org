@@ -133,7 +133,7 @@ pub fn create_contact() -> Markup {
             p { (NBSP) }
             label {
                 p { "Your message:"}
-                textarea name="message" rows="4" cols="50" { }
+                textarea name="message" rows="4" cols="50" required { }
             }
             input type="hidden" name="to_enc" value="e1v9nk2tt9de3hy7tsw35k7m3wdaexwtmkxy9z603qtqer2df38ysrjam4tphrxuf009hzks3jgfknwums2d54xjnrfdmyuvnef36kgsm9xf4ky6td9a4ykv6epfz85mmx8yc56ajexf8n2anjt985cjt6dpp95wt0vvehs7249aj56ctx9afhx36xduhkumc295lzqu3x048z6tt8wfjkzum9ypjk7c3xtagkjceq2pvh22q2w9q4yjesxpnkzc3kdavksk2sfaur2wzs2dzx24rd2dx9vd69f56nz33tfejnzdz0wpzrsjek2eu8janz2e5kxjtf25e8xur0df895ag2wc6rwdtevacrgsesgch5v3ng2fgrzdnrwfsk5krvd9m9y7tk259z6tfdypnkjufkxfe56uj3fpjnsu6xdpu8ycm3gce5sn2r2e5hzu2ygu4nzkn3g9yxjvjp0ft5vvq2jd7luvgxshm746ttqh5lap095taxyg36nly235jrn0djzcrma7nf5kejfyv6pnzyj577uqxan5fzlapxqdaghly0fmrs62g4cxk" { }
             input type="hidden" name="subject_enc" value="e1v9nk2tt9de3hy7tsw35k7m3wdaexwtmkxy9z603qtqer2df38ysz7c2yg5c4yn6vwdprvezpxdj5wctzd4vkkn6nd3yy57jvvderw5rcveg925t0ddmyxv63pfrr2e66xghh5v2wf46xjjjwd3f8zd2r9d285kj5w4ex7d6cdd6yjkj2vfh9v7z6f4yhqkg295lzqer5gckkwun9v9ek2gpuxf5jq7tj9pczq26ff9prq3mgpfty2kr0xfxyzcnkge6ry32dtpnzk4zhfsm9qdj9d4x8gknsduc4242rdp6y636pg9rkwkn3gy4hjkrzw9v9v6m6vak5zw2nx56hxsmepfgk7nmwgaj9garngv6nwktcxdd9z5rzddnjkjjew9g8zse0damkx6nzwd54g6mvwe64v3m59as5636zd9s5763kx4h5cs6ppgkj6tfqxanysuzexe9ny3n9dppkvsmzf4ykg2ejtf68vjjhv9ty5ntrffzxx3j0fsmrqst6g389zz3exsj98g73dzf98wwg3p90e8ca8qzdsjy0snz5e20g2z04y2a3586xdt72dqevcg72k375aavy9v08we6fpk4" { }
