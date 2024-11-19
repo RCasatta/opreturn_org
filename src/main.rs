@@ -29,7 +29,9 @@ struct Params {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let now = Instant::now();
-    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    if std::env::var("LOG_AVOID_TIMESTAMP").is_ok() {
+        builder.format(|buf, r| writeln!(buf, "{:5} {} {}", r.level(), r.target(), r.args()));
+    }
     info!("start");
 
     let params = Params::from_args();
