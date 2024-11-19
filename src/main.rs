@@ -5,6 +5,7 @@ use blocks_iterator::{PeriodCounter, PipeIterator};
 use chrono::format::StrftimeItems;
 use chrono::Utc;
 use env_logger::Env;
+use std::io::Write;
 use std::path::PathBuf;
 use std::sync::mpsc::sync_channel;
 use std::sync::Arc;
@@ -29,9 +30,11 @@ struct Params {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let now = Instant::now();
+    let mut builder = env_logger::Builder::from_env(Env::default().default_filter_or("info"));
     if std::env::var("LOG_AVOID_TIMESTAMP").is_ok() {
         builder.format(|buf, r| writeln!(buf, "{:5} {} {}", r.level(), r.target(), r.args()));
     }
+    builder.init();
     info!("start");
 
     let params = Params::from_args();
