@@ -30,11 +30,7 @@ struct Params {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let now = Instant::now();
-    let mut builder = env_logger::Builder::from_env(Env::default().default_filter_or("info"));
-    if std::env::var("LOG_AVOID_TIMESTAMP").is_ok() {
-        builder.format(|buf, r| writeln!(buf, "{:5} {} {}", r.level(), r.target(), r.args()));
-    }
-    builder.init();
+    init_logging();
     info!("start");
 
     let params = Params::from_args();
@@ -154,4 +150,24 @@ fn now() -> String {
     let now = Utc::now().naive_utc();
     let fmt = StrftimeItems::new("%Y-%m-%d %H:%M:%S");
     format!("{}", now.format_with_items(fmt))
+}
+
+fn init_logging() {
+    let mut builder = env_logger::Builder::from_env(Env::default().default_filter_or("info"));
+    if let Ok(s) = std::env::var("RUST_LOG_STYLE") {
+        if s == "SYSTEMD" {
+            builder.format(|buf, record| {
+                let level = match record.level() {
+                    log::Level::Error => 3,
+                    log::Level::Warn => 4,
+                    log::Level::Info => 6,
+                    log::Level::Debug => 7,
+                    log::Level::Trace => 7,
+                };
+                writeln!(buf, "<{}>{}: {}", level, record.target(), record.args())
+            });
+        }
+    }
+
+    builder.init();
 }
