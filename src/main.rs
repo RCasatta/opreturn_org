@@ -1,9 +1,9 @@
 use crate::process::{ProcessBip158Stats, ProcessOpRet, ProcessStats, ProcessTxStats};
 use blocks_iterator::log::info;
-use blocks_iterator::structopt::StructOpt;
 use blocks_iterator::{PeriodCounter, PipeIterator};
 use chrono::format::StrftimeItems;
 use chrono::Utc;
+use clap::Parser;
 use env_logger::Env;
 use std::io::Write;
 use std::path::PathBuf;
@@ -17,14 +17,14 @@ mod counter;
 mod pages;
 mod process;
 
-#[derive(StructOpt, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 struct Params {
     /// Where to produce the website
-    #[structopt(short, long)]
+    #[clap(short, long)]
     pub target_dir: PathBuf,
 
     /// Parse pubkeys (which is expensive involving EC cryptography)
-    #[structopt(short, long)]
+    #[clap(short, long)]
     pub parse_pubkeys: bool,
 }
 
@@ -33,7 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_logging();
     info!("start");
 
-    let params = Params::from_args();
+    let params = Params::parse();
     if !fs::metadata(&params.target_dir).unwrap().is_dir() {
         panic!("--target-dir must be a directory");
     }
@@ -76,8 +76,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if period.period_elapsed().is_some() {
             info!(
                 "# {:7} {} {:?}",
-                block_extra.height,
-                block_extra.block_hash,
+                block_extra.height(),
+                block_extra.block_hash(),
                 block_extra.fee()
             );
         }

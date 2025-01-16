@@ -1,8 +1,7 @@
 use crate::counter::Counter;
 use crate::process::block_index;
-use blocks_iterator::bitcoin::util::bip158::BlockFilter;
-use blocks_iterator::bitcoin::util::bip158::Error;
-use blocks_iterator::bitcoin::Script;
+use bitcoin::bip158::BlockFilter;
+use bitcoin::ScriptBuf;
 use blocks_iterator::log::{debug, info};
 use blocks_iterator::BlockExtra;
 use blocks_iterator::PeriodCounter;
@@ -23,7 +22,7 @@ pub struct ProcessBip158Stats {
     pub stats: Bip158Stats,
 
     /// counter of different scripts, when reach 1M elements, it resets and insert the height in `scripts_1m_heights`
-    scripts_1m: HashSet<Script>,
+    scripts_1m: HashSet<ScriptBuf>,
     scripts_1m_heights: Vec<u32>,
 
     /// cache the value of the BIP158 filter
@@ -99,22 +98,22 @@ impl ProcessBip158Stats {
     }
 
     fn process_block(&mut self, block: &BlockExtra) {
-        let index = block_index(block.height);
+        let index = block_index(block.height());
 
-        let (filter_len, insert) = match self.cache.get(block.height as usize) {
+        let (filter_len, insert) = match self.cache.get(block.height() as usize) {
             Some(val) => (*val, false),
             None => {
-                let filter = BlockFilter::new_script_filter(&block.block, |o| {
-                    if let Some(s) = &block.outpoint_values.get(o) {
+                let filter = BlockFilter::new_script_filter(&block.block(), |o| {
+                    if let Some(s) = &block.outpoint_values().get(o) {
                         Ok(s.script_pubkey.clone())
                     } else {
-                        Err(Error::UtxoMissing(o.clone()))
+                        Err(bitcoin::bip158::Error::UtxoMissing(o.clone()))
                     }
                 })
                 .unwrap();
                 let filter_len = filter.content.len() as u32;
                 if let Ok(dir) = env::var("BIP158_DIR") {
-                    let p = PathBuf::from_str(&format!("{}/{}.bin", dir, block.height)).unwrap();
+                    let p = PathBuf::from_str(&format!("{}/{}.bin", dir, block.height())).unwrap();
                     fs::write(p, filter.content).unwrap();
                 }
                 (filter_len, true)
@@ -128,24 +127,24 @@ impl ProcessBip158Stats {
             .bip158_filter_size_per_period
             .add(index, filter_len as u64);
 
-        for tx in block.block.txdata.iter() {
+        for tx in block.block().txdata.iter() {
             for input in tx.input.iter() {
                 self.add_script(
                     &block
-                        .outpoint_values
+                        .outpoint_values()
                         .get(&input.previous_output)
                         .unwrap()
                         .script_pubkey,
-                    block.height,
+                    block.height(),
                 );
             }
             for output in tx.output.iter() {
-                self.add_script(&output.script_pubkey, block.height)
+                self.add_script(&output.script_pubkey, block.height())
             }
         }
     }
 
-    fn add_script(&mut self, script: &Script, height: u32) {
+    fn add_script(&mut self, script: &ScriptBuf, height: u32) {
         self.scripts_1m.insert(script.clone());
         if self.scripts_1m.len() >= 1_000_000 {
             self.scripts_1m.clear();

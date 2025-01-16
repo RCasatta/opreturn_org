@@ -16,7 +16,7 @@ pub fn parse_pubkeys_in_script(script: &Script) -> Vec<PublicKey> {
     let mut r = vec![];
     for el in script.instructions() {
         if let Ok(Instruction::PushBytes(inst)) = el {
-            if let Ok(p) = PublicKey::from_slice(&inst) {
+            if let Ok(p) = PublicKey::from_slice(inst.as_bytes()) {
                 r.push(p);
             }
         }
@@ -42,7 +42,7 @@ pub fn parse_pubkeys_in_tx(tx: &Transaction) -> Vec<PublicKey> {
 
 pub fn parse_multisig(witness_script: &[u8]) -> Option<String> {
     let witness_script_len = witness_script.len();
-    if witness_script.last() == Some(&opcodes::all::OP_CHECKMULTISIG.into_u8())
+    if witness_script.last() == Some(&opcodes::all::OP_CHECKMULTISIG.to_u8())
         && witness_script_len > 1
     {
         let n = read_pushnum(witness_script[0]);
@@ -55,10 +55,8 @@ pub fn parse_multisig(witness_script: &[u8]) -> Option<String> {
 }
 
 pub fn read_pushnum(value: u8) -> Option<u8> {
-    if value >= opcodes::all::OP_PUSHNUM_1.into_u8()
-        && value <= opcodes::all::OP_PUSHNUM_16.into_u8()
-    {
-        Some(value - opcodes::all::OP_PUSHNUM_1.into_u8() + 1)
+    if value >= opcodes::all::OP_PUSHNUM_1.to_u8() && value <= opcodes::all::OP_PUSHNUM_16.to_u8() {
+        Some(value - opcodes::all::OP_PUSHNUM_1.to_u8() + 1)
     } else {
         None
     }

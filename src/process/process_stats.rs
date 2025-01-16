@@ -1,8 +1,8 @@
 use crate::counter::Counter;
 use crate::process::block_index;
+use bitcoin::hashes::Hash;
 use blocks_iterator::bitcoin::blockdata::script::Instruction;
 use blocks_iterator::bitcoin::consensus::{deserialize, encode, Decodable};
-use blocks_iterator::bitcoin::hashes::hex::FromHex;
 use blocks_iterator::bitcoin::{BlockHash, EcdsaSighashType, VarInt};
 use blocks_iterator::log::info;
 use blocks_iterator::{BlockExtra, PeriodCounter};
@@ -25,8 +25,7 @@ pub struct ProcessStats {
     pub stats_json_file: File,
     pub varint_file: File,
 }
-
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Stats {
     pub max_block_size: (u64, Option<BlockHash>),
     pub max_tx_per_block: (u64, Option<BlockHash>),
@@ -48,6 +47,27 @@ pub struct Stats {
     pub witness_byte_size: HashMap<String, u64>,
 
     pub varint_length: Vec<u64>,
+}
+
+impl Default for Stats {
+    fn default() -> Self {
+        Self {
+            max_block_size: (0, None),
+            max_tx_per_block: (0, None),
+            min_hash: BlockHash::all_zeros(),
+            total_spent_in_block: 0,
+            total_spent_in_block_per_period: Counter::default(),
+            block_size_per_period: Counter::default(),
+            witness_size_per_period: Counter::default(),
+            script_sig_size_per_period: Counter::default(),
+            sighashtype: HashMap::default(),
+            fee_per_period: Counter::default(),
+            has_witness: HashMap::default(),
+            witness_elements: HashMap::default(),
+            witness_byte_size: HashMap::default(),
+            varint_length: Vec::default(),
+        }
+    }
 }
 
 //TODO split again this one slower together with read
@@ -121,15 +141,16 @@ impl ProcessStats {
     }
 
     fn process_block(&mut self, block_extra: &BlockExtra) {
-        let index = block_index(block_extra.height);
+        let index = block_index(block_extra.height());
 
         self.stats
             .block_size_per_period
-            .add(index, block_extra.size as u64);
+            .add(index, block_extra.size() as u64);
         let mut fees_from_this_block = vec![];
         let tx_hashes: HashSet<_> = block_extra.iter_tx().map(|e| e.0).collect();
-        self.stats.count_varint_len(block_extra.block.txdata.len());
-        for tx in block_extra.block.txdata.iter() {
+        self.stats
+            .count_varint_len(block_extra.block().txdata.len());
+        for tx in block_extra.block().txdata.iter() {
             let mut strange_sighash = vec![];
             let mut count_inputs_in_block = 0;
 
@@ -148,7 +169,7 @@ impl ProcessStats {
 
                 for instr in input.script_sig.instructions() {
                     if let Ok(Instruction::PushBytes(data)) = instr {
-                        if let Ok(sighash) = deserialize::<SignatureHash>(data) {
+                        if let Ok(sighash) = deserialize::<SignatureHash>(data.as_bytes()) {
                             *self
                                 .stats
                                 .sighashtype
@@ -205,14 +226,14 @@ impl ProcessStats {
 
             if !strange_sighash.is_empty() {
                 self.sighash_file
-                    .write(format!("{} {:?}\n", tx.txid(), strange_sighash).as_bytes())
+                    .write(format!("{} {:?}\n", tx.compute_txid(), strange_sighash).as_bytes())
                     .unwrap();
             }
             if count_inputs_in_block == tx.input.len() {
                 fees_from_this_block.push(block_extra.tx_fee(&tx).unwrap())
             }
         }
-        let tx_len = block_extra.block.txdata.len();
+        let tx_len = block_extra.block().txdata.len();
         let tx_with_fee_in_block_len = fees_from_this_block.len();
         let fee = block_extra.fee().unwrap();
         let average_fee = fee as f64 / tx_len as f64;
@@ -227,7 +248,7 @@ impl ProcessStats {
             .write(
                 format!(
                     "{},{},{},{},{},{},{}\n",
-                    block_extra.height,
+                    block_extra.height(),
                     tx_len,
                     fee,
                     average_fee,
@@ -239,16 +260,16 @@ impl ProcessStats {
             )
             .unwrap();
 
-        let hash = block_extra.block.header.block_hash();
+        let hash = block_extra.block().header.block_hash();
         if self.stats.min_hash > hash {
             self.stats.min_hash = hash;
         }
-        let size = u64::from(block_extra.size);
+        let size = u64::from(block_extra.size());
         if self.stats.max_block_size.0 < size {
             self.stats.max_block_size = (size, Some(hash));
         }
 
-        let l = block_extra.block.txdata.len() as u64;
+        let l = block_extra.block().txdata.len() as u64;
         self.blocks_len_file
             .write(format!("{}\n", l).as_bytes())
             .unwrap();
@@ -264,9 +285,11 @@ impl Stats {
             total_spent_in_block: 0u64,
             max_block_size: (0u64, None),
             max_tx_per_block: (0u64, None),
-            min_hash: BlockHash::from_hex(
-                "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
-            )
+            min_hash: BlockHash::from_slice(&[
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x19, 0xd6, 0x68, 0x9c, 0x08, 0x5a, 0xe1, 0x65, 0x83,
+                0x1e, 0x93, 0x4f, 0xf7, 0x63, 0xae, 0x46, 0xa2, 0xa6, 0xc1, 0x72, 0xb3, 0xf1, 0xb6,
+                0x0a, 0x8c, 0xe2, 0x6f,
+            ])
             .unwrap(),
             varint_length: vec![0u64; 10], // only 1,3,5,9 index are used
             ..Default::default()
@@ -274,7 +297,7 @@ impl Stats {
     }
 
     pub fn count_varint_len(&mut self, len: usize) {
-        let this = VarInt(len as u64).len();
+        let this = VarInt(len as u64).size();
         self.varint_length[this] += 1;
     }
 }
@@ -282,30 +305,30 @@ impl Stats {
 struct SignatureHash(pub EcdsaSighashType);
 
 impl Decodable for SignatureHash {
-    fn consensus_decode<D: std::io::Read>(mut d: D) -> Result<Self, encode::Error> {
-        let first = u8::consensus_decode(&mut d)?;
+    fn consensus_decode<R: bitcoin::io::Read + ?Sized>(d: &mut R) -> Result<Self, encode::Error> {
+        let first = u8::consensus_decode(d)?;
         if first != 0x30 {
             return Err(encode::Error::ParseFailed("Signature must start with 0x30"));
         }
-        let _ = u8::consensus_decode(&mut d)?;
-        let integer_header = u8::consensus_decode(&mut d)?;
+        let _ = u8::consensus_decode(d)?;
+        let integer_header = u8::consensus_decode(d)?;
         if integer_header != 0x02 {
             return Err(encode::Error::ParseFailed("No integer header"));
         }
-        let length_r = u8::consensus_decode(&mut d)?;
+        let length_r = u8::consensus_decode(d)?;
         for _ in 0..length_r {
-            let _ = u8::consensus_decode(&mut d)?;
+            let _ = u8::consensus_decode(d)?;
         }
-        let integer_header = u8::consensus_decode(&mut d)?;
+        let integer_header = u8::consensus_decode(d)?;
         if integer_header != 0x02 {
             return Err(encode::Error::ParseFailed("No integer header"));
         }
-        let length_s = u8::consensus_decode(&mut d)?;
+        let length_s = u8::consensus_decode(d)?;
         for _ in 0..length_s {
-            let _ = u8::consensus_decode(&mut d)?;
+            let _ = u8::consensus_decode(d)?;
         }
 
-        let sighash_u8 = u8::consensus_decode(&mut d)?;
+        let sighash_u8 = u8::consensus_decode(d)?;
         let sighash = EcdsaSighashType::from_consensus(sighash_u8 as u32);
 
         Ok(SignatureHash(sighash))

@@ -101,15 +101,15 @@ impl ProcessTxStats {
     }
 
     fn process_block(&mut self, block_extra: &BlockExtra) {
-        let index = block_index(block_extra.height);
+        let index = block_index(block_extra.height());
 
         for (txid, tx) in block_extra.iter_tx() {
-            self.process_tx(*txid, &tx, index, block_extra.height);
+            self.process_tx(*txid, &tx, index, block_extra.height());
         }
     }
 
     fn process_tx(&mut self, txid: Txid, tx: &Transaction, index: usize, block_height: u32) {
-        let weight = tx.weight() as u64;
+        let weight = u64::from(tx.weight());
         let outputs = tx.output.len() as u64;
         let inputs = tx.input.len() as u64;
         self.stats.total_outputs_per_period.add(index, outputs);
@@ -121,7 +121,7 @@ impl ProcessTxStats {
         self.stats.total_spendable_outputs += tx
             .output
             .iter()
-            .filter(|o| !o.script_pubkey.is_provably_unspendable())
+            .filter(|o| !o.script_pubkey.is_op_return())
             .count() as u64;
         if self.stats.max_outputs_per_tx.0 < outputs {
             self.stats.max_outputs_per_tx = (outputs, Some(txid));
@@ -146,20 +146,25 @@ impl ProcessTxStats {
         };
 
         *self.stats.in_out.entry(in_out_key).or_insert(0) += 1;
-        self.stats.amount_over_32 += tx.output.iter().filter(|o| o.value > 0xffff_ffff).count();
+        self.stats.amount_over_32 += tx
+            .output
+            .iter()
+            .filter(|o| o.value.to_sat() > 0xffff_ffff)
+            .count();
 
         for output in tx.output.iter() {
-            let len = VarInt(output.value).len() as u64;
+            let len = VarInt(output.value.to_sat()).size() as u64;
 
             self.stats.total_bytes_output_value_bitcoin_varint += len;
-            self.stats.total_bytes_output_value_varint += encoded_length_7bit_varint(output.value);
-            let compressed = compress_amount(output.value);
+            self.stats.total_bytes_output_value_varint +=
+                encoded_length_7bit_varint(output.value.to_sat());
+            let compressed = compress_amount(output.value.to_sat());
             self.stats
                 .total_bytes_output_value_compressed_bitcoin_varint +=
-                VarInt(compressed).len() as u64;
+                VarInt(compressed).size() as u64;
             self.stats.total_bytes_output_value_compressed_varint +=
                 encoded_length_7bit_varint(compressed);
-            if (output.value % 1000) == 0 {
+            if (output.value.to_sat() % 1000) == 0 {
                 self.stats.rounded_amount_per_period.increment(index);
                 self.stats.rounded_amount += 1;
             }
@@ -177,7 +182,7 @@ impl ProcessTxStats {
                 .increment(index);
         }
 
-        if tx.lock_time > block_height.saturating_sub(6) {
+        if tx.lock_time.to_consensus_u32() > block_height.saturating_sub(6) {
             self.stats.non_deeply_reorgable.increment(index);
         }
     }
@@ -198,30 +203,30 @@ impl TxStats {
 pub struct SignatureHash(pub EcdsaSighashType);
 
 impl Decodable for SignatureHash {
-    fn consensus_decode<D: std::io::Read>(mut d: D) -> Result<Self, encode::Error> {
-        let first = u8::consensus_decode(&mut d)?;
+    fn consensus_decode<R: bitcoin::io::Read + ?Sized>(d: &mut R) -> Result<Self, encode::Error> {
+        let first = u8::consensus_decode(d)?;
         if first != 0x30 {
             return Err(encode::Error::ParseFailed("Signature must start with 0x30"));
         }
-        let _ = u8::consensus_decode(&mut d)?;
-        let integer_header = u8::consensus_decode(&mut d)?;
+        let _ = u8::consensus_decode(d)?;
+        let integer_header = u8::consensus_decode(d)?;
         if integer_header != 0x02 {
             return Err(encode::Error::ParseFailed("No integer header"));
         }
-        let length_r = u8::consensus_decode(&mut d)?;
+        let length_r = u8::consensus_decode(d)?;
         for _ in 0..length_r {
-            let _ = u8::consensus_decode(&mut d)?;
+            let _ = u8::consensus_decode(d)?;
         }
-        let integer_header = u8::consensus_decode(&mut d)?;
+        let integer_header = u8::consensus_decode(d)?;
         if integer_header != 0x02 {
             return Err(encode::Error::ParseFailed("No integer header"));
         }
-        let length_s = u8::consensus_decode(&mut d)?;
+        let length_s = u8::consensus_decode(d)?;
         for _ in 0..length_s {
-            let _ = u8::consensus_decode(&mut d)?;
+            let _ = u8::consensus_decode(d)?;
         }
 
-        let sighash_u8 = u8::consensus_decode(&mut d)?;
+        let sighash_u8 = u8::consensus_decode(d)?;
         let sighash = EcdsaSighashType::from_consensus(sighash_u8 as u32);
 
         Ok(SignatureHash(sighash))

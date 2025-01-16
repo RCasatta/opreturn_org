@@ -5,6 +5,7 @@ use crate::process::TxStats;
 
 use core::cmp::Ordering;
 
+use bitcoin::hashes::Hash;
 use blocks_iterator::bitcoin::{Transaction, TxIn, TxOut};
 
 pub fn bip69(tx_stats: &TxStats) -> Page {
@@ -71,10 +72,18 @@ fn cmp_inputs(a: &TxIn, b: &TxIn) -> Ordering {
     match a
         .previous_output
         .txid
+        .as_raw_hash()
+        .as_byte_array()
         .iter()
         .rev()
-        .cmp(b.previous_output.txid.iter().rev())
-    {
+        .cmp(
+            b.previous_output
+                .txid
+                .as_raw_hash()
+                .as_byte_array()
+                .iter()
+                .rev(),
+        ) {
         Ordering::Less => Ordering::Less,
         Ordering::Greater => Ordering::Greater,
         Ordering::Equal => a.previous_output.vout.cmp(&b.previous_output.vout),
@@ -112,6 +121,7 @@ mod tests {
     use std::str::FromStr;
 
     use crate::pages::bip69::{cmp_inputs, cmp_outputs, has_more_than_one_input_output, is_bip69};
+    use bitcoin::ScriptBuf;
     use blocks_iterator::bitcoin::consensus::deserialize;
     use blocks_iterator::bitcoin::hashes::hex::FromHex;
     use blocks_iterator::bitcoin::{OutPoint, Script, Transaction, TxIn, TxOut};
@@ -248,22 +258,22 @@ mod tests {
     fn sort_outputs_1() {
         let unsorted = vec![
             (
-                "40000000000",
+                40000000000,
                 "76a9145be32612930b8323add2212a4ec03c1562084f8488ac",
             ),
             (
-                "400057456",
+                400057456,
                 "76a9144a5fba237213a062f6f57978f796390bdcf8d01588ac",
             ),
         ];
 
         let expected_sorted = vec![
             (
-                "400057456",
+                400057456,
                 "76a9144a5fba237213a062f6f57978f796390bdcf8d01588ac",
             ),
             (
-                "40000000000",
+                40000000000,
                 "76a9145be32612930b8323add2212a4ec03c1562084f8488ac",
             ),
         ];
@@ -275,22 +285,22 @@ mod tests {
     fn sort_outputs_2() {
         let unsorted = vec![
             (
-                "2400000000",
+                2400000000,
                 "41044a656f065871a353f216ca26cef8dde2f03e8c16202d2e8ad769f02032cb86a5eb5e56842e92e19141d60a01928f8dd2c875a390f67c1f6c94cfc617c0ea45afac"
             ),
             (
-                "100000000",
+                100000000,
                 "41046a0765b5865641ce08dd39690aade26dfbf5511430ca428a3089261361cef170e3929a68aee3d8d4848b0c5111b0a37b82b86ad559fd2a745b44d8e8d9dfdc0cac"
             ),
         ];
 
         let expected_sorted = vec![
             (
-                "100000000",
+                100000000,
                 "41046a0765b5865641ce08dd39690aade26dfbf5511430ca428a3089261361cef170e3929a68aee3d8d4848b0c5111b0a37b82b86ad559fd2a745b44d8e8d9dfdc0cac"
             ),
             (
-                "2400000000",
+                2400000000,
                 "41044a656f065871a353f216ca26cef8dde2f03e8c16202d2e8ad769f02032cb86a5eb5e56842e92e19141d60a01928f8dd2c875a390f67c1f6c94cfc617c0ea45afac"
             ),
         ];
@@ -301,24 +311,24 @@ mod tests {
     #[test]
     fn sort_outputs_3() {
         let unsorted = vec![
-            ("1000", "76a9145be32612930b8323add2212a4ec03c1562084f8488ac"),
-            ("1000", "76a9144a5fba237213a062f6f57978f796390bdcf8d01588ac"),
+            (1000, "76a9145be32612930b8323add2212a4ec03c1562084f8488ac"),
+            (1000, "76a9144a5fba237213a062f6f57978f796390bdcf8d01588ac"),
         ];
 
         let expected_sorted = vec![
-            ("1000", "76a9144a5fba237213a062f6f57978f796390bdcf8d01588ac"),
-            ("1000", "76a9145be32612930b8323add2212a4ec03c1562084f8488ac"),
+            (1000, "76a9144a5fba237213a062f6f57978f796390bdcf8d01588ac"),
+            (1000, "76a9145be32612930b8323add2212a4ec03c1562084f8488ac"),
         ];
 
         sort_outputs_and_assert(unsorted, expected_sorted);
     }
 
-    fn sort_outputs_and_assert(unsorted: Vec<(&str, &str)>, expected_sorted: Vec<(&str, &str)>) {
+    fn sort_outputs_and_assert(unsorted: Vec<(u64, &str)>, expected_sorted: Vec<(u64, &str)>) {
         let mut outputs: Vec<_> = unsorted
             .into_iter()
             .map(|(value, scriptpubkey)| TxOut {
-                value: value.parse().unwrap(),
-                script_pubkey: Script::from_str(scriptpubkey).unwrap(),
+                value: bitcoin::Amount::from_sat(value),
+                script_pubkey: ScriptBuf::from_bytes(Vec::from_hex(scriptpubkey).unwrap()),
             })
             .collect();
 
@@ -327,8 +337,11 @@ mod tests {
         assert_eq!(outputs.len(), expected_sorted.len());
 
         for (actual, expected) in outputs.iter().zip(expected_sorted) {
-            assert_eq!(actual.value, u64::from_str(expected.0).unwrap());
-            assert_eq!(actual.script_pubkey, Script::from_str(expected.1).unwrap());
+            assert_eq!(actual.value, bitcoin::Amount::from_sat(expected.0));
+            assert_eq!(
+                actual.script_pubkey,
+                ScriptBuf::from_bytes(Vec::from_hex(expected.1).unwrap())
+            );
         }
     }
 }

@@ -106,8 +106,8 @@ impl ProcessOpRet {
     }
 
     fn process_block(&mut self, block_extra: &BlockExtra) {
-        let time = block_extra.block.header.time;
-        let index = block_index(block_extra.height);
+        let time = block_extra.block().header.time;
+        let index = block_index(block_extra.height());
 
         for (txid, tx) in block_extra.iter_tx() {
             for output in tx.output.iter() {
@@ -156,13 +156,13 @@ impl ProcessOpRet {
             self.script_type.p2pkh.increment(index);
         } else if script.is_p2pk() {
             self.script_type.p2pk.increment(index);
-        } else if script.is_v0_p2wpkh() {
+        } else if script.is_p2wpkh() {
             self.script_type.v0_p2wpkh.increment(index);
-        } else if script.is_v0_p2wsh() {
+        } else if script.is_p2wsh() {
             self.script_type.v0_p2wsh.increment(index);
         } else if script.is_p2sh() {
             self.script_type.p2sh.increment(index);
-        } else if script.is_v1_p2tr() {
+        } else if script.is_p2tr() {
             self.script_type.p2tr.increment(index);
         } else {
             self.script_type.other.increment(index);
