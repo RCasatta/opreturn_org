@@ -24,6 +24,7 @@ pub struct ProcessStats {
     pub blocks_len_file: File,
     pub stats_json_file: File,
     pub varint_file: File,
+    pub price_file: File,
 }
 #[derive(Serialize, Deserialize)]
 pub struct Stats {
@@ -47,6 +48,9 @@ pub struct Stats {
     pub witness_byte_size: HashMap<String, u64>,
 
     pub varint_length: Vec<u64>,
+
+    /// (ln price)*100
+    pub log_price: Vec<u16>,
 }
 
 impl Default for Stats {
@@ -66,6 +70,7 @@ impl Default for Stats {
             witness_elements: HashMap::default(),
             witness_byte_size: HashMap::default(),
             varint_length: Vec::default(),
+            log_price: vec![0u16; 2100], // enough for about 10BTC 2100 ~= ln(10BTC)*100
         }
     }
 }
@@ -82,6 +87,7 @@ impl ProcessStats {
             File::create(format!("{}/raw/stats.json", target_dir.display())).unwrap();
         let varint_file =
             File::create(format!("{}/raw/varint_file.txt", target_dir.display())).unwrap();
+        let price_file = File::create(format!("{}/raw/price.csv", target_dir.display())).unwrap();
 
         ProcessStats {
             receiver,
@@ -90,6 +96,7 @@ impl ProcessStats {
             stats_json_file,
             blocks_len_file,
             varint_file,
+            price_file,
             stats: Stats::new(),
         }
     }
@@ -275,6 +282,30 @@ impl ProcessStats {
             .unwrap();
         if self.stats.max_tx_per_block.0 < l {
             self.stats.max_tx_per_block = (l, Some(hash));
+        }
+
+        self.process_price(block_extra);
+    }
+
+    fn process_price(&mut self, block_extra: &BlockExtra) {
+        if (block_extra.height() + 1) % 144 == 0 {
+            self.price_file
+                .write(format!("{:?}\n", self.stats.log_price).as_bytes())
+                .unwrap();
+            self.stats.log_price.clear();
+        }
+
+        for tx in block_extra.block().txdata.iter() {
+            for output in tx.output.iter() {
+                let value = output.value.to_sat();
+                if value > 0 {
+                    let ln_price = (value as f64).ln();
+                    let ln_price_100 = (ln_price * 100.0) as usize;
+                    if ln_price_100 < self.stats.log_price.len() {
+                        self.stats.log_price[ln_price_100] += 1;
+                    }
+                }
+            }
         }
     }
 }
