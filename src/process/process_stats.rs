@@ -302,7 +302,8 @@ impl ProcessStats {
                     let ln_price = (value as f64).ln();
                     let ln_price_100 = (ln_price * 50.0) as usize;
                     if ln_price_100 < self.stats.log_price.len() {
-                        self.stats.log_price[ln_price_100] += 1;
+                        self.stats.log_price[ln_price_100] =
+                            self.stats.log_price[ln_price_100].saturating_add(1);
                     }
                 }
             }
