@@ -70,7 +70,7 @@ impl Default for Stats {
             witness_elements: HashMap::default(),
             witness_byte_size: HashMap::default(),
             varint_length: Vec::default(),
-            log_price: vec![0u16; 2250], // enough for about 50BTC 2250 ~= ln(50BTC)*100
+            log_price: vec![0u16; 1120], // enough for about 50 BTC. 1120 ~= ln(50BTC)*50.0
         }
     }
 }
@@ -288,7 +288,7 @@ impl ProcessStats {
     }
 
     fn process_price(&mut self, block_extra: &BlockExtra) {
-        if (block_extra.height() + 1) % 144 == 0 {
+        if (block_extra.height() + 1) % 288 == 0 {
             self.price_file
                 .write(format!("{:?}\n", self.stats.log_price).as_bytes())
                 .unwrap();
@@ -300,7 +300,7 @@ impl ProcessStats {
                 let value = output.value.to_sat();
                 if value > 0 {
                     let ln_price = (value as f64).ln();
-                    let ln_price_100 = (ln_price * 100.0) as usize;
+                    let ln_price_100 = (ln_price * 50.0) as usize;
                     if ln_price_100 < self.stats.log_price.len() {
                         self.stats.log_price[ln_price_100] += 1;
                     }
