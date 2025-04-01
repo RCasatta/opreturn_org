@@ -70,7 +70,7 @@ impl Default for Stats {
             witness_elements: HashMap::default(),
             witness_byte_size: HashMap::default(),
             varint_length: Vec::default(),
-            log_price: vec![0u16; 2100], // enough for about 10BTC 2100 ~= ln(10BTC)*100
+            log_price: vec![0u16; 2250], // enough for about 50BTC 2250 ~= ln(50BTC)*100
         }
     }
 }
@@ -292,7 +292,7 @@ impl ProcessStats {
             self.price_file
                 .write(format!("{:?}\n", self.stats.log_price).as_bytes())
                 .unwrap();
-            self.stats.log_price.clear();
+            self.stats.log_price.fill(0);
         }
 
         for tx in block_extra.block().txdata.iter() {
