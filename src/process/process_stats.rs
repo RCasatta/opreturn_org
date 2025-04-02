@@ -289,9 +289,16 @@ impl ProcessStats {
 
     fn process_price(&mut self, block_extra: &BlockExtra) {
         if (block_extra.height() + 1) % 288 == 0 {
-            self.price_file
-                .write(format!("{:?}\n", self.stats.log_price).as_bytes())
-                .unwrap();
+            let csv_line = self
+                .stats
+                .log_price
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+                + "\n";
+
+            self.price_file.write(csv_line.as_bytes()).unwrap();
             self.stats.log_price.fill(0);
         }
 
