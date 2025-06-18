@@ -45,18 +45,14 @@ pub struct Page {
 const NBSP: PreEscaped<&str> = PreEscaped("&nbsp;");
 
 /// Pages headers.
-fn header(include_js: bool) -> Markup {
-    let js = if include_js {
-        html! {script src="https://cdn.jsdelivr.net/npm/chart.js" { } }
-    } else {
-        html! {}
-    };
-
+fn header() -> Markup {
     html! {
         head {
             meta charset="utf-8";
             meta name="viewport" content="width=device-width, initial-scale=1.0";
-            (js)
+
+            script src="https://cdn.jsdelivr.net/npm/chart.js" { }
+            script defer data-domain="opreturn.org" src="https://plausible.casatta.it/js/script.js" { }
 
             title { "OP_RETURN" }
         }
@@ -78,11 +74,11 @@ fn footer() -> Markup {
 /// The final Markup, including `header` and `footer`.
 ///
 /// Additionally takes a `greeting_box` that's `Markup`, not `&str`.
-pub fn page(content: Markup, text: &str, include_js: bool) -> Markup {
+pub fn page(content: Markup, text: &str) -> Markup {
     html! {
         (DOCTYPE)
         html lang = "en" {
-            (header(include_js))
+            (header())
             body style="font-family: Arial, Helvetica, sans-serif;" {
                 h1 { a href="/" { "OP_RETURN" } }
                 p { (NBSP) }
@@ -103,7 +99,7 @@ impl Page {
                 p { (NBSP) }
             }
         };
-        page(charts, &self.text, true)
+        page(charts, &self.text)
     }
 }
 
@@ -119,7 +115,7 @@ pub fn create_index(pages: &[Page]) -> Markup {
             }
         }
     };
-    page(links, "", false)
+    page(links, "")
 }
 
 pub fn create_contact() -> Markup {
@@ -143,7 +139,7 @@ pub fn create_contact() -> Markup {
         }
     };
 
-    page(content, "", false)
+    page(content, "")
 }
 
 pub fn create_about() -> Markup {
@@ -164,7 +160,7 @@ pub fn create_about() -> Markup {
         p { "Built with " (blocks_iterator) "." }
     };
 
-    page(content, "", false)
+    page(content, "")
 }
 
 fn to_label_map(values: &[u64], mul: usize) -> BTreeMap<String, u64> {
@@ -232,7 +228,7 @@ mod test {
     #[test]
     fn test_pie_page() {
         let chart = mock_pie_chart();
-        let page = page(chart.to_html(), "", true).into_string();
+        let page = page(chart.to_html(), "").into_string();
         assert_eq!("", to_data_url(page, "text/html"));
     }
 
@@ -240,7 +236,7 @@ mod test {
     #[test]
     fn test_lines_page() {
         let chart = mock_lines_chart();
-        let page = page(chart.to_html(), "", true).into_string();
+        let page = page(chart.to_html(), "").into_string();
         assert_eq!("", to_data_url(page, "text/html"));
     }
 
