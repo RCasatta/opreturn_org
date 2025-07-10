@@ -119,22 +119,6 @@ pub struct Dataset {
     pub y_axis_id: Option<String>,
 }
 
-/// This type is used as an hack to represent reference in json dictionary which comes without quotes
-/// This adds the char '#' around the string, after creating the json string a regex removes quotes
-/// and '#' around the string that are references
-#[derive(Debug)]
-struct Reference(String);
-
-impl Serialize for Reference {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let with = format!("#{}#", self.0);
-        serializer.serialize_str(&with)
-    }
-}
-
 impl Serialize for Color {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

@@ -32,6 +32,11 @@ pub struct Stats {
     pub max_tx_per_block: (u64, Option<BlockHash>),
     pub min_hash: BlockHash,
     pub total_spent_in_block: u64,
+
+    /// This value count the number of times the same spendable script is used in the same tx
+    /// if every tx in the blockchain don't reuse it would be 0
+    pub total_script_duplicate_same_tx: usize,
+
     pub total_spent_in_block_per_period: Counter,
 
     pub block_size_per_period: Counter,
@@ -60,6 +65,7 @@ impl Default for Stats {
             max_tx_per_block: (0, None),
             min_hash: BlockHash::all_zeros(),
             total_spent_in_block: 0,
+            total_script_duplicate_same_tx: 0,
             total_spent_in_block_per_period: Counter::default(),
             block_size_per_period: Counter::default(),
             witness_size_per_period: Counter::default(),
@@ -230,6 +236,17 @@ impl ProcessStats {
             for output in tx.output.iter() {
                 self.stats.count_varint_len(output.script_pubkey.len());
             }
+
+            let spendable_scripts: Vec<_> = tx
+                .output
+                .iter()
+                .map(|e| &e.script_pubkey)
+                .filter(|e| !e.is_op_return())
+                .collect();
+            let unique_spendable_scripts: HashSet<_> =
+                spendable_scripts.iter().collect::<HashSet<_>>();
+            self.stats.total_script_duplicate_same_tx +=
+                spendable_scripts.len() - unique_spendable_scripts.len();
 
             if !strange_sighash.is_empty() {
                 self.sighash_file
