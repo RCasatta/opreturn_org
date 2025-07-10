@@ -1,8 +1,7 @@
 use crate::counter::Counter;
 use crate::pages::bip69::{has_more_than_one_input_output, is_bip69};
 use crate::process::{block_index, compress_amount, encoded_length_7bit_varint};
-use blocks_iterator::bitcoin::consensus::{encode, Decodable};
-use blocks_iterator::bitcoin::{EcdsaSighashType, Transaction, Txid, VarInt};
+use blocks_iterator::bitcoin::{Transaction, Txid, VarInt};
 use blocks_iterator::log::info;
 use blocks_iterator::BlockExtra;
 use blocks_iterator::PeriodCounter;
@@ -197,38 +196,5 @@ impl TxStats {
             max_weight_tx: (u64::MIN, None),
             ..Default::default()
         }
-    }
-}
-
-pub struct SignatureHash(pub EcdsaSighashType);
-
-impl Decodable for SignatureHash {
-    fn consensus_decode<R: bitcoin::io::Read + ?Sized>(d: &mut R) -> Result<Self, encode::Error> {
-        let first = u8::consensus_decode(d)?;
-        if first != 0x30 {
-            return Err(encode::Error::ParseFailed("Signature must start with 0x30"));
-        }
-        let _ = u8::consensus_decode(d)?;
-        let integer_header = u8::consensus_decode(d)?;
-        if integer_header != 0x02 {
-            return Err(encode::Error::ParseFailed("No integer header"));
-        }
-        let length_r = u8::consensus_decode(d)?;
-        for _ in 0..length_r {
-            let _ = u8::consensus_decode(d)?;
-        }
-        let integer_header = u8::consensus_decode(d)?;
-        if integer_header != 0x02 {
-            return Err(encode::Error::ParseFailed("No integer header"));
-        }
-        let length_s = u8::consensus_decode(d)?;
-        for _ in 0..length_s {
-            let _ = u8::consensus_decode(d)?;
-        }
-
-        let sighash_u8 = u8::consensus_decode(d)?;
-        let sighash = EcdsaSighashType::from_consensus(sighash_u8 as u32);
-
-        Ok(SignatureHash(sighash))
     }
 }
