@@ -110,6 +110,8 @@ pub fn create_index(pages: &[Page]) -> Markup {
                 li  {
                     p {
                         a href=(page.permalink) { (page.title) }
+                        " - "
+                        (page.description)
                     }
                 }
             }
