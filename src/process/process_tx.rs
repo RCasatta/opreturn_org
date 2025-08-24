@@ -1,6 +1,7 @@
 use crate::counter::Counter;
 use crate::pages::bip69::{has_more_than_one_input_output, is_bip69};
 use crate::process::{block_index, compress_amount, encoded_length_7bit_varint};
+use bitcoin::Address;
 use blocks_iterator::bitcoin::{Transaction, Txid, VarInt};
 use blocks_iterator::log::info;
 use blocks_iterator::BlockExtra;
@@ -28,6 +29,7 @@ pub struct TxStats {
     pub max_outputs_per_tx: (u64, Option<Txid>),
     pub total_outputs: u64,
     pub total_spendable_outputs: u64,
+    pub total_outputs_are_address: u64,
     pub total_inputs: u64,
     pub total_outputs_per_period: Counter,
     pub total_inputs_per_period: Counter,
@@ -121,6 +123,13 @@ impl ProcessTxStats {
             .output
             .iter()
             .filter(|o| !o.script_pubkey.is_op_return())
+            .count() as u64;
+        self.stats.total_outputs_are_address += tx
+            .output
+            .iter()
+            .filter(|o| {
+                Address::from_script(&o.script_pubkey, &bitcoin::consensus::params::MAINNET).is_ok()
+            })
             .count() as u64;
         if self.stats.max_outputs_per_tx.0 < outputs {
             self.stats.max_outputs_per_tx = (outputs, Some(txid));
