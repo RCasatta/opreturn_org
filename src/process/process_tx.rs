@@ -30,6 +30,7 @@ pub struct TxStats {
     pub total_outputs: u64,
     pub total_spendable_outputs: u64,
     pub total_outputs_are_address: u64,
+    pub total_outputs_are_not_address_neither_op_return: u64,
     pub total_inputs: u64,
     pub total_outputs_per_period: Counter,
     pub total_inputs_per_period: Counter,
@@ -131,6 +132,16 @@ impl ProcessTxStats {
                 Address::from_script(&o.script_pubkey, &bitcoin::consensus::params::MAINNET).is_ok()
             })
             .count() as u64;
+        self.stats.total_outputs_are_not_address_neither_op_return += tx
+            .output
+            .iter()
+            .filter(|o| {
+                !o.script_pubkey.is_op_return()
+                    && !Address::from_script(&o.script_pubkey, &bitcoin::consensus::params::MAINNET)
+                        .is_ok()
+            })
+            .count() as u64;
+
         if self.stats.max_outputs_per_tx.0 < outputs {
             self.stats.max_outputs_per_tx = (outputs, Some(txid));
         }
