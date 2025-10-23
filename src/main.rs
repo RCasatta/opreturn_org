@@ -118,15 +118,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let index = pages::create_index(&pages);
     fs::write(index_path, index.into_string()).unwrap();
 
-    let mut contact_path = site_home.clone();
-    contact_path.push("contact");
-    if !contact_path.exists() {
-        fs::create_dir_all(&contact_path).unwrap();
-    }
-    contact_path.push("index.html");
-    let contact = pages::create_contact();
-    fs::write(contact_path, contact.into_string()).unwrap();
-
     let mut about_path = site_home.clone();
     about_path.push("about");
     if !about_path.exists() {
