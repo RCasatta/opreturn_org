@@ -7,7 +7,6 @@ use blocks_iterator::PeriodCounter;
 use chrono::Duration;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
@@ -15,6 +14,12 @@ use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
+
+const OP_RETURN_BUCKETS: [usize; 47] = [
+    0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 2000,
+    3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 20000, 30000, 40000, 50000, 60000, 70000,
+    80000, 90000, 100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000,
+];
 
 pub struct ProcessOpRet {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
@@ -27,7 +32,7 @@ pub struct ProcessOpRet {
 #[derive(Default, Serialize, Deserialize)]
 pub struct OpReturnData {
     pub op_ret_per_period: Counter,
-    pub op_ret_size: BTreeMap<String, u64>, //pad with spaces usize of len up to 3
+    pub op_ret_size: HashMap<String, u64>,
     pub op_ret_fee_per_period: Counter,
     pub op_ret_per_proto: HashMap<String, u64>,
     pub op_ret_per_proto_last_month: HashMap<String, u64>,
@@ -181,10 +186,24 @@ impl ProcessOpRet {
         let script_len = script_bytes.len();
         let data = &mut self.op_return_data;
 
-        *data
-            .op_ret_size
-            .entry(format!("{:>6}", script_len))
-            .or_insert(0) += 1;
+        // Find the appropriate bucket for this script length
+        let bucket_key = if let Some(bucket_idx) = OP_RETURN_BUCKETS
+            .windows(2)
+            .position(|w| script_len >= w[0] && script_len < w[1])
+        {
+            format!(
+                "{:>6}-{:>6}",
+                OP_RETURN_BUCKETS[bucket_idx],
+                OP_RETURN_BUCKETS[bucket_idx + 1]
+            )
+        } else if script_len >= *OP_RETURN_BUCKETS.last().unwrap() {
+            format!("{:>6}+", OP_RETURN_BUCKETS.last().unwrap())
+        } else {
+            // Shouldn't happen if buckets start at 0
+            format!("{}", script_len)
+        };
+
+        *data.op_ret_size.entry(bucket_key).or_insert(0) += 1;
         data.op_ret_per_period.increment(index);
         data.op_ret_fee_per_period.add(index, fee);
 
