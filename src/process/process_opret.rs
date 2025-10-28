@@ -183,7 +183,7 @@ impl ProcessOpRet {
 
         *data
             .op_ret_size
-            .entry(format!("{:>3}", script_len))
+            .entry(format!("{:>6}", script_len))
             .or_insert(0) += 1;
         data.op_ret_per_period.increment(index);
         data.op_ret_fee_per_period.add(index, fee);
