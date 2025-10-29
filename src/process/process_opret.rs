@@ -193,7 +193,7 @@ impl ProcessOpRet {
             .position(|w| script_len >= w[0] && script_len < w[1])
         {
             format!(
-                "{:>6}-{:>6}",
+                "{:>6}-{}",
                 OP_RETURN_BUCKETS[bucket_idx],
                 OP_RETURN_BUCKETS[bucket_idx + 1]
             )
