@@ -7,6 +7,7 @@ use blocks_iterator::PeriodCounter;
 use chrono::Duration;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
@@ -32,7 +33,7 @@ pub struct ProcessOpRet {
 #[derive(Default, Serialize, Deserialize)]
 pub struct OpReturnData {
     pub op_ret_per_period: Counter,
-    pub op_ret_size: HashMap<String, u64>,
+    pub op_ret_size: BTreeMap<String, u64>,
     pub op_ret_fee_per_period: Counter,
     pub op_ret_per_proto: HashMap<String, u64>,
     pub op_ret_per_proto_last_month: HashMap<String, u64>,
