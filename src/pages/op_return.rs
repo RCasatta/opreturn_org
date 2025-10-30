@@ -24,6 +24,28 @@ pub fn op_return_per_month(opret: &OpReturnData) -> Page {
     charts.push(chart);
     drop(op_ret_per_period);
 
+    let (v, div) = opret.op_ret_bigger_than_80_per_period.finish();
+    let op_ret_bigger_than_80_per_period = to_label_map(&v, div);
+    let op_ret_bigger_than_80_labels: Vec<_> =
+        op_ret_bigger_than_80_per_period.keys().cloned().collect();
+
+    let mut chart = Chart::new(
+        "OP_RETURN > 80 bytes".to_string(),
+        Kind::Line,
+        op_ret_bigger_than_80_labels,
+    );
+    let dataset = Dataset {
+        label: "OP_RETURN > 80 bytes [-]".to_string(),
+        data: op_ret_bigger_than_80_per_period.values().cloned().collect(),
+        background_color: vec![Color::Blue],
+        border_color: vec![Color::Blue],
+        fill: false,
+        ..Default::default()
+    };
+    chart.add_dataset(dataset, None);
+    charts.push(chart);
+    drop(op_ret_bigger_than_80_per_period);
+
     let (vec, mul) = opret.op_ret_fee_per_period.finish();
     let op_ret_fee_per_month = to_label_map(&vec, mul);
     let op_ret_per_month_labels: Vec<_> = op_ret_fee_per_month.keys().cloned().collect();
