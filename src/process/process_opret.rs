@@ -33,7 +33,7 @@ pub struct ProcessOpRet {
 #[derive(Default, Serialize, Deserialize)]
 pub struct OpReturnData {
     pub op_ret_per_period: Counter,
-    pub op_ret_bigger_than_80_per_period: Counter,
+    pub op_ret_bigger_than_83_per_period: Counter,
     pub op_ret_size: BTreeMap<String, u64>,
     pub op_ret_fee_per_period: Counter,
     pub op_ret_per_proto: HashMap<String, u64>,
@@ -209,8 +209,8 @@ impl ProcessOpRet {
         data.op_ret_per_period.increment(index);
         data.op_ret_fee_per_period.add(index, fee);
 
-        if op_return_script.len() > 80 {
-            data.op_ret_bigger_than_80_per_period.increment(index);
+        if op_return_script.len() > 83 {
+            data.op_ret_bigger_than_83_per_period.increment(index);
         }
 
         if script_len > 4 {
