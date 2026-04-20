@@ -32,6 +32,7 @@ pub struct TxStats {
     pub total_outputs_are_address: u64,
     pub total_outputs_are_not_address_neither_op_return: u64,
     pub total_inputs: u64,
+    pub total_tx_with_more_than_10_inputs: u64,
     pub total_outputs_per_period: Counter,
     pub total_inputs_per_period: Counter,
     pub script_pubkey_size_per_period: Counter,
@@ -120,6 +121,9 @@ impl ProcessTxStats {
         self.stats.total_tx += 1;
         self.stats.total_outputs += outputs as u64;
         self.stats.total_inputs += inputs as u64;
+        if inputs > 10 {
+            self.stats.total_tx_with_more_than_10_inputs += 1;
+        }
         self.stats.total_spendable_outputs += tx
             .output
             .iter()
@@ -216,5 +220,39 @@ impl TxStats {
             max_weight_tx: (u64::MIN, None),
             ..Default::default()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TxStats;
+    use bitcoin::absolute::LockTime;
+    use bitcoin::transaction::Version;
+    use blocks_iterator::bitcoin::{Transaction, TxIn};
+
+    fn tx_with_inputs(inputs: usize) -> Transaction {
+        Transaction {
+            version: Version::TWO,
+            lock_time: LockTime::ZERO,
+            input: vec![TxIn::default(); inputs],
+            output: vec![],
+        }
+    }
+
+    #[test]
+    fn count_transactions_with_more_than_10_inputs() {
+        let mut stats = TxStats::new();
+
+        let tx = tx_with_inputs(10);
+        if tx.input.len() > 10 {
+            stats.total_tx_with_more_than_10_inputs += 1;
+        }
+
+        let tx = tx_with_inputs(11);
+        if tx.input.len() > 10 {
+            stats.total_tx_with_more_than_10_inputs += 1;
+        }
+
+        assert_eq!(stats.total_tx_with_more_than_10_inputs, 1);
     }
 }
