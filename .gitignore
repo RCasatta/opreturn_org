@@ -11,3 +11,4 @@ site/_data
 *.swp
 *~
 result
+.codex
