@@ -1,3 +1,4 @@
+use crate::bloom::{BloomConfig, UsedScriptBloom};
 use crate::counter::Counter;
 use crate::pages::bip69::{has_more_than_one_input_output, is_bip69};
 use crate::process::{block_index, compress_amount, encoded_length_7bit_varint};
@@ -19,6 +20,7 @@ pub struct ProcessTxStats {
     receiver: Receiver<Arc<Option<BlockExtra>>>,
     pub stats: TxStats,
     pub tx_stats_json_file: File,
+    used_scriptpubkeys_bloom: Option<UsedScriptBloom>,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -60,14 +62,17 @@ impl ProcessTxStats {
     pub fn new(
         receiver: Receiver<Arc<Option<BlockExtra>>>,
         target_dir: &PathBuf,
-    ) -> ProcessTxStats {
+        bloom_config: Option<BloomConfig>,
+    ) -> std::io::Result<ProcessTxStats> {
         let tx_stats_json_file =
             File::create(format!("{}/raw/tx_stats.json", target_dir.display())).unwrap();
-        ProcessTxStats {
+        let used_scriptpubkeys_bloom = bloom_config.map(UsedScriptBloom::new).transpose()?;
+        Ok(ProcessTxStats {
             receiver,
             stats: TxStats::new(),
             tx_stats_json_file,
-        }
+            used_scriptpubkeys_bloom,
+        })
     }
 
     pub fn start(mut self) -> TxStats {
@@ -94,6 +99,15 @@ impl ProcessTxStats {
             .write_all(tx_stats_json.as_bytes())
             .unwrap();
 
+        if let Some(bloom) = self.used_scriptpubkeys_bloom.as_mut() {
+            info!(
+                "publishing used scriptPubKeys Bloom state: {} bytes, {} hash functions",
+                bloom.byte_len(),
+                bloom.hash_functions()
+            );
+            bloom.publish().unwrap();
+        }
+
         busy_time += now.elapsed().as_nanos();
         info!(
             "ending stats processer, busy time: {}s",
@@ -105,6 +119,16 @@ impl ProcessTxStats {
 
     fn process_block(&mut self, block_extra: &BlockExtra) {
         let index = block_index(block_extra.height());
+
+        if let Some(bloom) = self.used_scriptpubkeys_bloom.as_mut() {
+            bloom
+                .begin_block(
+                    block_extra.height(),
+                    block_extra.block_hash(),
+                    block_extra.block().header.prev_blockhash,
+                )
+                .unwrap();
+        }
 
         for (txid, tx) in block_extra.iter_tx() {
             self.process_tx(*txid, &tx, index, block_extra.height());
@@ -176,6 +200,11 @@ impl ProcessTxStats {
             .count();
 
         for output in tx.output.iter() {
+            if !output.script_pubkey.is_op_return() {
+                if let Some(bloom) = self.used_scriptpubkeys_bloom.as_mut() {
+                    bloom.insert(output.script_pubkey.as_bytes());
+                }
+            }
             let len = VarInt(output.value.to_sat()).size() as u64;
 
             self.stats.total_bytes_output_value_bitcoin_varint += len;

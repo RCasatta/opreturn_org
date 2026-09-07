@@ -1,6 +1,7 @@
 use crate::process::{ProcessBip158Stats, ProcessOpRet, ProcessStats, ProcessTxStats};
 use blocks_iterator::log::info;
 use blocks_iterator::{PeriodCounter, PipeIterator};
+use bloom::{parse_false_positive_rate, parse_positive_u64, BloomConfig};
 use chrono::format::StrftimeItems;
 use chrono::Utc;
 use clap::Parser;
@@ -12,6 +13,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::{fs, io, thread};
 
+mod bloom;
 mod charts;
 mod counter;
 mod pages;
@@ -26,6 +28,26 @@ struct Params {
     /// Parse pubkeys (which is expensive involving EC cryptography)
     #[clap(short, long)]
     pub parse_pubkeys: bool,
+
+    /// Maintain a Bloom state directory containing base.bloom and incremental deltas
+    #[clap(long)]
+    pub used_scriptpubkeys_bloom_dir: Option<PathBuf>,
+
+    /// Desired Bloom-filter false-positive probability (0.001 means 0.1%)
+    #[clap(
+        long,
+        default_value_t = 0.001,
+        value_parser = parse_false_positive_rate
+    )]
+    pub bloom_false_positive_rate: f64,
+
+    /// Expected number of distinct scriptPubKeys inserted into the Bloom filter
+    #[clap(
+        long,
+        default_value_t = 5_000_000_000,
+        value_parser = parse_positive_u64
+    )]
+    pub bloom_expected_items: u64,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -67,7 +89,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let process_bip158 = ProcessBip158Stats::new(receive_3, &params.target_dir);
     let process_bip158_handle = thread::spawn(move || process_bip158.start());
 
-    let process_tx_stats = ProcessTxStats::new(receive_4, &params.target_dir);
+    let bloom_config = params
+        .used_scriptpubkeys_bloom_dir
+        .clone()
+        .map(|directory| BloomConfig {
+            directory,
+            expected_items: params.bloom_expected_items,
+            false_positive_rate: params.bloom_false_positive_rate,
+        });
+    let process_tx_stats = ProcessTxStats::new(receive_4, &params.target_dir, bloom_config)?;
     let process_tx_stats_handle = thread::spawn(move || process_tx_stats.start());
 
     let mut period = PeriodCounter::new(Duration::from_secs(10));

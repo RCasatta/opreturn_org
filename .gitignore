@@ -12,3 +12,4 @@ site/_data
 *~
 result
 .codex
+.direnv/
