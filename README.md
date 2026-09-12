@@ -8,7 +8,8 @@ Generate statistic charts about the Bitcoin blockchain.
 blocks_iterator --network testnet --blocks-dir $HOME/.bitcoin/testnet3/blocks/ --stop-at-height 200000 | ./target/release/opreturn_org --target-dir /tmp/
 ```
 
-To also maintain a Bloom filter of every non-OP_RETURN scriptPubKey:
+To also maintain a Bloom filter of scriptPubKeys matching the P2PK, P2PKH,
+P2WPKH, P2WSH, P2SH, or P2TR templates:
 
 ```
 blocks_iterator_cli --network bitcoin --blocks-dir $HOME/.bitcoin/blocks/ | \
@@ -24,7 +25,8 @@ The false-positive rate is a probability between zero and one, so `0.001` means
 is omitted. The first completed run writes `base.bloom`. Later runs load that base
 and the existing deltas, ignore blocks through the stored tip, and atomically add
 one delta for newly processed blocks. Delete the directory to rebuild the base or
-change its parameters.
+change its parameters. Bloom states created by older versions must also be rebuilt,
+because they contain every non-OP_RETURN scriptPubKey.
 
 `blocks_iterator_cli` defaults to `--max-reorg 6`, so the stored Bloom tip is six
 blocks behind the discovered chain tip. Delta headers also verify height and block

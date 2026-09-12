@@ -12,8 +12,10 @@ const BLOCKED_FILTER_OVERHEAD: f64 = 1.30;
 const MAX_HASH_FUNCTIONS: u8 = 32;
 const BASE_HEADER_LEN: usize = 128;
 const DELTA_HEADER_LEN: usize = 160;
-const BASE_MAGIC: &[u8; 8] = b"OSPKBF01";
-const DELTA_MAGIC: &[u8; 8] = b"OSPKBD01";
+const BASE_MAGIC: &[u8; 8] = b"OSPKBF02";
+const DELTA_MAGIC: &[u8; 8] = b"OSPKBD02";
+const LEGACY_BASE_MAGIC: &[u8; 8] = b"OSPKBF01";
+const FORMAT_VERSION: u16 = 2;
 
 #[derive(Debug, Clone)]
 pub struct BloomConfig {
@@ -83,6 +85,11 @@ impl UsedScriptBloom {
         let mut file = File::open(path)?;
         let mut header = [0u8; BASE_HEADER_LEN];
         file.read_exact(&mut header)?;
+        if &header[0..8] == LEGACY_BASE_MAGIC {
+            return Err(invalid_data(
+                "base.bloom contains the obsolete all-non-OP_RETURN filter; delete the state directory to rebuild",
+            ));
+        }
         if &header[0..8] != BASE_MAGIC {
             return Err(invalid_data("invalid base.bloom magic or format version"));
         }
@@ -99,7 +106,7 @@ impl UsedScriptBloom {
         let block_hash = BlockHash::from_byte_array(header[60..92].try_into().unwrap());
         let expected_bitmap_hash: [u8; 32] = header[92..124].try_into().unwrap();
 
-        if version != 1 || u64::from(block_bits) != BLOCK_BITS {
+        if version != FORMAT_VERSION || u64::from(block_bits) != BLOCK_BITS {
             return Err(invalid_data("unsupported base.bloom layout"));
         }
         ensure_compatible(
@@ -157,7 +164,7 @@ impl UsedScriptBloom {
                 path.display()
             )));
         }
-        if read_u16(&bytes, 8) != 1 || u64::from(read_u16(&bytes, 10)) != BLOCK_BITS {
+        if read_u16(&bytes, 8) != FORMAT_VERSION || u64::from(read_u16(&bytes, 10)) != BLOCK_BITS {
             return Err(invalid_data(format!(
                 "unsupported Bloom delta layout: {}",
                 path.display()
@@ -513,7 +520,7 @@ fn allocate_zeroed(bytes: usize) -> io::Result<Vec<u8>> {
 fn common_header(magic: &[u8; 8], bloom: &UsedScriptBloom) -> Vec<u8> {
     let mut header = Vec::new();
     header.extend_from_slice(magic);
-    header.extend_from_slice(&1u16.to_le_bytes());
+    header.extend_from_slice(&FORMAT_VERSION.to_le_bytes());
     header.extend_from_slice(&(BLOCK_BITS as u16).to_le_bytes());
     header.push(bloom.hash_functions);
     header.extend_from_slice(&[0u8; 3]);
@@ -740,6 +747,30 @@ mod tests {
         assert!(bloom.byte_len() <= 12_000);
         assert_eq!(bloom.hash_functions(), 10);
         fs::remove_dir_all(&bloom.config.directory).unwrap();
+    }
+
+    #[test]
+    fn legacy_all_script_filter_is_rejected() {
+        let directory = test_directory("legacy-format");
+        if directory.exists() {
+            fs::remove_dir_all(&directory).unwrap();
+        }
+        fs::create_dir_all(&directory).unwrap();
+        let mut header = vec![0; BASE_HEADER_LEN];
+        header[..LEGACY_BASE_MAGIC.len()].copy_from_slice(LEGACY_BASE_MAGIC);
+        fs::write(directory.join("base.bloom"), header).unwrap();
+
+        let error = UsedScriptBloom::new(BloomConfig {
+            directory: directory.clone(),
+            expected_items: 100,
+            false_positive_rate: 0.001,
+        })
+        .err()
+        .unwrap();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("obsolete all-non-OP_RETURN"));
+        fs::remove_dir_all(directory).unwrap();
     }
 
     #[test]

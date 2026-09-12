@@ -3,7 +3,7 @@ use crate::counter::Counter;
 use crate::pages::bip69::{has_more_than_one_input_output, is_bip69};
 use crate::process::{block_index, compress_amount, encoded_length_7bit_varint};
 use bitcoin::Address;
-use blocks_iterator::bitcoin::{Transaction, Txid, VarInt};
+use blocks_iterator::bitcoin::{Script, Transaction, Txid, VarInt};
 use blocks_iterator::log::info;
 use blocks_iterator::BlockExtra;
 use blocks_iterator::PeriodCounter;
@@ -21,6 +21,15 @@ pub struct ProcessTxStats {
     pub stats: TxStats,
     pub tx_stats_json_file: File,
     used_scriptpubkeys_bloom: Option<UsedScriptBloom>,
+}
+
+fn is_known_script_pubkey(script: &Script) -> bool {
+    script.is_p2pk()
+        || script.is_p2pkh()
+        || script.is_p2wpkh()
+        || script.is_p2wsh()
+        || script.is_p2sh()
+        || script.is_p2tr()
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -200,7 +209,7 @@ impl ProcessTxStats {
             .count();
 
         for output in tx.output.iter() {
-            if !output.script_pubkey.is_op_return() {
+            if is_known_script_pubkey(&output.script_pubkey) {
                 if let Some(bloom) = self.used_scriptpubkeys_bloom.as_mut() {
                     bloom.insert(output.script_pubkey.as_bytes());
                 }
@@ -254,10 +263,18 @@ impl TxStats {
 
 #[cfg(test)]
 mod tests {
-    use super::TxStats;
+    use super::{is_known_script_pubkey, TxStats};
     use bitcoin::absolute::LockTime;
     use bitcoin::transaction::Version;
-    use blocks_iterator::bitcoin::{Transaction, TxIn};
+    use blocks_iterator::bitcoin::{ScriptBuf, Transaction, TxIn};
+
+    fn script_with_payload(prefix: &[u8], payload_len: usize, suffix: &[u8]) -> ScriptBuf {
+        let mut bytes = Vec::with_capacity(prefix.len() + payload_len + suffix.len());
+        bytes.extend_from_slice(prefix);
+        bytes.resize(prefix.len() + payload_len, 0);
+        bytes.extend_from_slice(suffix);
+        ScriptBuf::from_bytes(bytes)
+    }
 
     fn tx_with_inputs(inputs: usize) -> Transaction {
         Transaction {
@@ -283,5 +300,32 @@ mod tests {
         }
 
         assert_eq!(stats.total_tx_with_more_than_10_inputs, 1);
+    }
+
+    #[test]
+    fn known_script_pubkey_templates_are_selected() {
+        let scripts = [
+            script_with_payload(&[0x21], 33, &[0xac]),
+            script_with_payload(&[0x76, 0xa9, 0x14], 20, &[0x88, 0xac]),
+            script_with_payload(&[0x00, 0x14], 20, &[]),
+            script_with_payload(&[0x00, 0x20], 32, &[]),
+            script_with_payload(&[0xa9, 0x14], 20, &[0x87]),
+            script_with_payload(&[0x51, 0x20], 32, &[]),
+        ];
+
+        assert!(scripts.iter().all(|script| is_known_script_pubkey(script)));
+    }
+
+    #[test]
+    fn other_script_pubkey_templates_are_not_selected() {
+        let scripts = [
+            ScriptBuf::new(),
+            ScriptBuf::from_bytes(vec![0x6a, 0x01, 0x00]),
+            ScriptBuf::from_bytes(vec![0x51]),
+            script_with_payload(&[0x52, 0x20], 32, &[]),
+            script_with_payload(&[0x51, 0x21], 33, &[0x51, 0xae]),
+        ];
+
+        assert!(scripts.iter().all(|script| !is_known_script_pubkey(script)));
     }
 }
