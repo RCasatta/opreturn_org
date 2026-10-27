@@ -250,7 +250,7 @@ impl ProcessStats {
 
             if !strange_sighash.is_empty() {
                 self.sighash_file
-                    .write(format!("{} {:?}\n", tx.compute_txid(), strange_sighash).as_bytes())
+                    .write_all(format!("{} {:?}\n", tx.compute_txid(), strange_sighash).as_bytes())
                     .unwrap();
             }
             if count_inputs_in_block == tx.input.len() {
@@ -269,7 +269,7 @@ impl ProcessStats {
         let estimated_fee = (estimated_average_fee * tx_len as f64) as u64;
         self.stats.fee_per_period.add(index, fee);
         self.fee_file
-            .write(
+            .write_all(
                 format!(
                     "{},{},{},{},{},{},{}\n",
                     block_extra.height(),
@@ -295,7 +295,7 @@ impl ProcessStats {
 
         let l = block_extra.block().txdata.len() as u64;
         self.blocks_len_file
-            .write(format!("{}\n", l).as_bytes())
+            .write_all(format!("{}\n", l).as_bytes())
             .unwrap();
         if self.stats.max_tx_per_block.0 < l {
             self.stats.max_tx_per_block = (l, Some(hash));
@@ -315,7 +315,7 @@ impl ProcessStats {
                 .join(",")
                 + "\n";
 
-            self.price_file.write(csv_line.as_bytes()).unwrap();
+            self.price_file.write_all(csv_line.as_bytes()).unwrap();
             self.stats.log_price.fill(0);
         }
 

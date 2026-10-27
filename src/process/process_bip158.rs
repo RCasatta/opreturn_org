@@ -83,7 +83,7 @@ impl ProcessBip158Stats {
         }
         let mut file = File::create(self.cache_path).unwrap();
         for size in self.cache.iter() {
-            file.write(&size.to_be_bytes()).unwrap();
+            file.write_all(&size.to_be_bytes()).unwrap();
         }
 
         busy_time += now.elapsed().as_nanos();
