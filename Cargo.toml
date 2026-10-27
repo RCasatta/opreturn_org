@@ -3,6 +3,7 @@ name = "opreturn_org"
 version = "0.2.0"
 authors = ["Riccardo Casatta <riccardo@casatta.it>"]
 edition = "2018"
+license = "MIT"
 rust-version = "1.85"
 
 [dependencies]
