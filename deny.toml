@@ -1,0 +1,19 @@
+# cargo-deny configuration, used by the `my-crate-deny` flake check.
+
+[licenses]
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "CC0-1.0",      # rust-bitcoin, secp256k1
+    "MITNFA",       # hex_lit (via bitcoin)
+    "Unicode-3.0",  # unicode-ident
+    "Unlicense",
+]
+
+[bans]
+multiple-versions = "allow"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
