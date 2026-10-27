@@ -9,7 +9,7 @@ use std::collections::HashSet;
 use std::convert::TryInto;
 use std::fs::File;
 use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
@@ -35,8 +35,8 @@ pub struct Bip158Stats {
 }
 
 impl ProcessBip158Stats {
-    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, target_dir: &PathBuf) -> Self {
-        let mut cache_path = target_dir.clone();
+    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, target_dir: &Path) -> Self {
+        let mut cache_path = target_dir.to_path_buf();
         cache_path.push("raw");
         cache_path.push("bip138_size_cache");
 
@@ -73,7 +73,7 @@ impl ProcessBip158Stats {
             now = Instant::now();
             match *received {
                 Some(ref block) => {
-                    self.process_block(&block);
+                    self.process_block(block);
                     if period.period_elapsed().is_some() {
                         info!("busy_time:{}", (busy_time / 1_000_000_000));
                     }
@@ -103,11 +103,11 @@ impl ProcessBip158Stats {
         let (filter_len, insert) = match self.cache.get(block.height() as usize) {
             Some(val) => (*val, false),
             None => {
-                let filter = BlockFilter::new_script_filter(&block.block(), |o| {
+                let filter = BlockFilter::new_script_filter(block.block(), |o| {
                     if let Some(s) = &block.outpoint_values().get(o) {
                         Ok(s.script_pubkey.clone())
                     } else {
-                        Err(bitcoin::bip158::Error::UtxoMissing(o.clone()))
+                        Err(bitcoin::bip158::Error::UtxoMissing(*o))
                     }
                 })
                 .unwrap();

@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -70,7 +70,7 @@ pub struct TxStats {
 impl ProcessTxStats {
     pub fn new(
         receiver: Receiver<Arc<Option<BlockExtra>>>,
-        target_dir: &PathBuf,
+        target_dir: &Path,
         bloom_config: Option<BloomConfig>,
     ) -> std::io::Result<ProcessTxStats> {
         let tx_stats_json_file =
@@ -94,7 +94,7 @@ impl ProcessTxStats {
             now = Instant::now();
             match *received {
                 Some(ref block) => {
-                    self.process_block(&block);
+                    self.process_block(block);
                     if period.period_elapsed().is_some() {
                         info!("busy_time:{}", (busy_time / 1_000_000_000));
                     }
@@ -140,7 +140,7 @@ impl ProcessTxStats {
         }
 
         for (txid, tx) in block_extra.iter_tx() {
-            self.process_tx(*txid, &tx, index, block_extra.height());
+            self.process_tx(*txid, tx, index, block_extra.height());
         }
     }
 
@@ -152,8 +152,8 @@ impl ProcessTxStats {
         self.stats.total_inputs_per_period.add(index, inputs);
         self.stats.total_tx_per_period.increment(index);
         self.stats.total_tx += 1;
-        self.stats.total_outputs += outputs as u64;
-        self.stats.total_inputs += inputs as u64;
+        self.stats.total_outputs += outputs;
+        self.stats.total_inputs += inputs;
         if inputs > 10 {
             self.stats.total_tx_with_more_than_10_inputs += 1;
         }
@@ -174,8 +174,8 @@ impl ProcessTxStats {
             .iter()
             .filter(|o| {
                 !o.script_pubkey.is_op_return()
-                    && !Address::from_script(&o.script_pubkey, &bitcoin::consensus::params::MAINNET)
-                        .is_ok()
+                    && Address::from_script(&o.script_pubkey, &bitcoin::consensus::params::MAINNET)
+                        .is_err()
             })
             .count() as u64;
 
@@ -235,10 +235,10 @@ impl ProcessTxStats {
                 .add(index, output.script_pubkey.len() as u64);
         }
 
-        if has_more_than_one_input_output(&tx) {
+        if has_more_than_one_input_output(tx) {
             self.stats
                 .is_bip69
-                .get_mut(is_bip69(&tx) as usize)
+                .get_mut(is_bip69(tx) as usize)
                 .expect("all keys inserted during init")
                 .increment(index);
         }

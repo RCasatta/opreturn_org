@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
@@ -63,7 +63,7 @@ pub struct ScriptType {
 impl ProcessOpRet {
     pub fn new(
         receiver: Receiver<Arc<Option<BlockExtra>>>,
-        target_dir: &PathBuf,
+        target_dir: &Path,
         parse_pubkeys: bool,
     ) -> ProcessOpRet {
         let opret_json_file =
@@ -87,7 +87,7 @@ impl ProcessOpRet {
             now = Instant::now();
             match *received {
                 Some(ref block) => {
-                    self.process_block(&block);
+                    self.process_block(block);
                     if period.period_elapsed().is_some() {
                         info!("busy_time:{}", (busy_time / 1_000_000_000));
                     }
@@ -123,7 +123,7 @@ impl ProcessOpRet {
                         &output.script_pubkey,
                         time,
                         index,
-                        block_extra.tx_fee(&tx).unwrap(),
+                        block_extra.tx_fee(tx).unwrap(),
                     );
                 }
                 self.process_output_script(&output.script_pubkey, index);
@@ -131,7 +131,7 @@ impl ProcessOpRet {
             for input in tx.input.iter() {
                 if let Some(witness_script) = input.witness.last() {
                     if let Some(key) = parse_multisig(witness_script) {
-                        if self.script_type.multisig_tx.get(&key).is_none() {
+                        if !self.script_type.multisig_tx.contains_key(&key) {
                             self.script_type
                                 .multisig_tx
                                 .insert(key.clone(), format!("{}", txid));

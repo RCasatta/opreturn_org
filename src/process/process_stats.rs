@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -83,7 +83,7 @@ impl Default for Stats {
 
 //TODO split again this one slower together with read
 impl ProcessStats {
-    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, target_dir: &PathBuf) -> ProcessStats {
+    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, target_dir: &Path) -> ProcessStats {
         let sighash_file =
             File::create(format!("{}/raw/sighashes.txt", target_dir.display())).unwrap();
         let fee_file = File::create(format!("{}/raw/fee.txt", target_dir.display())).unwrap();
@@ -117,7 +117,7 @@ impl ProcessStats {
             now = Instant::now();
             match *received {
                 Some(ref block) => {
-                    self.process_block(&block);
+                    self.process_block(block);
                     if period.period_elapsed().is_some() {
                         info!("busy_time:{}", (busy_time / 1_000_000_000));
                     }
@@ -180,8 +180,8 @@ impl ProcessStats {
                     count_inputs_in_block += 1;
                 }
 
-                for instr in input.script_sig.instructions() {
-                    if let Ok(Instruction::PushBytes(data)) = instr {
+                for instr in input.script_sig.instructions().flatten() {
+                    if let Instruction::PushBytes(data) = instr {
                         if let Ok(sighash) = deserialize::<SignatureHash>(data.as_bytes()) {
                             *self
                                 .stats
@@ -254,7 +254,7 @@ impl ProcessStats {
                     .unwrap();
             }
             if count_inputs_in_block == tx.input.len() {
-                fees_from_this_block.push(block_extra.tx_fee(&tx).unwrap())
+                fees_from_this_block.push(block_extra.tx_fee(tx).unwrap())
             }
         }
         let tx_len = block_extra.block().txdata.len();

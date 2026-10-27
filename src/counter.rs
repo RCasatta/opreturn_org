@@ -27,7 +27,7 @@ impl Counter {
 
     /// return a vec, skipping the last element cause it's incomplete (the period is not complete)
     pub fn finish(&self) -> (Vec<u64>, usize) {
-        let no_last = self.0[..self.0.len().checked_sub(1).unwrap_or(0)].to_vec();
+        let no_last = self.0[..self.0.len().saturating_sub(1)].to_vec();
         merge_until(&no_last, DEFAULT_MAX_ELEMENTS, 1)
     }
 
@@ -37,7 +37,7 @@ impl Counter {
 }
 
 fn merge(data: &[u64]) -> Vec<u64> {
-    let mut result = Vec::with_capacity((data.len() + 1) / 2);
+    let mut result = Vec::with_capacity(data.len().div_ceil(2));
     for el in data.chunks(2) {
         let r = match el.get(1) {
             None => el[0] * 2,
