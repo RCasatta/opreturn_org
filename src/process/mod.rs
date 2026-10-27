@@ -14,8 +14,8 @@ use blocks_iterator::bitcoin::{PublicKey, Script, Transaction};
 
 pub fn parse_pubkeys_in_script(script: &Script) -> Vec<PublicKey> {
     let mut r = vec![];
-    for el in script.instructions() {
-        if let Ok(Instruction::PushBytes(inst)) = el {
+    for el in script.instructions().flatten() {
+        if let Instruction::PushBytes(inst) = el {
             if let Ok(p) = PublicKey::from_slice(inst.as_bytes()) {
                 r.push(p);
             }
@@ -28,7 +28,7 @@ pub fn parse_pubkeys_in_tx(tx: &Transaction) -> Vec<PublicKey> {
     let mut r = vec![];
     for input in tx.input.iter() {
         for witness_el in input.witness.iter() {
-            if let Ok(p) = PublicKey::from_slice(&witness_el) {
+            if let Ok(p) = PublicKey::from_slice(witness_el) {
                 r.push(p);
             }
         }
@@ -47,8 +47,8 @@ pub fn parse_multisig(witness_script: &[u8]) -> Option<String> {
     {
         let n = read_pushnum(witness_script[0]);
         let m = read_pushnum(witness_script[witness_script_len - 2]);
-        if n.is_some() && m.is_some() {
-            return Some(format!("{:02}of{:02}", n.unwrap(), m.unwrap()));
+        if let (Some(n), Some(m)) = (n, m) {
+            return Some(format!("{:02}of{:02}", n, m));
         }
     }
     None
@@ -88,7 +88,7 @@ pub fn compress_amount(n: u64) -> u64 {
     }
     if e < 9 {
         let d = n % 10;
-        assert!(d >= 1 && d <= 9);
+        assert!((1..=9).contains(&d));
         n /= 10;
         1 + (n * 9 + d - 1) * 10 + e
     } else {
@@ -96,33 +96,6 @@ pub fn compress_amount(n: u64) -> u64 {
     }
 }
 
-#[cfg(test)]
-pub fn decompress_amount(x: u64) -> u64 {
-    if x == 0 {
-        return 0;
-    }
-    let mut x = x;
-    x -= 1;
-    let mut e = x % 10;
-    x /= 10;
-    let mut n;
-    if e < 9 {
-        let d = (x % 9) + 1;
-        x /= 9;
-        n = x * 10 + d;
-    } else {
-        n = x + 1;
-    }
-    loop {
-        if e == 0 {
-            break;
-        }
-        n *= 10;
-        e -= 1;
-    }
-    n
-}
-
 pub fn block_index(height: u32) -> usize {
-    return height as usize / 1000;
+    height as usize / 1000
 }

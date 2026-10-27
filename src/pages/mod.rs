@@ -162,24 +162,22 @@ pub fn get_pages(
     stats: &Stats,
     tx_stats: &TxStats,
 ) -> Vec<Page> {
-    let mut pages = vec![];
-
-    pages.push(blockchain_sizes(&stats, &bip158, &tx_stats));
-    pages.push(witness_stats(&stats));
-    pages.push(number_of_inputs_and_outputs(&tx_stats));
-    pages.push(op_return_per_month(&opret));
-    pages.push(op_return_protocols(&opret));
-    pages.push(op_return_sizes(&opret));
-    pages.push(script_types(&script_type));
-    pages.push(rounded_amount(&tx_stats));
-    pages.push(segwit_multisig(&script_type));
-    pages.push(spent_same_block(&stats, &tx_stats));
-    pages.push(sighash_types(&stats));
-    pages.push(total_tx_outputs_inputs(&tx_stats));
-    pages.push(bip69(&tx_stats));
-    pages.push(locktime(&tx_stats));
-
-    pages
+    vec![
+        blockchain_sizes(stats, bip158, tx_stats),
+        witness_stats(stats),
+        number_of_inputs_and_outputs(tx_stats),
+        op_return_per_month(opret),
+        op_return_protocols(opret),
+        op_return_sizes(opret),
+        script_types(script_type),
+        rounded_amount(tx_stats),
+        segwit_multisig(script_type),
+        spent_same_block(stats, tx_stats),
+        sighash_types(stats),
+        total_tx_outputs_inputs(tx_stats),
+        bip69(tx_stats),
+        locktime(tx_stats),
+    ]
 }
 
 pub fn map_by_value(map: &HashMap<String, u64>) -> BTreeMap<String, u64> {

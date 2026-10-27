@@ -161,7 +161,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut favicon_file = site_home.clone();
     favicon_file.push("favicon.ico");
     let favicon = include_bytes!("../target_dir/site/favicon.ico");
-    fs::write(favicon_file, &favicon).unwrap();
+    fs::write(favicon_file, favicon).unwrap();
 
     info!("end, elapsed:{}s", now.elapsed().as_secs());
     Ok(())
