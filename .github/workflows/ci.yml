@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  # testnet fixture shipped with blocks_iterator (100 KB, 361 blocks), pinned by commit
+  FIXTURE_URL: https://raw.githubusercontent.com/RCasatta/blocks_iterator/0e60a3ad15c8567b989b80a09f6016487f037d6c/blocks/blk-testnet.dat
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt -- --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+      - run: cargo build --release
+      - name: smoke run on testnet fixture
+        shell: bash
+        run: |
+          cargo install blocks_iterator_cli --locked
+          mkdir -p /tmp/blocks /tmp/out
+          curl -sSfL -o /tmp/blocks/blk-testnet.dat "$FIXTURE_URL"
+          blocks_iterator_cli --blocks-dir /tmp/blocks --network testnet --max-reorg 40 \
+            | ./target/release/opreturn_org --target-dir /tmp/out
+          test "$(find /tmp/out/site -name index.html | wc -l)" -ge 16
+          test -s /tmp/out/raw/opret.json
+
+  nix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            trusted-public-keys = nix.casatta.it:HseKZh7436/vKXfZDBHbhr7wwAkzjLwY5BIq+OOrITg= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+            substituters = https://nix.casatta.it https://cache.nixos.org/
+      # builds the crate and runs clippy, doc, fmt, audit, deny and nextest
+      - run: nix flake check -L
