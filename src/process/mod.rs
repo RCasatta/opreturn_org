@@ -4,7 +4,7 @@ mod process_stats;
 mod process_tx;
 
 pub use process_bip158::{Bip158Stats, ProcessBip158Stats};
-pub use process_opret::{OpReturnData, ProcessOpRet, ScriptType};
+pub use process_opret::{OpReturnData, ProcessOpRet, ProtoKey, ScriptType};
 pub use process_stats::{ProcessStats, Stats};
 pub use process_tx::{ProcessTxStats, TxStats};
 

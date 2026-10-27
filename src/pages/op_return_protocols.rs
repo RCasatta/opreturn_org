@@ -1,9 +1,14 @@
 use crate::charts::{Chart, Color, Dataset, Kind};
 use crate::pages::{map_by_value, Page};
-use crate::process::OpReturnData;
+use crate::process::{OpReturnData, ProtoKey};
+use std::collections::HashMap;
+
+fn to_strings(map: &HashMap<ProtoKey, u64>) -> HashMap<String, u64> {
+    map.iter().map(|(k, v)| (k.to_string(), *v)).collect()
+}
 
 pub fn op_return_protocols(opret: &OpReturnData) -> Page {
-    let map1 = map_by_value(&opret.op_ret_per_proto_last_month);
+    let map1 = map_by_value(&to_strings(&opret.op_ret_per_proto_last_month));
     let mut chart1 = Chart::new(
         "Last month".to_string(),
         Kind::Pie,
@@ -20,7 +25,7 @@ pub fn op_return_protocols(opret: &OpReturnData) -> Page {
     chart1.add_dataset(dataset, None);
     drop(map1);
 
-    let map2 = map_by_value(&opret.op_ret_per_proto_last_year);
+    let map2 = map_by_value(&to_strings(&opret.op_ret_per_proto_last_year));
     let mut chart2 = Chart::new(
         "Last year".to_string(),
         Kind::Pie,
@@ -36,7 +41,7 @@ pub fn op_return_protocols(opret: &OpReturnData) -> Page {
     };
     chart2.add_dataset(dataset, None);
 
-    let map3 = map_by_value(&opret.op_ret_per_proto);
+    let map3 = map_by_value(&to_strings(&opret.op_ret_per_proto));
     let mut chart3 = Chart::new(
         "Ever".to_string(),
         Kind::Pie,

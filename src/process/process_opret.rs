@@ -1,17 +1,21 @@
 use crate::counter::Counter;
 use crate::process::{block_index, parse_multisig, parse_pubkeys_in_tx};
+use blocks_iterator::bitcoin::opcodes::all::OP_PUSHNUM_13;
+use blocks_iterator::bitcoin::script::Instruction;
 use blocks_iterator::bitcoin::Script;
 use blocks_iterator::log::{debug, info};
 use blocks_iterator::BlockExtra;
 use blocks_iterator::PeriodCounter;
 use chrono::Duration;
 use chrono::Utc;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::fmt;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
+use std::str::FromStr;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
@@ -36,14 +40,117 @@ pub struct OpReturnData {
     pub op_ret_bigger_than_83_per_period: Counter,
     pub op_ret_size: BTreeMap<String, u64>,
     pub op_ret_fee_per_period: Counter,
-    pub op_ret_per_proto: HashMap<String, u64>,
-    pub op_ret_per_proto_last_month: HashMap<String, u64>,
-    pub op_ret_per_proto_last_year: HashMap<String, u64>,
+    pub op_ret_per_proto: HashMap<ProtoKey, u64>,
+    pub op_ret_per_proto_last_month: HashMap<ProtoKey, u64>,
+    pub op_ret_per_proto_last_year: HashMap<ProtoKey, u64>,
     pub month_ago: u32,
     pub year_ago: u32,
 
     pub compressed_starts_with: Counter,
     pub uncompressed_starts_with: Counter,
+}
+
+/// Compact key identifying the "protocol" of an OP_RETURN script.
+///
+/// Serialized as a string so that `raw/opret.json` keeps the previous shape: the hex of the
+/// first (up to) 3 bytes of the data pushed right after OP_RETURN, or one of the special
+/// values `RUNES`, `empty`, `bare`, `op_XX` and `invalid`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum ProtoKey {
+    /// First `len` (at most 3) bytes of the data pushed right after OP_RETURN, with any push
+    /// opcode (direct push, PUSHDATA1, PUSHDATA2, PUSHDATA4)
+    Data { len: u8, bytes: [u8; 3] },
+    /// OP_RETURN OP_13, a Runes runestone
+    Runes,
+    /// OP_RETURN without anything after it
+    Bare,
+    /// OP_RETURN followed by a non-push opcode (other than OP_13)
+    Op(u8),
+    /// OP_RETURN followed by a push which is not well formed (eg. truncated)
+    Invalid,
+}
+
+impl ProtoKey {
+    pub fn from_op_return(script: &Script) -> ProtoKey {
+        let mut instructions = script.instructions();
+        // the caller checked `is_op_return()`, the first instruction is OP_RETURN
+        let _op_return = instructions.next();
+        match instructions.next() {
+            None => ProtoKey::Bare,
+            Some(Ok(Instruction::PushBytes(push))) => ProtoKey::from_data(push.as_bytes()),
+            Some(Ok(Instruction::Op(op))) if op == OP_PUSHNUM_13 => ProtoKey::Runes,
+            Some(Ok(Instruction::Op(op))) => ProtoKey::Op(op.to_u8()),
+            Some(Err(_)) => ProtoKey::Invalid,
+        }
+    }
+
+    fn from_data(data: &[u8]) -> ProtoKey {
+        let len = data.len().min(3);
+        let mut bytes = [0u8; 3];
+        bytes[..len].copy_from_slice(&data[..len]);
+        ProtoKey::Data {
+            len: len as u8,
+            bytes,
+        }
+    }
+
+    /// The (up to 3) data bytes, if this key comes from pushed data
+    pub fn data(&self) -> Option<&[u8]> {
+        match self {
+            ProtoKey::Data { len, bytes } => Some(&bytes[..*len as usize]),
+            _ => None,
+        }
+    }
+}
+
+impl fmt::Display for ProtoKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ProtoKey::Data { len: 0, .. } => write!(f, "empty"),
+            ProtoKey::Data { .. } => write!(f, "{}", hex::encode(self.data().unwrap_or(&[]))),
+            ProtoKey::Runes => write!(f, "RUNES"),
+            ProtoKey::Bare => write!(f, "bare"),
+            ProtoKey::Op(op) => write!(f, "op_{:02x}", op),
+            ProtoKey::Invalid => write!(f, "invalid"),
+        }
+    }
+}
+
+impl FromStr for ProtoKey {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "empty" => Ok(ProtoKey::from_data(&[])),
+            "RUNES" => Ok(ProtoKey::Runes),
+            "bare" => Ok(ProtoKey::Bare),
+            "invalid" => Ok(ProtoKey::Invalid),
+            _ => {
+                if let Some(op) = s.strip_prefix("op_") {
+                    let op = u8::from_str_radix(op, 16).map_err(|e| e.to_string())?;
+                    return Ok(ProtoKey::Op(op));
+                }
+                let data = hex::decode(s).map_err(|e| e.to_string())?;
+                if data.is_empty() || data.len() > 3 {
+                    return Err(format!("invalid protocol key {}", s));
+                }
+                Ok(ProtoKey::from_data(&data))
+            }
+        }
+    }
+}
+
+impl Serialize for ProtoKey {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_str(self)
+    }
+}
+
+impl<'de> Deserialize<'de> for ProtoKey {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(deserializer)?;
+        ProtoKey::from_str(&s).map_err(serde::de::Error::custom)
+    }
 }
 
 #[derive(Default)]
@@ -183,9 +290,7 @@ impl ProcessOpRet {
         index: usize,
         fee: u64,
     ) {
-        let script_bytes = op_return_script.as_bytes();
-        let script_hex = hex::encode(script_bytes);
-        let script_len = script_bytes.len();
+        let script_len = op_return_script.len();
         let data = &mut self.op_return_data;
 
         // Find the appropriate bucket for this script length
@@ -213,31 +318,21 @@ impl ProcessOpRet {
             data.op_ret_bigger_than_83_per_period.increment(index);
         }
 
-        if script_len > 4 {
-            let op_ret_proto = if script_hex.starts_with("6a4c") && script_len > 5 {
-                // 4c = OP_PUSHDATA1
-                String::from(&script_hex[6..12])
-            } else {
-                String::from(&script_hex[4..10])
-            };
-            if time > data.year_ago {
-                *data
-                    .op_ret_per_proto_last_year
-                    .entry(op_ret_proto.clone())
-                    .or_insert(0) += 1;
-
-                if time > data.month_ago {
-                    *data
-                        .op_ret_per_proto_last_month
-                        .entry(op_ret_proto.clone())
-                        .or_insert(0) += 1;
-                }
-            }
+        let op_ret_proto = ProtoKey::from_op_return(op_return_script);
+        if time > data.year_ago {
             *data
-                .op_ret_per_proto
-                .entry(op_ret_proto.clone())
+                .op_ret_per_proto_last_year
+                .entry(op_ret_proto)
                 .or_insert(0) += 1;
+
+            if time > data.month_ago {
+                *data
+                    .op_ret_per_proto_last_month
+                    .entry(op_ret_proto)
+                    .or_insert(0) += 1;
+            }
         }
+        *data.op_ret_per_proto.entry(op_ret_proto).or_insert(0) += 1;
     }
 }
 
@@ -356,3 +451,87 @@ mod test {
 }
 
 */
+
+#[cfg(test)]
+mod proto_tests {
+    use super::ProtoKey;
+    use blocks_iterator::bitcoin::ScriptBuf;
+    use std::collections::HashMap;
+    use std::str::FromStr;
+
+    fn proto(script_hex: &str) -> String {
+        let script = ScriptBuf::from_hex(script_hex).unwrap();
+        assert!(script.is_op_return());
+        ProtoKey::from_op_return(&script).to_string()
+    }
+
+    #[test]
+    fn direct_push() {
+        // OP_RETURN OP_PUSHBYTES_20 "omni..."
+        assert_eq!(
+            proto("6a146f6d6e69000000000000001f0000000000000001"),
+            "6f6d6e"
+        );
+        // segwit witness commitment
+        assert_eq!(
+            proto("6a24aa21a9ed0000000000000000000000000000000000000000000000000000000000000000"),
+            "aa21a9"
+        );
+    }
+
+    #[test]
+    fn pushdata1() {
+        // OP_RETURN OP_PUSHDATA1 80 "X2[..."
+        let script = format!("6a4c50{}", "58325b".to_string() + &"00".repeat(77));
+        assert_eq!(proto(&script), "58325b");
+    }
+
+    #[test]
+    fn pushdata2() {
+        // OP_RETURN OP_PUSHDATA2 300 "abc...": the old logic took the length bytes as the key
+        let script = format!("6a4d2c01616263{}", "00".repeat(297));
+        assert_eq!(proto(&script), "616263");
+    }
+
+    #[test]
+    fn pushdata4() {
+        let script = format!("6a4e05000000{}", "4f55543a00");
+        assert_eq!(proto(&script), "4f5554");
+    }
+
+    #[test]
+    fn runes() {
+        // OP_RETURN OP_13 OP_PUSHBYTES_4 ...: the old logic gave keys like "041401"
+        assert_eq!(proto("6a5d0414011400"), "RUNES");
+        assert_eq!(proto("6a5d"), "RUNES");
+    }
+
+    #[test]
+    fn special_cases() {
+        assert_eq!(proto("6a"), "bare");
+        assert_eq!(proto("6a00"), "empty");
+        assert_eq!(proto("6a0101"), "01");
+        assert_eq!(proto("6a51"), "op_51");
+        // push of 5 bytes with only 2 available
+        assert_eq!(proto("6a050102"), "invalid");
+    }
+
+    #[test]
+    fn string_round_trip() {
+        for s in ["6f6d6e", "01", "empty", "RUNES", "bare", "op_51", "invalid"] {
+            assert_eq!(ProtoKey::from_str(s).unwrap().to_string(), s);
+        }
+        assert!(ProtoKey::from_str("01020304").is_err());
+        assert!(ProtoKey::from_str("zz").is_err());
+
+        let mut map = HashMap::new();
+        map.insert(ProtoKey::Runes, 2u64);
+        map.insert(ProtoKey::from_str("6f6d6e").unwrap(), 1u64);
+        let json = serde_json::to_string(&map).unwrap();
+        let back: HashMap<ProtoKey, u64> = serde_json::from_str(&json).unwrap();
+        assert_eq!(map, back);
+        let as_strings: HashMap<String, u64> = serde_json::from_str(&json).unwrap();
+        assert_eq!(as_strings["6f6d6e"], 1);
+        assert_eq!(as_strings["RUNES"], 2);
+    }
+}
