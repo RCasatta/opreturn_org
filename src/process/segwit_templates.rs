@@ -27,6 +27,11 @@ pub const EXACT_DISTINCT_LIMIT: usize = 128;
 /// Key used for spends whose template doesn't fit in the map anymore
 pub const OTHER: &str = "other";
 
+/// Whether the template contains an envelope `OP_0 OP_IF ... OP_ENDIF`, typically inscriptions
+pub fn is_envelope(template: &str) -> bool {
+    template.contains("<envelope")
+}
+
 const HLL_P: u32 = 10;
 const HLL_M: usize = 1 << HLL_P;
 
@@ -155,28 +160,34 @@ fn opcode_name(op: Opcode) -> String {
     }
 }
 
-fn push_placeholder(data: &[u8], next: Option<Opcode>) -> String {
+fn push_placeholder(data: &[u8], prev: Option<Opcode>, next: Option<Opcode>) -> String {
+    let checksig =
+        |op: Opcode| op == OP_CHECKSIG || op == OP_CHECKSIGVERIFY || op == OP_CHECKSIGADD;
+    let equal = |op: Opcode| op == OP_EQUAL || op == OP_EQUALVERIFY;
+    let sha = |op: Opcode| op == OP_SHA256 || op == OP_HASH256;
     match next {
         // absolute timelocks are specific to a wallet: keep only whether it's an height or a time
         Some(op) if op == OP_CLTV => match script_num(data) {
             Some(n) if n < 500_000_000 => "<height>".to_string(),
             Some(_) => "<time>".to_string(),
-            None => "<data>".to_string(),
+            None => format!("<data:{}>", data.len()),
         },
         // relative timelocks are policy parameters, typically chosen among few values: keep them
         Some(op) if op == OP_CSV => match script_num(data) {
             Some(n) => n.to_string(),
-            None => "<data>".to_string(),
+            None => format!("<data:{}>", data.len()),
         },
+        // 32 bytes are labelled only when the context is unambiguous
+        Some(op) if data.len() == 32 && checksig(op) => "<xpk>".to_string(),
+        Some(op) if data.len() == 32 && equal(op) && prev.is_some_and(sha) => "<h32>".to_string(),
         _ => match data.len() {
             // small numbers are structural (thresholds, sizes, counts)
             1 | 2 => script_num(data).map(|n| n.to_string()).unwrap(),
-            3 | 4 => "<num>".to_string(),
             20 => "<20>".to_string(),
             32 => "<32>".to_string(),
             33 if matches!(data[0], 2 | 3) => "<pk>".to_string(),
             65 if data[0] == 4 => "<pk65>".to_string(),
-            _ => "<data>".to_string(),
+            n => format!("<data:{}>", n),
         },
     }
 }
@@ -184,7 +195,8 @@ fn push_placeholder(data: &[u8], next: Option<Opcode>) -> String {
 /// Normalize a script into a template, replacing data pushes with placeholders.
 ///
 /// Envelopes `OP_0 OP_IF ... OP_ENDIF` (eg. ordinals inscriptions) are collapsed in a single
-/// `<envelope:tag>` element, since their content is never executed.
+/// `<envelope:tag>` element, since their content is never executed and would make every
+/// inscription a different template.
 pub fn template(script: &[u8]) -> String {
     let script = Script::from_bytes(script);
     let mut instructions = vec![];
@@ -236,17 +248,28 @@ pub fn template(script: &[u8]) -> String {
                     ""
                 };
                 let envelope = format!("OP_0 OP_IF <envelope{}>{}", tag, end);
-                let repeated = format!("OP_0 OP_IF <envelope{}>+{}", tag, end);
-                // consecutive envelopes (eg. batch inscriptions) are merged, the count is not a policy
-                match parts.last_mut() {
-                    Some(last) if *last == envelope || *last == repeated => *last = repeated,
-                    _ => parts.push(envelope),
+                // consecutive identical envelopes (eg. batch inscriptions) are written once with
+                // their count, which is kept since it's visible on chain
+                let repeated = format!("({})x", envelope);
+                let count = match parts.last() {
+                    Some(last) if *last == envelope => Some(2),
+                    Some(last) if last.starts_with(&repeated) => {
+                        last[repeated.len()..].parse::<usize>().ok().map(|n| n + 1)
+                    }
+                    _ => None,
+                };
+                match count {
+                    Some(n) => *parts.last_mut().expect("checked") = format!("{}{}", repeated, n),
+                    None => parts.push(envelope),
                 }
                 i = j + 1;
                 continue;
             }
             Instruction::PushBytes(p) if p.is_empty() => parts.push("OP_0".to_string()),
-            Instruction::PushBytes(p) => parts.push(push_placeholder(p.as_bytes(), next_op)),
+            Instruction::PushBytes(p) => {
+                let prev_op = i.checked_sub(1).and_then(|p| instructions[p].opcode());
+                parts.push(push_placeholder(p.as_bytes(), prev_op, next_op))
+            }
             Instruction::Op(op) => parts.push(opcode_name(op)),
         }
         i += 1;
@@ -450,7 +473,7 @@ impl SegwitTemplates {
     }
 
     /// Number of templates whose distinct scripts count falls in the given buckets
-    pub fn anonymity_set_histogram(&self) -> Vec<(String, u64)> {
+    pub fn anonymity_set_histogram(&self, envelope: bool) -> Vec<(String, u64)> {
         let buckets: [(u64, u64, &str); 7] = [
             (1, 1, "1"),
             (2, 2, "2"),
@@ -466,7 +489,7 @@ impl SegwitTemplates {
                 let count = self
                     .templates
                     .iter()
-                    .filter(|(k, _)| k.as_str() != OTHER)
+                    .filter(|(k, _)| k.as_str() != OTHER && is_envelope(k) == envelope)
                     .map(|(_, v)| v.distinct.count())
                     .filter(|c| c >= min && c <= max)
                     .count();
@@ -579,13 +602,37 @@ mod tests {
             .into_script();
         assert_eq!(
             template(script.as_bytes()),
-            "<32> OP_CHECKSIG <32> OP_CHECKSIGADD <32> OP_CHECKSIGADD OP_2 OP_NUMEQUAL"
+            "<xpk> OP_CHECKSIG <xpk> OP_CHECKSIGADD <xpk> OP_CHECKSIGADD OP_2 OP_NUMEQUAL"
         );
         let script = Builder::new()
             .push_int(17)
             .push_opcode(OP_NUMEQUAL)
             .into_script();
         assert_eq!(template(script.as_bytes()), "17 OP_NUMEQUAL");
+    }
+
+    #[test]
+    fn test_template_32_bytes_context() {
+        // hash lock: OP_SIZE 32 OP_EQUALVERIFY OP_SHA256 <h> OP_EQUALVERIFY <xpk> OP_CHECKSIG
+        let script = Builder::new()
+            .push_opcode(OP_SIZE)
+            .push_int(32)
+            .push_opcode(OP_EQUALVERIFY)
+            .push_opcode(OP_SHA256)
+            .push_slice([1u8; 32])
+            .push_opcode(OP_EQUALVERIFY)
+            .push_slice([2u8; 32])
+            .push_opcode(OP_CHECKSIGVERIFY)
+            .push_slice([3u8; 32])
+            .push_opcode(OP_DROP)
+            .push_slice([4u8; 7])
+            .push_opcode(OP_DROP)
+            .push_slice([5u8; 3])
+            .into_script();
+        assert_eq!(
+            template(script.as_bytes()),
+            "OP_SIZE 32 OP_EQUALVERIFY OP_SHA256 <h32> OP_EQUALVERIFY <xpk> OP_CHECKSIGVERIFY <32> OP_DROP <data:7> OP_DROP <data:3>"
+        );
     }
 
     #[test]
@@ -604,7 +651,7 @@ mod tests {
             .into_script();
         assert_eq!(
             template(script.as_bytes()),
-            "<32> OP_CHECKSIG OP_0 OP_IF <envelope:ord> OP_ENDIF"
+            "<xpk> OP_CHECKSIG OP_0 OP_IF <envelope:ord> OP_ENDIF"
         );
         let mut b = Builder::new()
             .push_slice([1u8; 32])
@@ -618,7 +665,7 @@ mod tests {
         }
         assert_eq!(
             template(b.into_script().as_bytes()),
-            "<32> OP_CHECKSIG OP_0 OP_IF <envelope:ord>+ OP_ENDIF"
+            "<xpk> OP_CHECKSIG (OP_0 OP_IF <envelope:ord> OP_ENDIF)x3"
         );
     }
 
