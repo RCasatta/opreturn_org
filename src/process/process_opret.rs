@@ -1,5 +1,5 @@
 use crate::counter::Counter;
-use crate::process::{block_index, parse_multisig, parse_pubkeys_in_tx};
+use crate::process::{block_index, parse_multisig, parse_pubkeys_in_tx, SegwitTemplates};
 use blocks_iterator::bitcoin::opcodes::all::OP_PUSHNUM_13;
 use blocks_iterator::bitcoin::script::Instruction;
 use blocks_iterator::bitcoin::Script;
@@ -31,6 +31,7 @@ pub struct ProcessOpRet {
     pub op_return_data: OpReturnData,
     pub script_type: ScriptType,
     pub opret_json_file: File,
+    pub segwit_templates_json_file: File,
     pub parse_pubkeys: bool,
 }
 
@@ -165,6 +166,7 @@ pub struct ScriptType {
     pub other: Counter,
     pub multisig: HashMap<String, u64>,
     pub multisig_tx: HashMap<String, String>,
+    pub segwit_templates: SegwitTemplates,
 }
 
 impl ProcessOpRet {
@@ -175,11 +177,17 @@ impl ProcessOpRet {
     ) -> ProcessOpRet {
         let opret_json_file =
             File::create(format!("{}/raw/opret.json", target_dir.display())).unwrap();
+        let segwit_templates_json_file = File::create(format!(
+            "{}/raw/segwit_templates.json",
+            target_dir.display()
+        ))
+        .unwrap();
         ProcessOpRet {
             receiver,
             op_return_data: OpReturnData::new(),
             script_type: ScriptType::new(),
             opret_json_file,
+            segwit_templates_json_file,
             parse_pubkeys,
         }
     }
@@ -210,6 +218,19 @@ impl ProcessOpRet {
             .write_all(opret_json.as_bytes())
             .unwrap();
 
+        let templates = &self.script_type.segwit_templates;
+        info!(
+            "segwit templates: {} distinct, {} spends, {} overflow spends, ~{} bytes",
+            templates.templates.len(),
+            templates.total_spends,
+            templates.overflow_spends,
+            templates.heap_size()
+        );
+        let templates_json = serde_json::to_string(&templates.rows()).unwrap();
+        self.segwit_templates_json_file
+            .write_all(templates_json.as_bytes())
+            .unwrap();
+
         busy_time += now.elapsed().as_nanos();
         info!(
             "ending processer, busy time: {}s",
@@ -236,6 +257,13 @@ impl ProcessOpRet {
                 self.process_output_script(&output.script_pubkey, index);
             }
             for input in tx.input.iter() {
+                let prevout = block_extra.outpoint_values().get(&input.previous_output);
+                self.script_type.segwit_templates.add_input(
+                    input,
+                    prevout.map(|p| p.script_pubkey.as_script()),
+                    txid,
+                    block_extra.height(),
+                );
                 if let Some(witness_script) = input.witness.last() {
                     if let Some(key) = parse_multisig(witness_script) {
                         if !self.script_type.multisig_tx.contains_key(&key) {

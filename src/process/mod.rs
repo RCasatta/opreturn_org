@@ -2,11 +2,13 @@ mod process_bip158;
 mod process_opret;
 mod process_stats;
 mod process_tx;
+pub mod segwit_templates;
 
 pub use process_bip158::{Bip158Stats, ProcessBip158Stats};
 pub use process_opret::{OpReturnData, ProcessOpRet, ProtoKey, ScriptType};
 pub use process_stats::{ProcessStats, Stats};
 pub use process_tx::{ProcessTxStats, TxStats};
+pub use segwit_templates::SegwitTemplates;
 
 use blocks_iterator::bitcoin::blockdata::opcodes;
 use blocks_iterator::bitcoin::blockdata::script::Instruction;

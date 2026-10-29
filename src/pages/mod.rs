@@ -8,6 +8,7 @@ mod op_return_sizes;
 mod rounded_amount;
 mod script_types;
 mod segwit_multisig;
+mod segwit_script_templates;
 mod sighash_types;
 mod spent_same_block;
 mod total_tx_outputs_inputs;
@@ -29,6 +30,7 @@ pub use op_return_sizes::op_return_sizes;
 pub use rounded_amount::rounded_amount;
 pub use script_types::script_types;
 pub use segwit_multisig::segwit_multisig;
+pub use segwit_script_templates::segwit_script_templates;
 pub use sighash_types::sighash_types;
 pub use spent_same_block::spent_same_block;
 pub use total_tx_outputs_inputs::total_tx_outputs_inputs;
@@ -172,6 +174,7 @@ pub fn get_pages(
         script_types(script_type),
         rounded_amount(tx_stats),
         segwit_multisig(script_type),
+        segwit_script_templates(script_type),
         spent_same_block(stats, tx_stats),
         sighash_types(stats),
         total_tx_outputs_inputs(tx_stats),
