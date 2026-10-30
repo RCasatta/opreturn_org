@@ -142,7 +142,9 @@
 
           # Extra inputs can be added here; cargo and rustc are provided by default.
           packages = [
-            # pkgs.ripgrep
+            # used by scripts/dev.sh
+            pkgs.python3
+            pkgs.zstd
           ];
         };
       });
