@@ -6,6 +6,7 @@ use chrono::format::StrftimeItems;
 use chrono::{DateTime, Utc};
 use clap::Parser;
 use env_logger::Env;
+use sample::Sampler;
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::mpsc::sync_channel;
@@ -18,6 +19,7 @@ mod charts;
 mod counter;
 mod pages;
 mod process;
+mod sample;
 
 #[derive(Parser, Debug, Clone)]
 struct Params {
@@ -48,6 +50,15 @@ struct Params {
         value_parser = parse_positive_u64
     )]
     pub bloom_expected_items: u64,
+
+    /// Also write the blocks whose height is a multiple of `--sample-every` to this file, in the
+    /// same format read from stdin, to replay a small but representative dataset locally
+    #[clap(long)]
+    pub sample_out: Option<PathBuf>,
+
+    /// Height interval between blocks written to `--sample-out`
+    #[clap(long, default_value_t = 1000, value_parser = parse_positive_u64)]
+    pub sample_every: u64,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -100,6 +111,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let process_tx_stats = ProcessTxStats::new(receive_4, &params.target_dir, bloom_config)?;
     let process_tx_stats_handle = thread::spawn(move || process_tx_stats.start());
 
+    let mut sampler = params
+        .sample_out
+        .clone()
+        .map(|path| Sampler::new(path, params.sample_every))
+        .transpose()?;
+
     let mut period = PeriodCounter::new(Duration::from_secs(10));
 
     for block_extra in iter {
@@ -111,10 +128,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 block_extra.fee()
             );
         }
+        if let Some(sampler) = sampler.as_mut() {
+            sampler.maybe_write(&block_extra)?;
+        }
         let block_extra = Arc::new(Some(block_extra));
         for sender in senders.iter() {
             sender.send(block_extra.clone()).unwrap();
         }
+    }
+    if let Some(sampler) = sampler {
+        sampler.finish()?;
     }
     let end = Arc::new(None);
     for sender in senders.iter() {
