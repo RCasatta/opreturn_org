@@ -35,5 +35,6 @@ pub fn number_of_inputs_and_outputs(stats: &TxStats) -> Page {
             "tx with more than 10 inputs: {}",
             stats.total_tx_with_more_than_10_inputs
         ),
+        ..Default::default()
     }
 }

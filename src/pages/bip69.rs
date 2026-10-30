@@ -65,6 +65,7 @@ pub fn bip69(tx_stats: &TxStats) -> Page {
         permalink: "bip69".to_string(),
         charts,
         text: "".to_string(),
+        ..Default::default()
     }
 }
 

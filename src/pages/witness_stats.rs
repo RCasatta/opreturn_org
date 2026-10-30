@@ -57,5 +57,6 @@ pub fn witness_stats(stats: &Stats) -> Page {
         permalink: "witness-stats".to_string(),
         charts: vec![chart1, chart2, chart3],
         text: "".to_string(),
+        ..Default::default()
     }
 }

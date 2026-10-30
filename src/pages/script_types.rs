@@ -109,5 +109,6 @@ pub fn script_types(script_type: &ScriptType) -> Page {
             script_type.p2sh.sum_all(),
             script_type.other.sum_all(),
         ),
+        ..Default::default()
     }
 }

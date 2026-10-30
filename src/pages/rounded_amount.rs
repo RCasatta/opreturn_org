@@ -29,5 +29,6 @@ pub fn rounded_amount(tx_stats: &TxStats) -> Page {
         permalink: "rounded-amount".to_string(),
         charts,
         text: "".to_string(),
+        ..Default::default()
     }
 }

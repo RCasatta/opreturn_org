@@ -81,5 +81,6 @@ pub fn total_tx_outputs_inputs(tx_stats: &TxStats) -> Page {
             tx_stats.total_outputs,
             tx_stats.total_spendable_outputs
         ),
+        ..Default::default()
     }
 }

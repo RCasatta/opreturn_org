@@ -82,5 +82,6 @@ pub fn blockchain_sizes(stats: &Stats, bip158: &Bip158Stats, tx_stats: &TxStats)
         permalink: "blockchain-sizes".to_string(),  // old "blockchain-and-filter-size"
         charts,
         text: "".to_string(),
+        ..Default::default()
     }
 }

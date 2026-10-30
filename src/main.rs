@@ -157,14 +157,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &tx_stats,
     );
     for page in pages.iter() {
-        let page_html = page.to_html().into_string();
-        let mut page_path = site_home.clone();
-        page_path.push(&page.permalink);
-        if !page_path.exists() {
-            fs::create_dir_all(&page_path).unwrap();
+        let page_dir = site_home.join(&page.permalink);
+        fs::create_dir_all(&page_dir).unwrap();
+        fs::write(page_dir.join("index.html"), page.to_html().into_string()).unwrap();
+        for (name, content) in page.files.iter() {
+            fs::write(page_dir.join(name), content).unwrap();
         }
-        page_path.push("index.html");
-        fs::write(page_path, page_html).unwrap();
     }
     let mut index_path = site_home.clone();
     index_path.push("index.html");

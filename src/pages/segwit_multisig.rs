@@ -25,5 +25,6 @@ pub fn segwit_multisig(script_type: &ScriptType) -> Page {
         permalink: "segwit-multisig".to_string(),
         charts: vec![chart],
         text: "".to_string(),
+        ..Default::default()
     }
 }

@@ -64,5 +64,6 @@ pub fn op_return_sizes(opret: &OpReturnData) -> Page {
         permalink: "op-return-sizes".to_string(),
         charts,
         text: "".to_string(),
+        ..Default::default()
     }
 }

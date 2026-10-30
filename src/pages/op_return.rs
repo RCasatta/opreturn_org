@@ -76,5 +76,6 @@ pub fn op_return_per_month(opret: &OpReturnData) -> Page {
         permalink: "op-return".to_string(),
         charts,
         text: "".to_string(),
+        ..Default::default()
     }
 }

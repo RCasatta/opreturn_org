@@ -25,5 +25,6 @@ pub fn sighash_types(stats: &Stats) -> Page {
         permalink: "sighash-types".to_string(),
         charts: vec![chart],
         text: "".to_string(),
+        ..Default::default()
     }
 }

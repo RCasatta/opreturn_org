@@ -92,6 +92,7 @@ pub fn op_return_protocols(opret: &OpReturnData) -> Page {
         permalink: "op-return-protocols".to_string(),
         charts: vec![chart1, chart2, chart3],
         text: "".to_string(),
+        ..Default::default()
     }
 }
 

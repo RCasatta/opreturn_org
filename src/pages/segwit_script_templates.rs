@@ -86,5 +86,6 @@ pub fn segwit_script_templates(script_type: &ScriptType) -> Page {
             envelope_templates,
             envelope_spends,
         ),
+        ..Default::default()
     }
 }

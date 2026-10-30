@@ -36,12 +36,17 @@ pub use spent_same_block::spent_same_block;
 pub use total_tx_outputs_inputs::total_tx_outputs_inputs;
 pub use witness_stats::witness_stats;
 
+#[derive(Default)]
 pub struct Page {
     pub title: String,
     pub description: String,
     pub permalink: String,
     pub charts: Vec<Chart>,
     pub text: String,
+    /// Html shown before the charts
+    pub content: Option<Markup>,
+    /// Additional files written in the page directory, as (file name, content)
+    pub files: Vec<(String, String)>,
 }
 
 const NBSP: PreEscaped<&str> = PreEscaped("&nbsp;");
@@ -96,6 +101,9 @@ pub fn page(content: Markup, text: &str) -> Markup {
 impl Page {
     pub fn to_html(&self) -> Markup {
         let charts = html! {
+            @if let Some(content) = &self.content {
+                (content)
+            }
             @for (i, chart) in self.charts.iter().enumerate() {
                 (chart.to_html(&format!("chart{}", i)))
                 p { (NBSP) }

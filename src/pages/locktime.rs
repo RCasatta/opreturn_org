@@ -46,5 +46,6 @@ pub fn locktime(tx_stats: &TxStats) -> Page {
         permalink: "locktime".to_string(),
         charts,
         text: "".to_string(),
+        ..Default::default()
     }
 }
