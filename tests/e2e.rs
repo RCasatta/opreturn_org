@@ -56,7 +56,7 @@ fn site_snapshot() {
     let snapshot = Path::new(SNAPSHOT_DIR);
     let generated: Vec<_> = files(&site)
         .into_iter()
-        .filter(|p| p.extension().is_some_and(|e| e == "html"))
+        .filter(|p| p.extension().is_some_and(|e| e == "html" || e == "csv"))
         .collect();
     assert!(generated.len() >= 16, "too few pages: {:?}", generated);
 

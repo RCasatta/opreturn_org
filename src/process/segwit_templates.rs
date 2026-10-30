@@ -541,6 +541,42 @@ mod tests {
     }
 
     #[test]
+    fn test_template_two_pkh_or_csv_2of2() {
+        // two pkh summed by OP_ADD requiring exactly one, with a 65535 blocks CSV, or a 2-of-2,
+        // the CSV value is pushed as `OP_PUSHBYTES_3 ffff00` as found on chain
+        let script = Builder::new()
+            .push_opcode(OP_IF)
+            .push_opcode(OP_DUP)
+            .push_opcode(OP_HASH160)
+            .push_slice([1u8; 20])
+            .push_opcode(OP_EQUALVERIFY)
+            .push_opcode(OP_CHECKSIG)
+            .push_opcode(OP_TOALTSTACK)
+            .push_opcode(OP_DUP)
+            .push_opcode(OP_HASH160)
+            .push_slice([2u8; 20])
+            .push_opcode(OP_EQUALVERIFY)
+            .push_opcode(OP_CHECKSIG)
+            .push_opcode(OP_FROMALTSTACK)
+            .push_opcode(OP_ADD)
+            .push_opcode(OP_PUSHNUM_1)
+            .push_opcode(OP_EQUALVERIFY)
+            .push_slice([0xff, 0xff, 0x00])
+            .push_opcode(OP_CSV)
+            .push_opcode(OP_ELSE)
+            .push_slice(pk(3))
+            .push_opcode(OP_CHECKSIGVERIFY)
+            .push_slice(pk(4))
+            .push_opcode(OP_CHECKSIG)
+            .push_opcode(OP_ENDIF)
+            .into_script();
+        assert_eq!(
+            template(script.as_bytes()),
+            "OP_IF OP_DUP OP_HASH160 <20> OP_EQUALVERIFY OP_CHECKSIG OP_TOALTSTACK OP_DUP OP_HASH160 <20> OP_EQUALVERIFY OP_CHECKSIG OP_FROMALTSTACK OP_ADD OP_1 OP_EQUALVERIFY 65535 OP_CSV OP_ELSE <pk> OP_CHECKSIGVERIFY <pk> OP_CHECKSIG OP_ENDIF"
+        );
+    }
+
+    #[test]
     fn test_template_multisig_7of8() {
         assert_eq!(
             template(multisig(7, 8).as_bytes()),

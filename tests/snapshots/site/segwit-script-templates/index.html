@@ -1,1 +1,82 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><script defer data-domain="opreturn.org" src="https://plausible.casatta.it/js/script.js"></script><title>OP_RETURN</title></head><body style="font-family: Arial, Helvetica, sans-serif;"><h1><a href="/">OP_RETURN</a></h1><p>&nbsp;</p><div><canvas id="chart0"></canvas></div><script>var chart0 = new Chart(document.getElementById('chart0'), {"type":"pie","data":{"labels":[],"datasets":[{"label":"Spends per script template","data":[],"backgroundColor":["rgb(99,4,100,0.8)","rgb(51,31,122,0.8)","rgb(51,89,170,0.8)","rgb(66,138,170,0.8)","rgb(95,168,112,0.8)","rgb(137,179,74,0.8)","rgb(183,175,53,0.8)","rgb(216,145,44,0.8)","rgb(217,83,34,0.8)","rgb(193,6,24,0.8)","rgb(223,223,223,0.8)"],"fill":true,"hidden":false}]},"options":{"plugins":{"title":{"display":true,"text":"Spends per script template"}}}});</script><p>&nbsp;</p><div><canvas id="chart1"></canvas></div><script>var chart1 = new Chart(document.getElementById('chart1'), {"type":"pie","data":{"labels":[],"datasets":[{"label":"Distinct scripts per script template","data":[],"backgroundColor":["rgb(99,4,100,0.8)","rgb(51,31,122,0.8)","rgb(51,89,170,0.8)","rgb(66,138,170,0.8)","rgb(95,168,112,0.8)","rgb(137,179,74,0.8)","rgb(183,175,53,0.8)","rgb(216,145,44,0.8)","rgb(217,83,34,0.8)","rgb(193,6,24,0.8)","rgb(223,223,223,0.8)"],"fill":true,"hidden":false}]},"options":{"plugins":{"title":{"display":true,"text":"Distinct scripts per script template"}}}});</script><p>&nbsp;</p><div><canvas id="chart2"></canvas></div><script>var chart2 = new Chart(document.getElementById('chart2'), {"type":"bar","data":{"labels":["1","2","3-10","11-100","101-1k","1k-10k",">10k"],"datasets":[{"label":"script templates","data":[0,0,0,0,0,0,0],"backgroundColor":["rgb(54,162,235,0.8)"],"borderColor":["rgb(54,162,235,0.8)"],"fill":false,"hidden":false}]},"options":{"plugins":{"title":{"display":true,"text":"Number of script templates by count of distinct scripts using it (anonymity set)"}}}});</script><p>&nbsp;</p><div><canvas id="chart3"></canvas></div><script>var chart3 = new Chart(document.getElementById('chart3'), {"type":"pie","data":{"labels":[],"datasets":[{"label":"Spends per envelope template","data":[],"backgroundColor":["rgb(99,4,100,0.8)","rgb(51,31,122,0.8)","rgb(51,89,170,0.8)","rgb(66,138,170,0.8)","rgb(95,168,112,0.8)","rgb(137,179,74,0.8)","rgb(183,175,53,0.8)","rgb(216,145,44,0.8)","rgb(217,83,34,0.8)","rgb(193,6,24,0.8)","rgb(223,223,223,0.8)"],"fill":true,"hidden":false}]},"options":{"plugins":{"title":{"display":true,"text":"Spends per envelope template"}}}});</script><p>&nbsp;</p><div><canvas id="chart4"></canvas></div><script>var chart4 = new Chart(document.getElementById('chart4'), {"type":"pie","data":{"labels":[],"datasets":[{"label":"Distinct scripts per envelope template","data":[],"backgroundColor":["rgb(99,4,100,0.8)","rgb(51,31,122,0.8)","rgb(51,89,170,0.8)","rgb(66,138,170,0.8)","rgb(95,168,112,0.8)","rgb(137,179,74,0.8)","rgb(183,175,53,0.8)","rgb(216,145,44,0.8)","rgb(217,83,34,0.8)","rgb(193,6,24,0.8)","rgb(223,223,223,0.8)"],"fill":true,"hidden":false}]},"options":{"plugins":{"title":{"display":true,"text":"Distinct scripts per envelope template"}}}});</script><p>&nbsp;</p><div><canvas id="chart5"></canvas></div><script>var chart5 = new Chart(document.getElementById('chart5'), {"type":"bar","data":{"labels":["1","2","3-10","11-100","101-1k","1k-10k",">10k"],"datasets":[{"label":"envelope templates","data":[0,0,0,0,0,0,0],"backgroundColor":["rgb(54,162,235,0.8)"],"borderColor":["rgb(54,162,235,0.8)"],"fill":false,"hidden":false}]},"options":{"plugins":{"title":{"display":true,"text":"Number of envelope templates by count of distinct scripts using it (anonymity set)"}}}});</script><p>&nbsp;</p><p>0 distinct templates over 0 spends, of which 0 templates and 0 spends contain an OP_0 OP_IF envelope (eg. inscriptions) and are shown in the last three charts. Full list in raw/segwit_templates.json</p><p>&nbsp;</p><footer><p><a href="/">Home</a> | <a href="/about">About</a></p><p>Page created 1970-01-01 00:00:00</p></footer></body></html>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><script defer data-domain="opreturn.org" src="https://plausible.casatta.it/js/script.js"></script><title>OP_RETURN</title></head><body style="font-family: Arial, Helvetica, sans-serif;"><h1><a href="/">OP_RETURN</a></h1><p>&nbsp;</p><p>0 distinct templates over 0 spends, of which 0 templates and 0 spends contain an <code>OP_0 OP_IF</code> envelope (eg. inscriptions) and are listed separately.</p><p>Keys and hashes are replaced by placeholders: <code>&lt;pk&gt;</code> compressed key, <code>&lt;xpk&gt;</code> x-only key, <code>&lt;20&gt;</code> 20 bytes push (eg. HASH160), <code>&lt;32&gt;</code> 32 bytes push, <code>&lt;height&gt;</code>/<code>&lt;time&gt;</code> absolute timelocks. Relative timelocks are kept as numbers, eg. the push <code>ffff00</code> before <code>OP_CSV</code> is <code>65535</code>. Opcodes use short names, eg. <code>OP_1</code> and <code>OP_CSV</code>.</p><p>Showing the top 500 templates per table. The filter searches the <a href="templates.csv">full list</a> (CSV).</p><p><input id="filter" type="search" size="60" placeholder="filter, eg. OP_TOALTSTACK or wsh OP_2"> <span id="filter-status"></span></p><h2>Script templates</h2><table class="templates" data-envelope="false" data-total="0"><thead><tr><th>#</th><th>kind</th><th>template</th><th>spends</th><th>% spends</th><th title="distinct scripts using the template, ~ when estimated">distinct scripts</th><th title="height of the first spend, links to the transaction">first seen</th></tr></thead><tbody></tbody></table><h2>Envelope templates</h2><table class="templates" data-envelope="true" data-total="0"><thead><tr><th>#</th><th>kind</th><th>template</th><th>spends</th><th>% spends</th><th title="distinct scripts using the template, ~ when estimated">distinct scripts</th><th title="height of the first spend, links to the transaction">first seen</th></tr></thead><tbody></tbody></table><script>
+(function () {
+  var MAX = 500;
+  var input = document.getElementById('filter');
+  var status = document.getElementById('filter-status');
+  var tables = document.querySelectorAll('table.templates');
+  var re = /^([^,]*),"((?:[^"]|"")*)",(\d+),(\d+),(true|false),(\d+),([0-9a-f]+)$/;
+  var groups = null, loading = false;
+
+  function load(done) {
+    if (groups) return done();
+    if (loading) return;
+    loading = true;
+    status.textContent = 'loading the full list...';
+    fetch('templates.csv').then(function (r) { return r.text(); }).then(function (text) {
+      groups = { false: [], true: [] };
+      text.split('\n').forEach(function (line) {
+        var m = re.exec(line);
+        if (!m) return;
+        var row = { kind: m[1], template: m[2].replace(/""/g, '"'), spends: +m[3],
+                    distinct: +m[4], exact: m[5] === 'true', height: +m[6], txid: m[7] };
+        row.key = (row.kind + ' ' + row.template).toLowerCase();
+        var group = groups[row.template.indexOf('<envelope') >= 0];
+        row.rank = group.length + 1;
+        group.push(row);
+      });
+      done();
+    }).catch(function (e) { loading = false; status.textContent = 'cannot load the full list: ' + e; });
+  }
+
+  function td(tr, child) {
+    var cell = document.createElement('td');
+    cell.append(child);
+    tr.append(cell);
+    return cell;
+  }
+
+  function render() {
+    var query = input.value.trim().replace(/\s+/g, ' ').toLowerCase();
+    var counts = [];
+    tables.forEach(function (table) {
+      var total = +table.dataset.total;
+      var rows = groups[table.dataset.envelope === 'true'].filter(function (r) {
+        return r.key.indexOf(query) >= 0;
+      });
+      counts.push(rows.length);
+      var tbody = table.tBodies[0];
+      tbody.replaceChildren();
+      rows.slice(0, MAX).forEach(function (r) {
+        var tr = document.createElement('tr');
+        td(tr, String(r.rank));
+        td(tr, r.kind);
+        var code = document.createElement('code');
+        code.textContent = r.template;
+        td(tr, code);
+        td(tr, String(r.spends));
+        td(tr, (r.spends * 100 / total).toFixed(2));
+        td(tr, (r.exact ? '' : '~') + r.distinct);
+        var a = document.createElement('a');
+        a.href = 'https://mempool.space/tx/' + r.txid;
+        a.textContent = String(r.height);
+        td(tr, a);
+        tbody.append(tr);
+      });
+    });
+    status.textContent = counts.join(' script and ') + ' envelope templates match' +
+      (counts.some(function (c) { return c > MAX; }) ? ', showing the first ' + MAX : '');
+  }
+
+  // the filter is kept in the url fragment, so filtered views can be shared
+  input.addEventListener('input', function () {
+    var hash = input.value ? '#q=' + encodeURIComponent(input.value) : '';
+    history.replaceState(null, '', location.pathname + hash);
+    load(render);
+  });
+  var initial = new URLSearchParams(location.hash.slice(1)).get('q');
+  if (initial) {
+    input.value = initial;
+    load(render);
+  }
+})();
+</script><div><canvas id="chart0"></canvas></div><script>var chart0 = new Chart(document.getElementById('chart0'), {"type":"bar","data":{"labels":["1","2","3-10","11-100","101-1k","1k-10k",">10k"],"datasets":[{"label":"script templates","data":[0,0,0,0,0,0,0],"backgroundColor":["rgb(54,162,235,0.8)"],"borderColor":["rgb(54,162,235,0.8)"],"fill":false,"hidden":false}]},"options":{"plugins":{"title":{"display":true,"text":"Number of script templates by count of distinct scripts using it (anonymity set)"}}}});</script><p>&nbsp;</p><div><canvas id="chart1"></canvas></div><script>var chart1 = new Chart(document.getElementById('chart1'), {"type":"bar","data":{"labels":["1","2","3-10","11-100","101-1k","1k-10k",">10k"],"datasets":[{"label":"envelope templates","data":[0,0,0,0,0,0,0],"backgroundColor":["rgb(54,162,235,0.8)"],"borderColor":["rgb(54,162,235,0.8)"],"fill":false,"hidden":false}]},"options":{"plugins":{"title":{"display":true,"text":"Number of envelope templates by count of distinct scripts using it (anonymity set)"}}}});</script><p>&nbsp;</p><p></p><p>&nbsp;</p><footer><p><a href="/">Home</a> | <a href="/about">About</a></p><p>Page created 1970-01-01 00:00:00</p></footer></body></html>
