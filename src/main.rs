@@ -3,7 +3,7 @@ use blocks_iterator::log::info;
 use blocks_iterator::{PeriodCounter, PipeIterator};
 use bloom::{parse_false_positive_rate, parse_positive_u64, BloomConfig};
 use chrono::format::StrftimeItems;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use clap::Parser;
 use env_logger::Env;
 use std::io::Write;
@@ -167,8 +167,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Current time, overridable with the `SOURCE_DATE_EPOCH` env var (unix seconds) to produce
+/// reproducible output
+fn now_utc() -> DateTime<Utc> {
+    std::env::var("SOURCE_DATE_EPOCH")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .and_then(|secs| DateTime::from_timestamp(secs, 0))
+        .unwrap_or_else(Utc::now)
+}
+
 fn now() -> String {
-    let now = Utc::now().naive_utc();
+    let now = now_utc().naive_utc();
     let fmt = StrftimeItems::new("%Y-%m-%d %H:%M:%S");
     format!("{}", now.format_with_items(fmt))
 }

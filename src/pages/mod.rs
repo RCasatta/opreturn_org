@@ -96,8 +96,8 @@ pub fn page(content: Markup, text: &str) -> Markup {
 impl Page {
     pub fn to_html(&self) -> Markup {
         let charts = html! {
-            @for chart in self.charts.iter() {
-                (chart.to_html())
+            @for (i, chart) in self.charts.iter().enumerate() {
+                (chart.to_html(&format!("chart{}", i)))
                 p { (NBSP) }
             }
         };
@@ -186,7 +186,8 @@ pub fn get_pages(
 pub fn map_by_value(map: &HashMap<String, u64>) -> BTreeMap<String, u64> {
     let mut tree: BTreeMap<String, u64> = BTreeMap::new();
     let mut count_vec: Vec<(&String, &u64)> = map.iter().collect();
-    count_vec.sort_by(|a, b| b.1.cmp(a.1));
+    // ties broken by key, otherwise the HashMap iteration order leaks into the output
+    count_vec.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
     for (key, value) in count_vec.iter().take(10) {
         tree.insert(key.to_string(), **value);
     }
@@ -207,7 +208,7 @@ mod test {
     #[test]
     fn test_pie_page() {
         let chart = mock_pie_chart();
-        let page = page(chart.to_html(), "").into_string();
+        let page = page(chart.to_html("chart0"), "").into_string();
         assert_eq!("", to_data_url(page, "text/html"));
     }
 
@@ -215,7 +216,7 @@ mod test {
     #[test]
     fn test_lines_page() {
         let chart = mock_lines_chart();
-        let page = page(chart.to_html(), "").into_string();
+        let page = page(chart.to_html("chart0"), "").into_string();
         assert_eq!("", to_data_url(page, "text/html"));
     }
 

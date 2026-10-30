@@ -1,7 +1,5 @@
 use maud::Markup;
 use maud::{html, PreEscaped};
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
 use regex::Regex;
 use serde::{Serialize, Serializer};
 use std::fmt::{Display, Formatter};
@@ -69,8 +67,6 @@ impl Display for Color {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Chart {
-    #[serde(skip)]
-    id: String,
     #[serde(rename = "type")]
     kind: Kind,
     data: ChartData,
@@ -131,14 +127,6 @@ impl Serialize for Color {
 impl Chart {
     pub fn new(title: String, kind: Kind, labels: Vec<String>) -> Chart {
         Chart {
-            id: format!(
-                "_{}",
-                thread_rng()
-                    .sample_iter(&Alphanumeric)
-                    .take(10)
-                    .map(char::from)
-                    .collect::<String>()
-            ),
             kind,
             data: ChartData {
                 labels,
@@ -167,17 +155,18 @@ impl Chart {
         result.to_string()
     }
 
-    pub fn to_html(&self) -> Markup {
+    /// `id` must be unique in the page, it's used both as canvas id and js variable name
+    pub fn to_html(&self, id: &str) -> Markup {
         let script = format!(
             "var {} = new Chart(document.getElementById('{}'), {});",
-            self.id,
-            self.id,
+            id,
+            id,
             self.to_json_dict(),
         );
 
         html! {
             div {
-                canvas id=(self.id) {
+                canvas id=(id) {
                 }
             }
             script {
@@ -264,6 +253,6 @@ pub mod test {
         let chart = mock_pie_chart();
 
         //chart.add(serie);
-        assert_eq!("", chart.to_html().into_string());
+        assert_eq!("", chart.to_html("chart0").into_string());
     }
 }

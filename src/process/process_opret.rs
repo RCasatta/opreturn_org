@@ -7,7 +7,6 @@ use blocks_iterator::log::{debug, info};
 use blocks_iterator::BlockExtra;
 use blocks_iterator::PeriodCounter;
 use chrono::Duration;
-use chrono::Utc;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -374,8 +373,9 @@ impl ScriptType {
 
 impl OpReturnData {
     fn new() -> OpReturnData {
-        let month_ago = (Utc::now() - Duration::days(30)).timestamp() as u32; // 1 month ago
-        let year_ago = (Utc::now() - Duration::days(365)).timestamp() as u32; // 1 year ago
+        let now = crate::now_utc();
+        let month_ago = (now - Duration::days(30)).timestamp() as u32; // 1 month ago
+        let year_ago = (now - Duration::days(365)).timestamp() as u32; // 1 year ago
         OpReturnData {
             month_ago,
             year_ago,
