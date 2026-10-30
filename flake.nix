@@ -36,6 +36,8 @@
           src = ./.; # The original, unfiltered source
           filter = path: type:
             (lib.hasSuffix "\.ico" path) ||
+            # e2e test fixtures and snapshots
+            (lib.hasInfix "/tests/" path) ||
             (craneLib.filterCargoSources path type)
           ;
         };
