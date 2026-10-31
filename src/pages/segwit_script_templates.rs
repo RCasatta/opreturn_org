@@ -9,90 +9,11 @@ const TABLE_ROWS: usize = 500;
 
 const CSV_NAME: &str = "templates.csv";
 
-/// Filters the tables on the whole [`CSV_NAME`], loaded at the first use of the filter box or when
-/// the url contains `#q=<filter>`. Rows are rendered with the same columns of [`table`].
-const FILTER_JS: &str = r#"
-(function () {
-  var MAX = 500;
-  var input = document.getElementById('filter');
-  var status = document.getElementById('filter-status');
-  var tables = document.querySelectorAll('table.templates');
-  var re = /^([^,]*),"((?:[^"]|"")*)",(\d+),(\d+),(true|false),(\d+),([0-9a-f]+)$/;
-  var groups = null, loading = false;
+/// Converts a script in asm format to its template, mirroring [`crate::process::segwit_templates::template`]
+const SCRIPT_TEMPLATE_JS: &str = include_str!("js/script_template.js");
 
-  function load(done) {
-    if (groups) return done();
-    if (loading) return;
-    loading = true;
-    status.textContent = 'loading the full list...';
-    fetch('templates.csv').then(function (r) { return r.text(); }).then(function (text) {
-      groups = { false: [], true: [] };
-      text.split('\n').forEach(function (line) {
-        var m = re.exec(line);
-        if (!m) return;
-        var row = { kind: m[1], template: m[2].replace(/""/g, '"'), spends: +m[3],
-                    distinct: +m[4], exact: m[5] === 'true', height: +m[6], txid: m[7] };
-        row.key = (row.kind + ' ' + row.template).toLowerCase();
-        var group = groups[row.template.indexOf('<envelope') >= 0];
-        row.rank = group.length + 1;
-        group.push(row);
-      });
-      done();
-    }).catch(function (e) { loading = false; status.textContent = 'cannot load the full list: ' + e; });
-  }
-
-  function td(tr, child) {
-    var cell = document.createElement('td');
-    cell.append(child);
-    tr.append(cell);
-    return cell;
-  }
-
-  function render() {
-    var query = input.value.trim().replace(/\s+/g, ' ').toLowerCase();
-    var counts = [];
-    tables.forEach(function (table) {
-      var total = +table.dataset.total;
-      var rows = groups[table.dataset.envelope === 'true'].filter(function (r) {
-        return r.key.indexOf(query) >= 0;
-      });
-      counts.push(rows.length);
-      var tbody = table.tBodies[0];
-      tbody.replaceChildren();
-      rows.slice(0, MAX).forEach(function (r) {
-        var tr = document.createElement('tr');
-        td(tr, String(r.rank));
-        td(tr, r.kind);
-        var code = document.createElement('code');
-        code.textContent = r.template;
-        td(tr, code);
-        td(tr, String(r.spends));
-        td(tr, (r.spends * 100 / total).toFixed(2));
-        td(tr, (r.exact ? '' : '~') + r.distinct);
-        var a = document.createElement('a');
-        a.href = 'https://mempool.space/tx/' + r.txid;
-        a.textContent = String(r.height);
-        td(tr, a);
-        tbody.append(tr);
-      });
-    });
-    status.textContent = counts.join(' script and ') + ' envelope templates match' +
-      (counts.some(function (c) { return c > MAX; }) ? ', showing the first ' + MAX : '');
-  }
-
-  // the filter is kept in the url fragment, so filtered views can be shared
-  input.addEventListener('input', function () {
-    var hash = input.value ? '#q=' + encodeURIComponent(input.value) : '';
-    history.replaceState(null, '', location.pathname + hash);
-    load(render);
-  });
-  var initial = new URLSearchParams(location.hash.slice(1)).get('q');
-  if (initial) {
-    input.value = initial;
-    load(render);
-  }
-})();
-"#;
+/// Filters the tables, see the file for details
+const FILTER_JS: &str = include_str!("js/templates_filter.js");
 
 /// The kind of spend (eg. `wsh`) and the template without it
 fn split_kind(row: &TemplateRow) -> (&str, &str) {
@@ -123,7 +44,7 @@ fn csv(rows: &[TemplateRow]) -> String {
 fn table(rows: &[&TemplateRow], envelope: bool) -> Markup {
     let total: u64 = rows.iter().map(|r| r.spends).sum();
     html! {
-        table class="templates" data-envelope=(envelope) data-total=(total) {
+        table class="templates" data-envelope=(envelope) {
             thead {
                 tr {
                     th { "#" }
@@ -209,17 +130,23 @@ pub fn segwit_script_templates(script_type: &ScriptType) -> Page {
         }
         p {
             "Showing the top " (TABLE_ROWS) " templates per table. The filter searches the "
-            a href=(CSV_NAME) { "full list" } " (CSV)."
+            a href=(CSV_NAME) { "full list" } " (CSV) for templates containing the given text. "
+            "A script pasted as shown by mempool.space, eg. "
+            code { "OP_DUP OP_HASH160 OP_PUSHBYTES_20 e92c61fd47c4e776e91495e121d29989812fbbfb OP_EQUALVERIFY OP_CHECKSIG" }
+            ", is converted to its template first."
         }
         p {
-            input id="filter" type="search" size="60" placeholder="filter, eg. OP_TOALTSTACK or wsh OP_2";
-            " " span id="filter-status" {}
+            textarea id="filter" rows="4" cols="80" placeholder="filter, eg. OP_TOALTSTACK, wsh OP_2, or a script copied from mempool.space" {}
+            br;
+            span id="filter-template" {}
+            br;
+            span id="filter-status" {}
         }
         h2 { "Script templates" }
         (table(&scripts, false))
         h2 { "Envelope templates" }
         (table(&envelopes, true))
-        script { (PreEscaped(FILTER_JS)) }
+        script { (PreEscaped(SCRIPT_TEMPLATE_JS)) (PreEscaped(FILTER_JS)) }
     };
 
     Page {
@@ -239,9 +166,124 @@ pub fn segwit_script_templates(script_type: &ScriptType) -> Page {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::process::segwit_templates::SpendKind;
+    use crate::process::segwit_templates::{template, SpendKind};
     use blocks_iterator::bitcoin::hashes::Hash;
-    use blocks_iterator::bitcoin::Txid;
+    use blocks_iterator::bitcoin::opcodes::all::*;
+    use blocks_iterator::bitcoin::script::{Builder, PushBytesBuf};
+    use blocks_iterator::bitcoin::{ScriptBuf, Txid};
+    use std::convert::TryFrom;
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    /// Deterministic pseudo random scripts, built from a vocabulary exercising all the template
+    /// rules: envelopes, timelocks, 32 bytes contexts, keys and small numbers
+    fn random_scripts(count: usize) -> Vec<ScriptBuf> {
+        let ops = [
+            OP_IF,
+            OP_NOTIF,
+            OP_ELSE,
+            OP_ENDIF,
+            OP_CHECKSIG,
+            OP_CHECKSIGVERIFY,
+            OP_CHECKSIGADD,
+            OP_EQUAL,
+            OP_EQUALVERIFY,
+            OP_SHA256,
+            OP_HASH256,
+            OP_HASH160,
+            OP_CSV,
+            OP_CLTV,
+            OP_DUP,
+            OP_ADD,
+            OP_TOALTSTACK,
+            OP_CHECKMULTISIG,
+            OP_PUSHNUM_1,
+            OP_PUSHNUM_16,
+            OP_PUSHNUM_NEG1,
+            OP_DROP,
+        ];
+        let lens = [0usize, 1, 2, 3, 4, 5, 6, 20, 32, 33, 65, 80];
+        let mut state = 42u64;
+        let mut next = move |n: usize| {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            (state >> 33) as usize % n
+        };
+        (0..count)
+            .map(|_| {
+                let mut builder = Builder::new();
+                for _ in 0..1 + next(25) {
+                    builder = match next(4) {
+                        0 | 1 => builder.push_opcode(ops[next(ops.len())]),
+                        // consecutive envelopes, with or without a printable tag, usually closed
+                        2 if next(4) == 0 => {
+                            let tag: &[u8] = [&b"ord"[..], b"a b", b"\x01x"][next(3)];
+                            for _ in 0..1 + next(3) {
+                                builder = builder
+                                    .push_slice([0u8; 0])
+                                    .push_opcode(OP_IF)
+                                    .push_slice(PushBytesBuf::try_from(tag.to_vec()).unwrap());
+                                if next(4) != 0 {
+                                    builder = builder.push_opcode(OP_ENDIF);
+                                }
+                            }
+                            builder
+                        }
+                        _ => {
+                            let len = lens[next(lens.len())];
+                            let mut data: Vec<u8> = (0..len).map(|_| next(256) as u8).collect();
+                            match (len, next(2)) {
+                                (33, 0) => data[0] = 2 + next(2) as u8,
+                                (65, 0) => data[0] = 4,
+                                _ => (),
+                            }
+                            builder.push_slice(PushBytesBuf::try_from(data).unwrap())
+                        }
+                    };
+                }
+                builder.into_script()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn test_script_template_js_matches_rust() {
+        // the example from the page, as copied from mempool.space
+        let mut scripts = vec![ScriptBuf::from_hex("6376a914e92c61fd47c4e776e91495e121d29989812fbbfb88ac6b76a9146c88322160c87df9165f0cae54d4b0c8b05616b588ac6c93518803ffff00b267210324c47c81f4a2df9bfff087d6b748b356258b452dffb11e666d998c6306f8cafaad2102061cbe5b925dc4ac02a0e003beda11e04b6d3e6ca8a0dbf550980b87af2a5052ac68").unwrap()];
+        scripts.extend(random_scripts(2000));
+        let asms: Vec<_> = scripts.iter().map(|s| s.to_asm_string()).collect();
+
+        let js = format!(
+            "{}\nconst input = JSON.parse(require('fs').readFileSync(0, 'utf8'));\n\
+             process.stdout.write(JSON.stringify(input.map(scriptTemplate)));",
+            SCRIPT_TEMPLATE_JS
+        );
+        let mut child = Command::new("node")
+            .arg("-e")
+            .arg(js)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .expect("node is required to test the javascript");
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(serde_json::to_string(&asms).unwrap().as_bytes())
+            .unwrap();
+        let output = child.wait_with_output().unwrap();
+        assert!(output.status.success());
+        let js_templates: Vec<String> = serde_json::from_slice(&output.stdout).unwrap();
+
+        assert_eq!(
+            js_templates[0],
+            "OP_IF OP_DUP OP_HASH160 <20> OP_EQUALVERIFY OP_CHECKSIG OP_TOALTSTACK OP_DUP OP_HASH160 <20> OP_EQUALVERIFY OP_CHECKSIG OP_FROMALTSTACK OP_ADD OP_1 OP_EQUALVERIFY 65535 OP_CSV OP_ELSE <pk> OP_CHECKSIGVERIFY <pk> OP_CHECKSIG OP_ENDIF"
+        );
+        for ((script, asm), js_template) in scripts.iter().zip(asms.iter()).zip(js_templates) {
+            assert_eq!(template(script.as_bytes()), js_template, "asm: {}", asm);
+        }
+    }
 
     #[test]
     fn test_segwit_script_templates_page() {
@@ -272,12 +314,8 @@ mod tests {
         );
 
         let html = page.content.unwrap().into_string();
-        let script_table = html
-            .find("data-envelope=\"false\" data-total=\"2\"")
-            .unwrap();
-        let envelope_table = html
-            .find("data-envelope=\"true\" data-total=\"1\"")
-            .unwrap();
+        let script_table = html.find("data-envelope=\"false\"").unwrap();
+        let envelope_table = html.find("data-envelope=\"true\"").unwrap();
         let multisig_row = html
             .find("<td>1</td><td>wsh</td><td><code>OP_2 &lt;pk&gt; &lt;pk&gt; OP_2 OP_CHECKMULTISIG</code></td><td>2</td><td>100.00</td><td>1</td>")
             .unwrap();

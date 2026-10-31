@@ -36,6 +36,8 @@
           src = ./.; # The original, unfiltered source
           filter = path: type:
             (lib.hasSuffix "\.ico" path) ||
+            # javascript included in the pages
+            (lib.hasSuffix "\.js" path) ||
             # e2e test fixtures and snapshots
             (lib.hasInfix "/tests/" path) ||
             (craneLib.filterCargoSources path type)
@@ -116,6 +118,8 @@
           # the tests to run twice
           my-crate-nextest = craneLib.cargoNextest (commonArgs // {
             inherit cargoArtifacts;
+            # runs the page javascript in tests
+            nativeBuildInputs = [ pkgs.nodejs ];
             partitions = 1;
             partitionType = "count";
           });
