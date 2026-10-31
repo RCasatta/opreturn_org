@@ -13,6 +13,34 @@ pub use segwit_templates::SegwitTemplates;
 use bitcoin::blockdata::opcodes;
 use bitcoin::blockdata::script::Instruction;
 use bitcoin::{PublicKey, Script, Transaction};
+use blocks_iterator::{BlockExtra, PeriodCounter};
+use log::info;
+use std::sync::mpsc::Receiver;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+
+/// Blocks sent to the processors, `None` signals the end of the stream
+pub type BlockReceiver = Receiver<Arc<Option<BlockExtra>>>;
+
+/// Calls `process` on every block received until the end of the stream, logging the time spent
+/// processing
+pub fn receive_blocks(name: &str, receiver: &BlockReceiver, mut process: impl FnMut(&BlockExtra)) {
+    let mut busy = Duration::ZERO;
+    let mut period = PeriodCounter::new(Duration::from_secs(10));
+    loop {
+        let received = receiver.recv().expect("sender dropped before the end");
+        let Some(block) = received.as_ref() else {
+            break;
+        };
+        let start = Instant::now();
+        process(block);
+        busy += start.elapsed();
+        if period.period_elapsed().is_some() {
+            info!("{} busy time: {}s", name, busy.as_secs());
+        }
+    }
+    info!("{} ended, busy time: {}s", name, busy.as_secs());
+}
 
 pub fn parse_pubkeys_in_script(script: &Script) -> Vec<PublicKey> {
     let mut r = vec![];

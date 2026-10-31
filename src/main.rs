@@ -84,14 +84,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (send_4, receive_4) = sync_channel(blocks_size);
     let senders = [send_1, send_2, send_3, send_4];
 
-    let process = ProcessOpRet::new(receive_1, &params.target_dir, params.parse_pubkeys);
-    let process_handle = thread::spawn(move || process.start());
+    let process = ProcessOpRet::new(&params.target_dir, params.parse_pubkeys);
+    let process_handle = thread::spawn(move || process.start(receive_1));
 
-    let process_stats = ProcessStats::new(receive_2, &params.target_dir);
-    let process_stats_handle = thread::spawn(move || process_stats.start());
+    let process_stats = ProcessStats::new(&params.target_dir);
+    let process_stats_handle = thread::spawn(move || process_stats.start(receive_2));
 
-    let process_bip158 = ProcessBip158Stats::new(receive_3, &params.target_dir);
-    let process_bip158_handle = thread::spawn(move || process_bip158.start());
+    let process_bip158 = ProcessBip158Stats::new(&params.target_dir);
+    let process_bip158_handle = thread::spawn(move || process_bip158.start(receive_3));
 
     let bloom_config = params
         .used_scriptpubkeys_bloom_dir
@@ -101,8 +101,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             expected_items: params.bloom_expected_items,
             false_positive_rate: params.bloom_false_positive_rate,
         });
-    let process_tx_stats = ProcessTxStats::new(receive_4, &params.target_dir, bloom_config)?;
-    let process_tx_stats_handle = thread::spawn(move || process_tx_stats.start());
+    let process_tx_stats = ProcessTxStats::new(&params.target_dir, bloom_config)?;
+    let process_tx_stats_handle = thread::spawn(move || process_tx_stats.start(receive_4));
 
     let mut sampler = params
         .sample_out

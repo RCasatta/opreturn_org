@@ -1,22 +1,18 @@
 use crate::counter::Counter;
 use crate::process::block_index;
+use crate::process::{receive_blocks, BlockReceiver};
 use bitcoin::blockdata::script::Instruction;
 use bitcoin::consensus::{deserialize, encode, Decodable};
 use bitcoin::hashes::Hash;
 use bitcoin::{BlockHash, EcdsaSighashType, VarInt};
-use blocks_iterator::{BlockExtra, PeriodCounter};
-use log::info;
+use blocks_iterator::BlockExtra;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
-use std::sync::mpsc::Receiver;
-use std::sync::Arc;
-use std::time::{Duration, Instant};
 
 pub struct ProcessStats {
-    receiver: Receiver<Arc<Option<BlockExtra>>>,
     pub stats: Stats,
 
     pub sighash_file: File,
@@ -83,7 +79,7 @@ impl Default for Stats {
 
 //TODO split again this one slower together with read
 impl ProcessStats {
-    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, target_dir: &Path) -> ProcessStats {
+    pub fn new(target_dir: &Path) -> ProcessStats {
         let sighash_file =
             File::create(format!("{}/raw/sighashes.txt", target_dir.display())).unwrap();
         let fee_file = File::create(format!("{}/raw/fee.txt", target_dir.display())).unwrap();
@@ -96,7 +92,6 @@ impl ProcessStats {
         let price_file = File::create(format!("{}/raw/price.csv", target_dir.display())).unwrap();
 
         ProcessStats {
-            receiver,
             sighash_file,
             fee_file,
             stats_json_file,
@@ -107,24 +102,8 @@ impl ProcessStats {
         }
     }
 
-    pub fn start(mut self) -> Stats {
-        let mut busy_time = 0u128;
-        let mut now = Instant::now();
-        let mut period = PeriodCounter::new(Duration::from_secs(10));
-        loop {
-            busy_time += now.elapsed().as_nanos();
-            let received = self.receiver.recv().expect("cannot receive fee block");
-            now = Instant::now();
-            match *received {
-                Some(ref block) => {
-                    self.process_block(block);
-                    if period.period_elapsed().is_some() {
-                        info!("busy_time:{}", (busy_time / 1_000_000_000));
-                    }
-                }
-                None => break,
-            }
-        }
+    pub fn start(mut self, receiver: BlockReceiver) -> Stats {
+        receive_blocks("stats", &receiver, |block| self.process_block(block));
 
         let not_using = self.stats.witness_elements.remove("00").unwrap();
         let using = self.stats.witness_elements.values().sum();
@@ -143,12 +122,6 @@ impl ProcessStats {
         self.varint_file
             .write_all(format!("{:?}", self.stats.varint_length).as_bytes())
             .unwrap();
-
-        busy_time += now.elapsed().as_nanos();
-        info!(
-            "ending stats processer, busy time: {}s",
-            (busy_time / 1_000_000_000)
-        );
 
         self.stats
     }

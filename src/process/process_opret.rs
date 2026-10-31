@@ -1,10 +1,10 @@
 use crate::counter::Counter;
 use crate::process::{block_index, parse_multisig, parse_pubkeys_in_tx, SegwitTemplates};
+use crate::process::{receive_blocks, BlockReceiver};
 use bitcoin::opcodes::all::OP_PUSHNUM_13;
 use bitcoin::script::Instruction;
 use bitcoin::Script;
 use blocks_iterator::BlockExtra;
-use blocks_iterator::PeriodCounter;
 use chrono::Duration;
 use log::{debug, info};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -15,9 +15,6 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 use std::str::FromStr;
-use std::sync::mpsc::Receiver;
-use std::sync::Arc;
-use std::time::Instant;
 
 const OP_RETURN_BUCKETS: [usize; 47] = [
     0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 2000,
@@ -26,7 +23,6 @@ const OP_RETURN_BUCKETS: [usize; 47] = [
 ];
 
 pub struct ProcessOpRet {
-    receiver: Receiver<Arc<Option<BlockExtra>>>,
     pub op_return_data: OpReturnData,
     pub script_type: ScriptType,
     pub opret_json_file: File,
@@ -169,11 +165,7 @@ pub struct ScriptType {
 }
 
 impl ProcessOpRet {
-    pub fn new(
-        receiver: Receiver<Arc<Option<BlockExtra>>>,
-        target_dir: &Path,
-        parse_pubkeys: bool,
-    ) -> ProcessOpRet {
+    pub fn new(target_dir: &Path, parse_pubkeys: bool) -> ProcessOpRet {
         let opret_json_file =
             File::create(format!("{}/raw/opret.json", target_dir.display())).unwrap();
         let segwit_templates_json_file = File::create(format!(
@@ -182,7 +174,6 @@ impl ProcessOpRet {
         ))
         .unwrap();
         ProcessOpRet {
-            receiver,
             op_return_data: OpReturnData::new(),
             script_type: ScriptType::new(),
             opret_json_file,
@@ -191,24 +182,8 @@ impl ProcessOpRet {
         }
     }
 
-    pub fn start(mut self) -> (OpReturnData, ScriptType) {
-        let mut busy_time = 0u128;
-        let mut now = Instant::now();
-        let mut period = PeriodCounter::new(std::time::Duration::from_secs(10));
-        loop {
-            busy_time += now.elapsed().as_nanos();
-            let received = self.receiver.recv().expect("cannot receive fee block");
-            now = Instant::now();
-            match *received {
-                Some(ref block) => {
-                    self.process_block(block);
-                    if period.period_elapsed().is_some() {
-                        info!("busy_time:{}", (busy_time / 1_000_000_000));
-                    }
-                }
-                None => break,
-            }
-        }
+    pub fn start(mut self, receiver: BlockReceiver) -> (OpReturnData, ScriptType) {
+        receive_blocks("op_return", &receiver, |block| self.process_block(block));
 
         debug!("{:?}", self.script_type.multisig_tx);
 
@@ -229,12 +204,6 @@ impl ProcessOpRet {
         self.segwit_templates_json_file
             .write_all(templates_json.as_bytes())
             .unwrap();
-
-        busy_time += now.elapsed().as_nanos();
-        info!(
-            "ending processer, busy time: {}s",
-            (busy_time / 1_000_000_000)
-        );
 
         (self.op_return_data, self.script_type)
     }

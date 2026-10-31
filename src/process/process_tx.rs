@@ -2,22 +2,18 @@ use crate::bloom::{BloomConfig, UsedScriptBloom};
 use crate::counter::Counter;
 use crate::pages::bip69::{has_more_than_one_input_output, is_bip69};
 use crate::process::{block_index, compress_amount, encoded_length_7bit_varint};
+use crate::process::{receive_blocks, BlockReceiver};
 use bitcoin::Address;
 use bitcoin::{Script, Transaction, Txid, VarInt};
 use blocks_iterator::BlockExtra;
-use blocks_iterator::PeriodCounter;
 use log::info;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
-use std::sync::mpsc::Receiver;
-use std::sync::Arc;
-use std::time::{Duration, Instant};
 
 pub struct ProcessTxStats {
-    receiver: Receiver<Arc<Option<BlockExtra>>>,
     pub stats: TxStats,
     pub tx_stats_json_file: File,
     used_scriptpubkeys_bloom: Option<UsedScriptBloom>,
@@ -69,7 +65,6 @@ pub struct TxStats {
 //TODO split again this one slower together with read
 impl ProcessTxStats {
     pub fn new(
-        receiver: Receiver<Arc<Option<BlockExtra>>>,
         target_dir: &Path,
         bloom_config: Option<BloomConfig>,
     ) -> std::io::Result<ProcessTxStats> {
@@ -77,31 +72,14 @@ impl ProcessTxStats {
             File::create(format!("{}/raw/tx_stats.json", target_dir.display())).unwrap();
         let used_scriptpubkeys_bloom = bloom_config.map(UsedScriptBloom::new).transpose()?;
         Ok(ProcessTxStats {
-            receiver,
             stats: TxStats::new(),
             tx_stats_json_file,
             used_scriptpubkeys_bloom,
         })
     }
 
-    pub fn start(mut self) -> TxStats {
-        let mut busy_time = 0u128;
-        let mut now = Instant::now();
-        let mut period = PeriodCounter::new(Duration::from_secs(10));
-        loop {
-            busy_time += now.elapsed().as_nanos();
-            let received = self.receiver.recv().expect("cannot receive fee block");
-            now = Instant::now();
-            match *received {
-                Some(ref block) => {
-                    self.process_block(block);
-                    if period.period_elapsed().is_some() {
-                        info!("busy_time:{}", (busy_time / 1_000_000_000));
-                    }
-                }
-                None => break,
-            }
-        }
+    pub fn start(mut self, receiver: BlockReceiver) -> TxStats {
+        receive_blocks("tx stats", &receiver, |block| self.process_block(block));
 
         let tx_stats_json = serde_json::to_string(&self.stats).unwrap();
         self.tx_stats_json_file
@@ -116,12 +94,6 @@ impl ProcessTxStats {
             );
             bloom.publish().unwrap();
         }
-
-        busy_time += now.elapsed().as_nanos();
-        info!(
-            "ending stats processer, busy time: {}s",
-            (busy_time / 1_000_000_000)
-        );
 
         self.stats
     }

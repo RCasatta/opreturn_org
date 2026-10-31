@@ -1,23 +1,18 @@
 use crate::counter::Counter;
 use crate::process::block_index;
+use crate::process::{receive_blocks, BlockReceiver};
 use bitcoin::bip158::BlockFilter;
 use bitcoin::ScriptBuf;
 use blocks_iterator::BlockExtra;
-use blocks_iterator::PeriodCounter;
 use log::{debug, info};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use std::sync::mpsc::Receiver;
-use std::sync::Arc;
-use std::time::Duration;
-use std::time::Instant;
 use std::{env, fs};
 
 pub struct ProcessBip158Stats {
-    receiver: Receiver<Arc<Option<BlockExtra>>>,
     pub stats: Bip158Stats,
 
     /// counter of different scripts, when reach 1M elements, it resets and insert the height in `scripts_1m_heights`
@@ -34,7 +29,7 @@ pub struct Bip158Stats {
 }
 
 impl ProcessBip158Stats {
-    pub fn new(receiver: Receiver<Arc<Option<BlockExtra>>>, target_dir: &Path) -> Self {
+    pub fn new(target_dir: &Path) -> Self {
         let mut cache_path = target_dir.to_path_buf();
         cache_path.push("raw");
         cache_path.push("bip138_size_cache");
@@ -53,7 +48,6 @@ impl ProcessBip158Stats {
         };
 
         Self {
-            receiver,
             cache,
             cache_path,
             stats: Bip158Stats::new(),
@@ -62,34 +56,13 @@ impl ProcessBip158Stats {
         }
     }
 
-    pub fn start(mut self) -> Bip158Stats {
-        let mut busy_time = 0u128;
-        let mut now = Instant::now();
-        let mut period = PeriodCounter::new(Duration::from_secs(10));
-        loop {
-            busy_time += now.elapsed().as_nanos();
-            let received = self.receiver.recv().expect("cannot receive fee block");
-            now = Instant::now();
-            match *received {
-                Some(ref block) => {
-                    self.process_block(block);
-                    if period.period_elapsed().is_some() {
-                        info!("busy_time:{}", (busy_time / 1_000_000_000));
-                    }
-                }
-                None => break,
-            }
-        }
+    pub fn start(mut self, receiver: BlockReceiver) -> Bip158Stats {
+        receive_blocks("bip158", &receiver, |block| self.process_block(block));
         let mut file = File::create(self.cache_path).unwrap();
         for size in self.cache.iter() {
             file.write_all(&size.to_be_bytes()).unwrap();
         }
 
-        busy_time += now.elapsed().as_nanos();
-        info!(
-            "ending bip158 stats processer, busy time: {}s",
-            (busy_time / 1_000_000_000)
-        );
         debug!("scripts_1M: {:?}", self.scripts_1m_heights);
         info!("scripts_1M: {}", self.scripts_1m_heights.len());
 
