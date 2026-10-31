@@ -3,7 +3,7 @@
 ## Project Structure & Module Organization
 The input is a stream of serialized `BlockExtra` (blocks with the previous outputs of their inputs) produced by [blocks_iterator](https://github.com/RCasatta/blocks_iterator) (`blocks_iterator_cli`) and read with its `PipeIterator`. In production `blocks_iterator_cli` runs as a continuous daemon over the full mainnet chain piped into `opreturn_org`, which also maintains the used-scriptPubKeys Bloom state dir; the site is served from `--target-dir/site` only, `raw/` is not public.
 
-`src/main.rs` is the binary entrypoint. It reads block data from stdin, fans work out to processors in `src/process/`, and writes generated output under `--target-dir/{site,raw}`. Chart rendering lives in `src/charts.rs`, reusable counters in `src/counter.rs`, and each HTML page in `src/pages/` as one module per report, such as `src/pages/op_return.rs` or `src/pages/bip69.rs`. Static assets are limited; the bundled favicon is stored at `target_dir/site/favicon.ico`.
+`src/main.rs` is the binary entrypoint. It reads block data from stdin, fans work out to processors in `src/process/`, and writes generated output under `--target-dir/{site,raw}`. Chart rendering lives in `src/charts.rs`, reusable counters in `src/counter.rs`, and each HTML page in `src/pages/` as one module per report, such as `src/pages/op_return.rs` or `src/pages/bip69.rs`. Static assets are limited; the bundled favicon is stored at `src/pages/favicon.ico`.
 
 ## Build, Test, and Development Commands
 Use Cargo for day-to-day work:

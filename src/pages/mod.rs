@@ -18,6 +18,8 @@ use crate::charts::Chart;
 use crate::now;
 use crate::process::{Bip158Stats, OpReturnData, ScriptType, Stats, TxStats};
 use maud::{html, Markup, PreEscaped, DOCTYPE};
+use std::path::Path;
+use std::{fs, io};
 
 pub use bip69::bip69;
 pub use blockchain_sizes::blockchain_sizes;
@@ -187,7 +189,7 @@ impl Page {
     }
 }
 
-pub fn create_index(pages: &[Page]) -> Markup {
+fn create_index(pages: &[Page]) -> Markup {
     let description = "Charts and statistics about the Bitcoin blockchain";
     let links = html! {
         h1 { "Charts" }
@@ -204,7 +206,7 @@ pub fn create_index(pages: &[Page]) -> Markup {
     page("OP_RETURN", description, links)
 }
 
-pub fn create_about() -> Markup {
+fn create_about() -> Markup {
     let content = html! {
         h1 { "About" }
         p { "OP_RETURN shows charts about the Bitcoin blockchain, it's built once a day." }
@@ -217,6 +219,25 @@ pub fn create_about() -> Markup {
         }
     };
     page("About · OP_RETURN", "About the OP_RETURN site", content)
+}
+
+/// Writes the pages, each in its own directory, the index, the about page and the favicon in
+/// `site_home`
+pub fn write_site(site_home: &Path, pages: &[Page]) -> io::Result<()> {
+    let write_page = |dir: &Path, html: Markup| -> io::Result<()> {
+        fs::create_dir_all(dir)?;
+        fs::write(dir.join("index.html"), html.into_string())
+    };
+    for page in pages {
+        let page_dir = site_home.join(&page.permalink);
+        write_page(&page_dir, page.to_html())?;
+        for (name, content) in page.files.iter() {
+            fs::write(page_dir.join(name), content)?;
+        }
+    }
+    write_page(site_home, create_index(pages))?;
+    write_page(&site_home.join("about"), create_about())?;
+    fs::write(site_home.join("favicon.ico"), include_bytes!("favicon.ico"))
 }
 
 pub fn get_pages(

@@ -70,16 +70,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if !fs::metadata(&params.target_dir).unwrap().is_dir() {
         panic!("--target-dir must be a directory");
     }
-    let mut site_home = params.target_dir.clone();
-    site_home.push("site");
-    if !site_home.exists() {
-        fs::create_dir_all(&site_home).unwrap();
-    }
-    let mut raw_home = params.target_dir.clone();
-    raw_home.push("raw");
-    if !raw_home.exists() {
-        fs::create_dir_all(&raw_home).unwrap();
-    }
+    let site_home = params.target_dir.join("site");
+    fs::create_dir_all(&site_home)?;
+    fs::create_dir_all(params.target_dir.join("raw"))?;
 
     let blocks_size = 3;
 
@@ -156,33 +149,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &process_stats,
         &tx_stats,
     );
-    for page in pages.iter() {
-        let page_dir = site_home.join(&page.permalink);
-        fs::create_dir_all(&page_dir).unwrap();
-        fs::write(page_dir.join("index.html"), page.to_html().into_string()).unwrap();
-        for (name, content) in page.files.iter() {
-            fs::write(page_dir.join(name), content).unwrap();
-        }
-    }
-    let mut index_path = site_home.clone();
-    index_path.push("index.html");
-    let index = pages::create_index(&pages);
-    fs::write(index_path, index.into_string()).unwrap();
-
-    let mut about_path = site_home.clone();
-    about_path.push("about");
-    if !about_path.exists() {
-        fs::create_dir_all(&about_path).unwrap();
-    }
-    about_path.push("index.html");
-    let about = pages::create_about();
-    fs::write(about_path, about.into_string()).unwrap();
-
-    // favicon
-    let mut favicon_file = site_home.clone();
-    favicon_file.push("favicon.ico");
-    let favicon = include_bytes!("../target_dir/site/favicon.ico");
-    fs::write(favicon_file, favicon).unwrap();
+    pages::write_site(&site_home, &pages)?;
 
     info!("end, elapsed:{}s", now.elapsed().as_secs());
     Ok(())
