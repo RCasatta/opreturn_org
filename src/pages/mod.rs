@@ -104,6 +104,9 @@ const CHART_DEFAULTS_JS: &str = r#"
   Chart.defaults.elements.point.radius = 0;
   Chart.defaults.interaction.mode = 'index';
   Chart.defaults.interaction.intersect = false;
+  // but in a pie the index mode picks the slice by horizontal distance, highlight the one under
+  // the mouse instead
+  Chart.overrides.pie.interaction = { mode: 'nearest', intersect: true };
   Chart.overrides.pie.plugins.legend.position =
     window.matchMedia('(min-width: 700px)').matches ? 'right' : 'bottom';
 })();
