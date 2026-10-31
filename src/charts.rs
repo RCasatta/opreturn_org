@@ -1,6 +1,7 @@
 use maud::Markup;
 use maud::{html, PreEscaped};
 use serde::{Serialize, Serializer};
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Serialize)]
@@ -116,6 +117,26 @@ pub struct Dataset {
     pub y_axis_id: Option<String>,
 }
 
+impl Dataset {
+    /// A line, not filled
+    pub fn line(label: &str, data: Vec<u64>, color: Color) -> Dataset {
+        Dataset {
+            label: label.to_string(),
+            data,
+            background_color: vec![color],
+            border_color: vec![color],
+            ..Default::default()
+        }
+    }
+
+    pub fn dashed(self) -> Dataset {
+        Dataset {
+            border_dash: Some([5, 5]),
+            ..self
+        }
+    }
+}
+
 impl Serialize for Color {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -125,8 +146,38 @@ impl Serialize for Color {
     }
 }
 
+/// Id of the y axis on the right, see [`Chart::with_right_axis`]
+const RIGHT_AXIS: &str = "y2";
+
+/// Number of values shown in pies, the others are summed in "other"
+const PIE_VALUES: usize = 10;
+
+/// Label of the period `index` of a [`crate::counter::Counter`], `mul` thousand blocks long
+pub fn period_label(index: usize, mul: usize) -> String {
+    let from = index * mul;
+    let to = from + mul;
+    format!("{:4}k-{}k", from, to)
+}
+
+/// The [`PIE_VALUES`] biggest values of `map` sorted by key, plus the sum of the others as "other"
+pub fn top_values(map: &HashMap<String, u64>) -> BTreeMap<String, u64> {
+    let mut sorted: Vec<(&String, &u64)> = map.iter().collect();
+    // ties broken by key, otherwise the HashMap iteration order leaks into the output
+    sorted.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
+    let mut top: BTreeMap<String, u64> = sorted
+        .iter()
+        .take(PIE_VALUES)
+        .map(|(k, v)| (k.to_string(), **v))
+        .collect();
+    let other: u64 = sorted.iter().skip(PIE_VALUES).map(|(_, v)| **v).sum();
+    if other > 0 {
+        top.insert("other".to_owned(), other);
+    }
+    top
+}
+
 impl Chart {
-    pub fn new(title: String, kind: Kind, labels: Vec<String>) -> Chart {
+    pub fn new(title: impl Into<String>, kind: Kind, labels: Vec<String>) -> Chart {
         Chart {
             kind,
             data: ChartData {
@@ -137,7 +188,7 @@ impl Chart {
                 plugins: Plugins {
                     title: Title {
                         display: true,
-                        text: title,
+                        text: title.into(),
                     },
                 },
                 scales: None,
@@ -145,15 +196,38 @@ impl Chart {
         }
     }
 
-    /// A dataset with `y_axis_id` is plotted against a second y axis on the right
-    pub fn add_dataset(&mut self, mut dataset: Dataset, y_axis_id: Option<String>) {
-        if let Some(id) = y_axis_id.as_ref() {
-            self.options.scales = Some(serde_json::json!({
-                id: { "position": "right", "grid": { "drawOnChartArea": false } }
-            }));
-        }
-        dataset.y_axis_id = y_axis_id;
-        self.data.datasets.push(dataset)
+    /// A line chart over `len` periods of `mul` thousand blocks, as returned by
+    /// [`crate::counter::Counter::finish`]
+    pub fn periods(title: impl Into<String>, len: usize, mul: usize) -> Chart {
+        let labels = (0..len).map(|i| period_label(i, mul)).collect();
+        Chart::new(title, Kind::Line, labels)
+    }
+
+    /// A pie of the biggest values of `map`, see [`top_values`]
+    pub fn pie(title: &str, map: &HashMap<String, u64>) -> Chart {
+        let top = top_values(map);
+        Chart::new(title, Kind::Pie, top.keys().cloned().collect()).with(Dataset {
+            // shown in the tooltip
+            label: title.to_string(),
+            data: top.values().cloned().collect(),
+            background_color: Color::rainbow(),
+            fill: true,
+            ..Default::default()
+        })
+    }
+
+    pub fn with(mut self, dataset: Dataset) -> Self {
+        self.data.datasets.push(dataset);
+        self
+    }
+
+    /// Adds a dataset plotted against a second y axis on the right
+    pub fn with_right_axis(mut self, mut dataset: Dataset) -> Self {
+        self.options.scales = Some(serde_json::json!({
+            RIGHT_AXIS: { "position": "right", "grid": { "drawOnChartArea": false } }
+        }));
+        dataset.y_axis_id = Some(RIGHT_AXIS.to_string());
+        self.with(dataset)
     }
 
     pub fn to_json_dict(&self) -> String {

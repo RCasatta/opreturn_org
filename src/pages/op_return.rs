@@ -1,81 +1,48 @@
-use crate::charts::{Chart, Color, Dataset, Kind};
-use crate::pages::{to_label_map, Page};
+use crate::charts::{Chart, Color, Dataset};
+use crate::counter::Counter;
+use crate::pages::Page;
 use crate::process::OpReturnData;
 
+/// A chart with a single line of the values in `counter`, converted by `map`
+fn line(title: &str, label: &str, counter: &Counter, color: Color, map: fn(u64) -> u64) -> Chart {
+    let (data, mul) = counter.finish();
+    Chart::periods(title, data.len(), mul).with(Dataset::line(
+        label,
+        data.into_iter().map(map).collect(),
+        color,
+    ))
+}
+
 pub fn op_return_per_month(opret: &OpReturnData) -> Page {
-    let title = "OP_RETURN".to_string();
-    let (v, div) = opret.op_ret_per_period.finish();
-    let op_ret_per_period = to_label_map(&v, div);
-
-    let mut charts = vec![];
-
-    let op_ret_per_period_labels: Vec<_> = op_ret_per_period.keys().cloned().collect();
-
-    let mut chart = Chart::new(title.clone(), Kind::Line, op_ret_per_period_labels);
-    let dataset = Dataset {
-        label: "OP_RETURN [-]".to_string(),
-        data: op_ret_per_period.values().cloned().collect(),
-        background_color: vec![Color::Orange],
-        border_color: vec![Color::Orange],
-        fill: false,
-        ..Default::default()
-    };
-    chart.add_dataset(dataset, None);
-    charts.push(chart);
-    drop(op_ret_per_period);
-
-    let (v, div) = opret.op_ret_bigger_than_83_per_period.finish();
-    let op_ret_bigger_than_80_per_period = to_label_map(&v, div);
-    let op_ret_bigger_than_80_labels: Vec<_> =
-        op_ret_bigger_than_80_per_period.keys().cloned().collect();
-
-    let mut chart = Chart::new(
-        "OP_RETURN > 83 bytes".to_string(),
-        Kind::Line,
-        op_ret_bigger_than_80_labels,
-    );
-    let dataset = Dataset {
-        label: "OP_RETURN > 83 bytes [-]".to_string(),
-        data: op_ret_bigger_than_80_per_period.values().cloned().collect(),
-        background_color: vec![Color::Blue],
-        border_color: vec![Color::Blue],
-        fill: false,
-        ..Default::default()
-    };
-    chart.add_dataset(dataset, None);
-    charts.push(chart);
-    drop(op_ret_bigger_than_80_per_period);
-
-    let (vec, mul) = opret.op_ret_fee_per_period.finish();
-    let op_ret_fee_per_month = to_label_map(&vec, mul);
-    let op_ret_per_month_labels: Vec<_> = op_ret_fee_per_month.keys().cloned().collect();
-    let mut chart = Chart::new(
-        "fees of OP_RETURN tx [bitcoin]".to_string(),
-        Kind::Line,
-        op_ret_per_month_labels,
-    );
-    let dataset = Dataset {
-        label: "OP_RETURN fee [bitcoin]".to_string(),
-        data: op_ret_fee_per_month
-            .values()
-            .map(|sat| sat / 100_000_000)
-            .collect(),
-        background_color: vec![Color::Orange],
-        border_color: vec![Color::Orange],
-        fill: false,
-        ..Default::default()
-    };
-    chart.add_dataset(dataset, None);
-    charts.push(chart);
-    drop(op_ret_fee_per_month);
-
+    let title = "OP_RETURN";
     Page {
-        title,
+        title: title.to_string(),
         description: "Charts showing the number of OP_RETURN scripts and fee spent per month."
             .to_string(),
         permalink: "op-return".to_string(),
-        charts,
-        text: "".to_string(),
+        charts: vec![
+            line(
+                title,
+                "OP_RETURN [-]",
+                &opret.op_ret_per_period,
+                Color::Orange,
+                |n| n,
+            ),
+            line(
+                "OP_RETURN > 83 bytes",
+                "OP_RETURN > 83 bytes [-]",
+                &opret.op_ret_bigger_than_83_per_period,
+                Color::Blue,
+                |n| n,
+            ),
+            line(
+                "fees of OP_RETURN tx [bitcoin]",
+                "OP_RETURN fee [bitcoin]",
+                &opret.op_ret_fee_per_period,
+                Color::Orange,
+                |sat| sat / 100_000_000,
+            ),
+        ],
         ..Default::default()
     }
 }

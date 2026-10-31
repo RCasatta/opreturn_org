@@ -18,7 +18,6 @@ use crate::charts::Chart;
 use crate::now;
 use crate::process::{Bip158Stats, OpReturnData, ScriptType, Stats, TxStats};
 use maud::{html, Markup, PreEscaped, DOCTYPE};
-use std::collections::{BTreeMap, HashMap};
 
 pub use bip69::bip69;
 pub use blockchain_sizes::blockchain_sizes;
@@ -220,20 +219,6 @@ pub fn create_about() -> Markup {
     page("About · OP_RETURN", "About the OP_RETURN site", content)
 }
 
-fn to_label_map(values: &[u64], mul: usize) -> BTreeMap<String, u64> {
-    let mut map = BTreeMap::new();
-    for (i, value) in values.iter().enumerate() {
-        map.insert(index_block(i, mul), *value);
-    }
-    map
-}
-
-pub fn index_block(index: usize, mul: usize) -> String {
-    let from = index * mul;
-    let to = from + mul;
-    format!("{:4}k-{}k", from, to)
-}
-
 pub fn get_pages(
     bip158: &Bip158Stats,
     opret: &OpReturnData,
@@ -258,19 +243,4 @@ pub fn get_pages(
         bip69(tx_stats),
         locktime(tx_stats),
     ]
-}
-
-pub fn map_by_value(map: &HashMap<String, u64>) -> BTreeMap<String, u64> {
-    let mut tree: BTreeMap<String, u64> = BTreeMap::new();
-    let mut count_vec: Vec<(&String, &u64)> = map.iter().collect();
-    // ties broken by key, otherwise the HashMap iteration order leaks into the output
-    count_vec.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
-    for (key, value) in count_vec.iter().take(10) {
-        tree.insert(key.to_string(), **value);
-    }
-    let other = count_vec.iter().skip(10).fold(0, |acc, x| acc + x.1);
-    if other > 0 {
-        tree.insert("other".to_owned(), other);
-    }
-    tree
 }

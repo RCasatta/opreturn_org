@@ -1,5 +1,5 @@
-use crate::charts::{Chart, Color, Dataset, Kind};
-use crate::pages::{map_by_value, Page};
+use crate::charts::Chart;
+use crate::pages::Page;
 use crate::process::{OpReturnData, ProtoKey};
 use std::collections::HashMap;
 
@@ -67,18 +67,7 @@ pub fn group_by_label(map: &HashMap<ProtoKey, u64>) -> HashMap<String, u64> {
 }
 
 fn pie(title: &str, map: &HashMap<ProtoKey, u64>) -> Chart {
-    let map = map_by_value(&group_by_label(map));
-    let mut chart = Chart::new(title.to_string(), Kind::Pie, map.keys().cloned().collect());
-    let dataset = Dataset {
-        label: title.to_string(),
-        data: map.values().cloned().collect(),
-        background_color: Color::rainbow(),
-        border_color: vec![],
-        fill: true,
-        ..Default::default()
-    };
-    chart.add_dataset(dataset, None);
-    chart
+    Chart::pie(title, &group_by_label(map))
 }
 
 pub fn op_return_protocols(opret: &OpReturnData) -> Page {

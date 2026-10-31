@@ -95,23 +95,21 @@ fn anonymity_set_chart(script_type: &ScriptType, envelope: bool, what: &str) -> 
     let histogram = script_type
         .segwit_templates
         .anonymity_set_histogram(envelope);
-    let mut chart = Chart::new(
+    Chart::new(
         format!(
             "Number of {}s by count of distinct scripts using it (anonymity set)",
             what
         ),
         Kind::Bar,
         histogram.iter().map(|(l, _)| l.clone()).collect(),
-    );
-    let dataset = Dataset {
+    )
+    .with(Dataset {
         label: format!("{}s", what),
         data: histogram.iter().map(|(_, c)| *c).collect(),
         background_color: vec![Color::Blue],
         border_color: vec![Color::Blue],
         ..Default::default()
-    };
-    chart.add_dataset(dataset, None);
-    chart
+    })
 }
 
 pub fn segwit_script_templates(script_type: &ScriptType) -> Page {

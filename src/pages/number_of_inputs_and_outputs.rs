@@ -1,36 +1,14 @@
-use crate::charts::{Chart, Color, Dataset, Kind};
-use crate::pages::{map_by_value, Page};
+use crate::charts::Chart;
+use crate::pages::Page;
 use crate::process::TxStats;
 
 pub fn number_of_inputs_and_outputs(stats: &TxStats) -> Page {
-    let mut charts = vec![];
-    let map = map_by_value(&stats.in_out);
-
-    let in_out_labels: Vec<_> = map.keys().cloned().collect();
-
-    let mut chart = Chart::new(
-        "Number of inputs and outputs".to_string(),
-        Kind::Pie,
-        in_out_labels,
-    );
-
-    let dataset = Dataset {
-        label: "Number of inputs and outputs".to_string(),
-        data: map.values().cloned().collect(),
-        background_color: Color::rainbow(),
-        border_color: vec![],
-        fill: true,
-        ..Default::default()
-    };
-    chart.add_dataset(dataset, None);
-
-    charts.push(chart);
-
+    let title = "Number of inputs and outputs";
     Page {
-        title: "Number of inputs and outputs".to_string(),
+        title: title.to_string(),
         description: "Show how many txs have A input and B output".to_string(),
         permalink: "number-of-inputs-and-outputs".to_string(),
-        charts,
+        charts: vec![Chart::pie(title, &stats.in_out)],
         text: format!(
             "tx with more than 10 inputs: {}",
             stats.total_tx_with_more_than_10_inputs

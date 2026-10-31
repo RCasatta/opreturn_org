@@ -1,6 +1,6 @@
-use crate::charts::{Chart, Color, Dataset, Kind};
+use crate::charts::{Chart, Color, Dataset};
 use crate::counter::{cumulative, perc_100};
-use crate::pages::{to_label_map, Page};
+use crate::pages::Page;
 use crate::process::TxStats;
 
 use core::cmp::Ordering;
@@ -9,61 +9,23 @@ use bitcoin::hashes::Hash;
 use bitcoin::{Transaction, TxIn, TxOut};
 
 pub fn bip69(tx_stats: &TxStats) -> Page {
-    let title = "BIP69 adoption".to_string();
+    let title = "BIP69 adoption";
 
-    let (no_vec, mul) = tx_stats.is_bip69[0].finish();
-    let no_bip69 = to_label_map(&cumulative(&no_vec), mul);
-    let (yes_vec, mul) = tx_stats.is_bip69[1].finish();
-    let yes_bip69 = to_label_map(&cumulative(&yes_vec), mul);
-
-    let mut charts = vec![];
-
-    let labels: Vec<_> = no_bip69.keys().cloned().collect();
-    let mut chart = Chart::new(title.clone(), Kind::Line, labels);
-
-    let dataset = Dataset {
-        label: "yes".to_string(),
-        data: yes_bip69.values().cloned().collect(),
-        background_color: vec![Color::Orange],
-        border_color: vec![Color::Orange],
-        fill: false,
-        ..Default::default()
-    };
-    chart.add_dataset(dataset, None);
-
-    let dataset = Dataset {
-        label: "no".to_string(),
-        data: no_bip69.values().cloned().collect(),
-        background_color: vec![Color::Red],
-        border_color: vec![Color::Red],
-        fill: false,
-        ..Default::default()
-    };
-    chart.add_dataset(dataset, None);
-
-    let sum_vec: Vec<u64> = yes_vec
-        .iter()
-        .zip(no_vec.iter())
-        .map(|(a, b)| a + b)
-        .collect();
-    let perc = perc_100(&yes_vec, &sum_vec);
-    let dataset = Dataset {
-        label: "% compliance".to_string(),
-        data: perc,
-        background_color: vec![Color::Green],
-        border_color: vec![Color::Green],
-        border_dash: Some([5, 5]),
-        ..Default::default()
-    };
-    chart.add_dataset(dataset, Some("y2".to_string()));
-
-    charts.push(chart);
+    let (no, mul) = tx_stats.is_bip69[0].finish();
+    let (yes, _) = tx_stats.is_bip69[1].finish();
+    let all: Vec<u64> = yes.iter().zip(no.iter()).map(|(a, b)| a + b).collect();
+    let chart = Chart::periods(title, no.len(), mul)
+        .with(Dataset::line("yes", cumulative(&yes), Color::Orange))
+        .with(Dataset::line("no", cumulative(&no), Color::Red))
+        .with_right_axis(
+            Dataset::line("% compliance", perc_100(&yes, &all), Color::Green).dashed(),
+        );
 
     Page {
-        title,
+        title: title.to_string(),
         description: "BIP69 compliance, ordered transaction inputs and outputs".to_string(),
         permalink: "bip69".to_string(),
-        charts,
+        charts: vec![chart],
         text: "".to_string(),
         ..Default::default()
     }

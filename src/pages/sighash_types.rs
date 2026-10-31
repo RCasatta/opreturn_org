@@ -1,30 +1,16 @@
-use crate::charts::{Chart, Color, Dataset, Kind};
-use crate::pages::{map_by_value, Page};
+use crate::charts::Chart;
+use crate::pages::Page;
 use crate::process::Stats;
 
 pub fn sighash_types(stats: &Stats) -> Page {
-    let map = map_by_value(&stats.sighashtype);
-    let mut chart = Chart::new(
-        "Number of sighash type used".to_string(),
-        Kind::Pie,
-        map.keys().cloned().collect(),
-    );
-    let dataset = Dataset {
-        label: "Number of sighash type used".to_string(),
-        data: map.values().cloned().collect(),
-        background_color: Color::rainbow(),
-        border_color: vec![],
-        fill: true,
-        ..Default::default()
-    };
-    chart.add_dataset(dataset, None);
-
     Page {
         title: "Number of sighash type used".to_string(),
         description: "Show distribution of sighash type used".to_string(),
         permalink: "sighash-types".to_string(),
-        charts: vec![chart],
-        text: "".to_string(),
+        charts: vec![Chart::pie(
+            "Number of sighash type used",
+            &stats.sighashtype,
+        )],
         ..Default::default()
     }
 }
