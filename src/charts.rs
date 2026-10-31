@@ -156,7 +156,7 @@ const PIE_VALUES: usize = 10;
 pub fn period_label(index: usize, mul: usize) -> String {
     let from = index * mul;
     let to = from + mul;
-    format!("{:4}k-{}k", from, to)
+    format!("{}k-{}k", from, to)
 }
 
 /// The [`PIE_VALUES`] biggest values of `map` sorted by key, plus the sum of the others as "other"
