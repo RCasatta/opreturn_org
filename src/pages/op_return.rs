@@ -35,12 +35,13 @@ pub fn op_return_per_month(opret: &OpReturnData) -> Page {
                 Color::Blue,
                 |n| n,
             ),
+            // in bitcoin most periods would be truncated to 0
             line(
-                "fees of OP_RETURN tx [bitcoin]",
-                "OP_RETURN fee [bitcoin]",
+                "fees of OP_RETURN tx [mBTC]",
+                "OP_RETURN fee [mBTC]",
                 &opret.op_ret_fee_per_period,
                 Color::Orange,
-                |sat| sat / 100_000_000,
+                |sat| sat / 100_000,
             ),
         ],
         ..Default::default()
