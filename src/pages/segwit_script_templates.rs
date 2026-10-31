@@ -40,33 +40,48 @@ fn csv(rows: &[TemplateRow]) -> String {
     csv
 }
 
+/// `n` with comma separated thousands, as `toLocaleString('en-US')` does in javascript
+fn thousands(n: u64) -> String {
+    let digits = n.to_string();
+    let mut result = String::new();
+    for (i, c) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i) % 3 == 0 {
+            result.push(',');
+        }
+        result.push(c);
+    }
+    result
+}
+
 /// The first [`TABLE_ROWS`] of `rows`, percentages are relative to the spends of all `rows`
 fn table(rows: &[&TemplateRow], envelope: bool) -> Markup {
     let total: u64 = rows.iter().map(|r| r.spends).sum();
     html! {
-        table class="templates" data-envelope=(envelope) {
-            thead {
-                tr {
-                    th { "#" }
-                    th { "kind" }
-                    th { "template" }
-                    th { "spends" }
-                    th { "% spends" }
-                    th title="distinct scripts using the template, ~ when estimated" { "distinct scripts" }
-                    th title="height of the first spend, links to the transaction" { "first seen" }
-                }
-            }
-            tbody {
-                @for (i, row) in rows.iter().take(TABLE_ROWS).enumerate() {
-                    @let (kind, template) = split_kind(row);
+        div class="table-wrap" {
+            table class="templates" data-envelope=(envelope) {
+                thead {
                     tr {
-                        td { (i + 1) }
-                        td { (kind) }
-                        td { code { (template) } }
-                        td { (row.spends) }
-                        td { (format!("{:.2}", row.spends as f64 * 100.0 / total as f64)) }
-                        td { @if !row.distinct_exact { "~" } (row.distinct_scripts) }
-                        td { a href=(format!("https://mempool.space/tx/{}", row.first_txid)) { (row.first_height) } }
+                        th class="num" { "#" }
+                        th { "kind" }
+                        th { "template" }
+                        th class="num" { "spends" }
+                        th class="num" { "% spends" }
+                        th class="num" title="distinct scripts using the template, ~ when estimated" { "distinct scripts" }
+                        th class="num" title="height of the first spend, links to the transaction" { "first seen" }
+                    }
+                }
+                tbody {
+                    @for (i, row) in rows.iter().take(TABLE_ROWS).enumerate() {
+                        @let (kind, template) = split_kind(row);
+                        tr {
+                            td class="num" { (i + 1) }
+                            td class="nowrap" { (kind) }
+                            td { code { (template) } }
+                            td class="num" { (thousands(row.spends)) }
+                            td class="num" { (format!("{:.2}", row.spends as f64 * 100.0 / total as f64)) }
+                            td class="num" { @if !row.distinct_exact { "~" } (thousands(row.distinct_scripts)) }
+                            td class="num" { a href=(format!("https://mempool.space/tx/{}", row.first_txid)) { (row.first_height) } }
+                        }
                     }
                 }
             }
@@ -113,11 +128,11 @@ pub fn segwit_script_templates(script_type: &ScriptType) -> Page {
 
     let content = html! {
         p {
-            (rows.len()) " distinct templates over " (templates.total_spends) " spends, of which "
-            (envelopes.len()) " templates and " (envelope_spends) " spends contain an "
+            (thousands(rows.len() as u64)) " distinct templates over " (thousands(templates.total_spends)) " spends, of which "
+            (thousands(envelopes.len() as u64)) " templates and " (thousands(envelope_spends)) " spends contain an "
             code { "OP_0 OP_IF" } " envelope (eg. inscriptions) and are listed separately."
             @if templates.overflow_spends > 0 {
-                " " (templates.overflow_spends) " spends are not counted because the maximum number of tracked templates was reached."
+                 " " (thousands(templates.overflow_spends)) " spends are not counted because the maximum number of tracked templates was reached."
             }
         }
         p {
@@ -286,6 +301,14 @@ mod tests {
     }
 
     #[test]
+    fn test_thousands() {
+        assert_eq!(thousands(0), "0");
+        assert_eq!(thousands(999), "999");
+        assert_eq!(thousands(1000), "1,000");
+        assert_eq!(thousands(32714282), "32,714,282");
+    }
+
+    #[test]
     fn test_segwit_script_templates_page() {
         let mut script_type = ScriptType::default();
         let txid = Txid::all_zeros();
@@ -317,7 +340,7 @@ mod tests {
         let script_table = html.find("data-envelope=\"false\"").unwrap();
         let envelope_table = html.find("data-envelope=\"true\"").unwrap();
         let multisig_row = html
-            .find("<td>1</td><td>wsh</td><td><code>OP_2 &lt;pk&gt; &lt;pk&gt; OP_2 OP_CHECKMULTISIG</code></td><td>2</td><td>100.00</td><td>1</td>")
+            .find("<td class=\"num\">1</td><td class=\"nowrap\">wsh</td><td><code>OP_2 &lt;pk&gt; &lt;pk&gt; OP_2 OP_CHECKMULTISIG</code></td><td class=\"num\">2</td><td class=\"num\">100.00</td><td class=\"num\">1</td>")
             .unwrap();
         let envelope_row = html.find("&lt;envelope:*&quot;&gt;").unwrap();
         assert!(script_table < multisig_row && multisig_row < envelope_table);

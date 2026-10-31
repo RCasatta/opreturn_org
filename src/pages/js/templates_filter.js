@@ -39,11 +39,16 @@
     return /OP_PUSHBYTES_|OP_PUSHDATA|OP_PUSHNUM_/.test(text);
   }
 
-  function td(tr, child) {
+  function td(tr, child, num) {
     var cell = document.createElement('td');
+    if (num) cell.className = 'num';
     cell.append(child);
     tr.append(cell);
     return cell;
+  }
+
+  function thousands(n) {
+    return n.toLocaleString('en-US');
   }
 
   function render() {
@@ -67,18 +72,18 @@
       tbody.replaceChildren();
       rows.slice(0, MAX).forEach(function (r) {
         var tr = document.createElement('tr');
-        td(tr, String(r.rank));
-        td(tr, r.kind);
+        td(tr, String(r.rank), true);
+        td(tr, r.kind).className = 'nowrap';
         var code = document.createElement('code');
         code.textContent = r.template;
         td(tr, code);
-        td(tr, String(r.spends));
-        td(tr, (r.spends * 100 / group.total).toFixed(2));
-        td(tr, (r.exact ? '' : '~') + r.distinct);
+        td(tr, thousands(r.spends), true);
+        td(tr, (r.spends * 100 / group.total).toFixed(2), true);
+        td(tr, (r.exact ? '' : '~') + thousands(r.distinct), true);
         var a = document.createElement('a');
         a.href = 'https://mempool.space/tx/' + r.txid;
         a.textContent = String(r.height);
-        td(tr, a);
+        td(tr, a, true);
         tbody.append(tr);
       });
     });

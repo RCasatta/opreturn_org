@@ -1,4 +1,57 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><script defer data-domain="opreturn.org" src="https://plausible.casatta.it/js/script.js"></script><title>OP_RETURN</title></head><body style="font-family: Arial, Helvetica, sans-serif;"><h1><a href="/">OP_RETURN</a></h1><p>&nbsp;</p><p>0 distinct templates over 0 spends, of which 0 templates and 0 spends contain an <code>OP_0 OP_IF</code> envelope (eg. inscriptions) and are listed separately.</p><p>Keys and hashes are replaced by placeholders: <code>&lt;pk&gt;</code> compressed key, <code>&lt;xpk&gt;</code> x-only key, <code>&lt;20&gt;</code> 20 bytes push (eg. HASH160), <code>&lt;32&gt;</code> 32 bytes push, <code>&lt;height&gt;</code>/<code>&lt;time&gt;</code> absolute timelocks. Relative timelocks are kept as numbers, eg. the push <code>ffff00</code> before <code>OP_CSV</code> is <code>65535</code>. Opcodes use short names, eg. <code>OP_1</code> and <code>OP_CSV</code>.</p><p>Showing the top 500 templates per table. The filter searches the <a href="templates.csv">full list</a> (CSV) for templates containing the given text. A script pasted as shown by mempool.space, eg. <code>OP_DUP OP_HASH160 OP_PUSHBYTES_20 e92c61fd47c4e776e91495e121d29989812fbbfb OP_EQUALVERIFY OP_CHECKSIG</code>, is converted to its template first.</p><p><textarea id="filter" rows="4" cols="80" placeholder="filter, eg. OP_TOALTSTACK, wsh OP_2, or a script copied from mempool.space"></textarea><br><span id="filter-template"></span><br><span id="filter-status"></span></p><h2>Script templates</h2><table class="templates" data-envelope="false"><thead><tr><th>#</th><th>kind</th><th>template</th><th>spends</th><th>% spends</th><th title="distinct scripts using the template, ~ when estimated">distinct scripts</th><th title="height of the first spend, links to the transaction">first seen</th></tr></thead><tbody></tbody></table><h2>Envelope templates</h2><table class="templates" data-envelope="true"><thead><tr><th>#</th><th>kind</th><th>template</th><th>spends</th><th>% spends</th><th title="distinct scripts using the template, ~ when estimated">distinct scripts</th><th title="height of the first spend, links to the transaction">first seen</th></tr></thead><tbody></tbody></table><script>// Converts a script in the asm format used by rust-bitcoin and mempool.space, eg.
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="description" content="Scripts revealed spending P2WSH, P2SH-P2WSH and taproot script path, with keys and hashes replaced by placeholders"><title>Segwit script templates · OP_RETURN</title><style>
+:root { --bg: #fff; --fg: #1f2328; --muted: #59636e; --border: #d1d9e0; --stripe: #f6f8fa;
+        --accent: #b4410c; --grid: rgba(0,0,0,.08); }
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0d1117; --fg: #e6edf3; --muted: #9198a1; --border: #3d444d; --stripe: #151b23;
+          --accent: #f0883e; --grid: rgba(255,255,255,.1); }
+}
+* { box-sizing: border-box; }
+html { font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+body { margin: 0; background: var(--bg); color: var(--fg); }
+.wrap { max-width: 1000px; margin: 0 auto; padding: 0 16px; }
+a { color: var(--accent); }
+code, textarea { font: .85em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+header { border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+header .wrap { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+               gap: 8px 16px; padding-top: 12px; padding-bottom: 12px; }
+.brand { font: 700 1.3rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+         color: var(--fg); text-decoration: none; }
+nav a { margin-left: 16px; }
+h1 { font-size: 1.6rem; line-height: 1.25; margin: 0 0 4px; }
+h2 { font-size: 1.2rem; margin-top: 32px; }
+.description { color: var(--muted); margin-top: 0; }
+.chart { position: relative; height: clamp(280px, 60vh, 480px); margin: 24px 0 40px; }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+th, td { padding: 4px 8px; border-bottom: 1px solid var(--border); text-align: left;
+         vertical-align: top; }
+tbody tr:nth-child(even) { background: var(--stripe); }
+.num { text-align: right; white-space: nowrap; }
+.nowrap { white-space: nowrap; }
+textarea { width: 100%; padding: 8px; color: var(--fg); background: var(--bg);
+           border: 1px solid var(--border); border-radius: 6px; }
+.pages { list-style: none; padding: 0; }
+.pages li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.pages a { font-weight: 600; }
+.pages span { display: block; color: var(--muted); }
+footer { border-top: 1px solid var(--border); margin-top: 48px; padding: 16px 0;
+         color: var(--muted); font-size: .875rem; }
+</style><script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script><script>
+(function () {
+  var style = getComputedStyle(document.documentElement);
+  Chart.defaults.color = style.getPropertyValue('--muted').trim();
+  Chart.defaults.borderColor = style.getPropertyValue('--grid').trim();
+  Chart.defaults.elements.arc.borderColor = style.getPropertyValue('--bg').trim();
+  Chart.defaults.font.family = style.fontFamily;
+  Chart.defaults.maintainAspectRatio = false;
+  // lines without points, hovering shows all the series at that x
+  Chart.defaults.elements.point.radius = 0;
+  Chart.defaults.interaction.mode = 'index';
+  Chart.defaults.interaction.intersect = false;
+  Chart.overrides.pie.plugins.legend.position =
+    window.matchMedia('(min-width: 700px)').matches ? 'right' : 'bottom';
+})();
+</script><script defer data-domain="opreturn.org" src="https://plausible.casatta.it/js/script.js"></script></head><body><header><div class="wrap"><a class="brand" href="/">OP_RETURN</a><nav><a href="/">Charts</a><a href="/about">About</a></nav></div></header><main class="wrap"><h1>Segwit script templates</h1><p class="description">Scripts revealed spending P2WSH, P2SH-P2WSH and taproot script path, with keys and hashes replaced by placeholders</p><p>0 distinct templates over 0 spends, of which 0 templates and 0 spends contain an <code>OP_0 OP_IF</code> envelope (eg. inscriptions) and are listed separately.</p><p>Keys and hashes are replaced by placeholders: <code>&lt;pk&gt;</code> compressed key, <code>&lt;xpk&gt;</code> x-only key, <code>&lt;20&gt;</code> 20 bytes push (eg. HASH160), <code>&lt;32&gt;</code> 32 bytes push, <code>&lt;height&gt;</code>/<code>&lt;time&gt;</code> absolute timelocks. Relative timelocks are kept as numbers, eg. the push <code>ffff00</code> before <code>OP_CSV</code> is <code>65535</code>. Opcodes use short names, eg. <code>OP_1</code> and <code>OP_CSV</code>.</p><p>Showing the top 500 templates per table. The filter searches the <a href="templates.csv">full list</a> (CSV) for templates containing the given text. A script pasted as shown by mempool.space, eg. <code>OP_DUP OP_HASH160 OP_PUSHBYTES_20 e92c61fd47c4e776e91495e121d29989812fbbfb OP_EQUALVERIFY OP_CHECKSIG</code>, is converted to its template first.</p><p><textarea id="filter" rows="4" cols="80" placeholder="filter, eg. OP_TOALTSTACK, wsh OP_2, or a script copied from mempool.space"></textarea><br><span id="filter-template"></span><br><span id="filter-status"></span></p><h2>Script templates</h2><div class="table-wrap"><table class="templates" data-envelope="false"><thead><tr><th class="num">#</th><th>kind</th><th>template</th><th class="num">spends</th><th class="num">% spends</th><th class="num" title="distinct scripts using the template, ~ when estimated">distinct scripts</th><th class="num" title="height of the first spend, links to the transaction">first seen</th></tr></thead><tbody></tbody></table></div><h2>Envelope templates</h2><div class="table-wrap"><table class="templates" data-envelope="true"><thead><tr><th class="num">#</th><th>kind</th><th>template</th><th class="num">spends</th><th class="num">% spends</th><th class="num" title="distinct scripts using the template, ~ when estimated">distinct scripts</th><th class="num" title="height of the first spend, links to the transaction">first seen</th></tr></thead><tbody></tbody></table></div><script>// Converts a script in the asm format used by rust-bitcoin and mempool.space, eg.
 // `OP_DUP OP_HASH160 OP_PUSHBYTES_20 e92c... OP_EQUALVERIFY OP_CHECKSIG`, into its template.
 // It mirrors `template` in src/process/segwit_templates.rs, the test
 // `test_script_template_js_matches_rust` checks they agree.
@@ -157,11 +210,16 @@ function scriptTemplate(asm) {
     return /OP_PUSHBYTES_|OP_PUSHDATA|OP_PUSHNUM_/.test(text);
   }
 
-  function td(tr, child) {
+  function td(tr, child, num) {
     var cell = document.createElement('td');
+    if (num) cell.className = 'num';
     cell.append(child);
     tr.append(cell);
     return cell;
+  }
+
+  function thousands(n) {
+    return n.toLocaleString('en-US');
   }
 
   function render() {
@@ -185,18 +243,18 @@ function scriptTemplate(asm) {
       tbody.replaceChildren();
       rows.slice(0, MAX).forEach(function (r) {
         var tr = document.createElement('tr');
-        td(tr, String(r.rank));
-        td(tr, r.kind);
+        td(tr, String(r.rank), true);
+        td(tr, r.kind).className = 'nowrap';
         var code = document.createElement('code');
         code.textContent = r.template;
         td(tr, code);
-        td(tr, String(r.spends));
-        td(tr, (r.spends * 100 / group.total).toFixed(2));
-        td(tr, (r.exact ? '' : '~') + r.distinct);
+        td(tr, thousands(r.spends), true);
+        td(tr, (r.spends * 100 / group.total).toFixed(2), true);
+        td(tr, (r.exact ? '' : '~') + thousands(r.distinct), true);
         var a = document.createElement('a');
         a.href = 'https://mempool.space/tx/' + r.txid;
         a.textContent = String(r.height);
-        td(tr, a);
+        td(tr, a, true);
         tbody.append(tr);
       });
     });
@@ -222,4 +280,4 @@ function scriptTemplate(asm) {
     load(render);
   }
 })();
-</script><div><canvas id="chart0"></canvas></div><script>var chart0 = new Chart(document.getElementById('chart0'), {"type":"bar","data":{"labels":["1","2","3-10","11-100","101-1k","1k-10k",">10k"],"datasets":[{"label":"script templates","data":[0,0,0,0,0,0,0],"backgroundColor":["rgb(54,162,235,0.8)"],"borderColor":["rgb(54,162,235,0.8)"],"fill":false,"hidden":false}]},"options":{"plugins":{"title":{"display":true,"text":"Number of script templates by count of distinct scripts using it (anonymity set)"}}}});</script><p>&nbsp;</p><div><canvas id="chart1"></canvas></div><script>var chart1 = new Chart(document.getElementById('chart1'), {"type":"bar","data":{"labels":["1","2","3-10","11-100","101-1k","1k-10k",">10k"],"datasets":[{"label":"envelope templates","data":[0,0,0,0,0,0,0],"backgroundColor":["rgb(54,162,235,0.8)"],"borderColor":["rgb(54,162,235,0.8)"],"fill":false,"hidden":false}]},"options":{"plugins":{"title":{"display":true,"text":"Number of envelope templates by count of distinct scripts using it (anonymity set)"}}}});</script><p>&nbsp;</p><p></p><p>&nbsp;</p><footer><p><a href="/">Home</a> | <a href="/about">About</a></p><p>Page created 1970-01-01 00:00:00</p></footer></body></html>
+</script><div class="chart"><canvas id="chart0"></canvas></div><script>var chart0 = new Chart(document.getElementById('chart0'), {"type":"bar","data":{"labels":["1","2","3-10","11-100","101-1k","1k-10k",">10k"],"datasets":[{"label":"script templates","data":[0,0,0,0,0,0,0],"backgroundColor":["rgb(54,162,235,0.8)"],"borderColor":["rgb(54,162,235,0.8)"],"fill":false,"hidden":false}]},"options":{"plugins":{"title":{"display":true,"text":"Number of script templates by count of distinct scripts using it (anonymity set)"}}}});</script><div class="chart"><canvas id="chart1"></canvas></div><script>var chart1 = new Chart(document.getElementById('chart1'), {"type":"bar","data":{"labels":["1","2","3-10","11-100","101-1k","1k-10k",">10k"],"datasets":[{"label":"envelope templates","data":[0,0,0,0,0,0,0],"backgroundColor":["rgb(54,162,235,0.8)"],"borderColor":["rgb(54,162,235,0.8)"],"fill":false,"hidden":false}]},"options":{"plugins":{"title":{"display":true,"text":"Number of envelope templates by count of distinct scripts using it (anonymity set)"}}}});</script></main><footer><div class="wrap">Page created 1970-01-01 00:00:00 · <a href="https://github.com/RCasatta/opreturn_org">source</a></div></footer></body></html>

@@ -165,7 +165,7 @@ impl Chart {
         );
 
         html! {
-            div {
+            div class="chart" {
                 canvas id=(id) {
                 }
             }

@@ -49,19 +49,79 @@ pub struct Page {
     pub files: Vec<(String, String)>,
 }
 
-const NBSP: PreEscaped<&str> = PreEscaped("&nbsp;");
+/// Inline stylesheet, colors are css variables redefined for dark mode and read by the charts
+const STYLE: &str = r#"
+:root { --bg: #fff; --fg: #1f2328; --muted: #59636e; --border: #d1d9e0; --stripe: #f6f8fa;
+        --accent: #b4410c; --grid: rgba(0,0,0,.08); }
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0d1117; --fg: #e6edf3; --muted: #9198a1; --border: #3d444d; --stripe: #151b23;
+          --accent: #f0883e; --grid: rgba(255,255,255,.1); }
+}
+* { box-sizing: border-box; }
+html { font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+body { margin: 0; background: var(--bg); color: var(--fg); }
+.wrap { max-width: 1000px; margin: 0 auto; padding: 0 16px; }
+a { color: var(--accent); }
+code, textarea { font: .85em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+header { border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+header .wrap { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+               gap: 8px 16px; padding-top: 12px; padding-bottom: 12px; }
+.brand { font: 700 1.3rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+         color: var(--fg); text-decoration: none; }
+nav a { margin-left: 16px; }
+h1 { font-size: 1.6rem; line-height: 1.25; margin: 0 0 4px; }
+h2 { font-size: 1.2rem; margin-top: 32px; }
+.description { color: var(--muted); margin-top: 0; }
+.chart { position: relative; height: clamp(280px, 60vh, 480px); margin: 24px 0 40px; }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+th, td { padding: 4px 8px; border-bottom: 1px solid var(--border); text-align: left;
+         vertical-align: top; }
+tbody tr:nth-child(even) { background: var(--stripe); }
+.num { text-align: right; white-space: nowrap; }
+.nowrap { white-space: nowrap; }
+textarea { width: 100%; padding: 8px; color: var(--fg); background: var(--bg);
+           border: 1px solid var(--border); border-radius: 6px; }
+.pages { list-style: none; padding: 0; }
+.pages li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.pages a { font-weight: 600; }
+.pages span { display: block; color: var(--muted); }
+footer { border-top: 1px solid var(--border); margin-top: 48px; padding: 16px 0;
+         color: var(--muted); font-size: .875rem; }
+"#;
+
+/// Chart.js defaults: follow the page colors, keep the height given by the `.chart` container and
+/// put pie legends on the side when there is room
+const CHART_DEFAULTS_JS: &str = r#"
+(function () {
+  var style = getComputedStyle(document.documentElement);
+  Chart.defaults.color = style.getPropertyValue('--muted').trim();
+  Chart.defaults.borderColor = style.getPropertyValue('--grid').trim();
+  Chart.defaults.elements.arc.borderColor = style.getPropertyValue('--bg').trim();
+  Chart.defaults.font.family = style.fontFamily;
+  Chart.defaults.maintainAspectRatio = false;
+  // lines without points, hovering shows all the series at that x
+  Chart.defaults.elements.point.radius = 0;
+  Chart.defaults.interaction.mode = 'index';
+  Chart.defaults.interaction.intersect = false;
+  Chart.overrides.pie.plugins.legend.position =
+    window.matchMedia('(min-width: 700px)').matches ? 'right' : 'bottom';
+})();
+"#;
 
 /// Pages headers.
-fn header() -> Markup {
+fn header(title: &str, description: &str) -> Markup {
     html! {
         head {
             meta charset="utf-8";
             meta name="viewport" content="width=device-width, initial-scale=1.0";
+            meta name="description" content=(description);
+            title { (title) }
+            style { (PreEscaped(STYLE)) }
 
-            script src="https://cdn.jsdelivr.net/npm/chart.js" { }
+            script src="https://cdn.jsdelivr.net/npm/chart.js@4" { }
+            script { (PreEscaped(CHART_DEFAULTS_JS)) }
             script defer data-domain="opreturn.org" src="https://plausible.casatta.it/js/script.js" { }
-
-            title { "OP_RETURN" }
         }
     }
 }
@@ -69,29 +129,33 @@ fn header() -> Markup {
 /// A static footer.
 fn footer() -> Markup {
     html! {
-        p { (PreEscaped("&nbsp;")) }
         footer {
-            p { a href="/" { "Home" } " | " a href="/about" { "About" }  }
-            p { "Page created " (now()) }
+            div class="wrap" {
+                "Page created " (now()) " · "
+                a href="https://github.com/RCasatta/opreturn_org" { "source" }
+            }
         }
-
     }
 }
 
 /// The final Markup, including `header` and `footer`.
 ///
-/// Additionally takes a `greeting_box` that's `Markup`, not `&str`.
-pub fn page(content: Markup, text: &str) -> Markup {
+/// `title` is the html title, `description` its meta description.
+pub fn page(title: &str, description: &str, content: Markup) -> Markup {
     html! {
         (DOCTYPE)
         html lang = "en" {
-            (header())
-            body style="font-family: Arial, Helvetica, sans-serif;" {
-                h1 { a href="/" { "OP_RETURN" } }
-                p { (NBSP) }
-                (content)
-                p { (text) }
-
+            (header(title, description))
+            body {
+                header {
+                    div class="wrap" {
+                        a class="brand" href="/" { "OP_RETURN" }
+                        nav { a href="/" { "Charts" } a href="/about" { "About" } }
+                    }
+                }
+                main class="wrap" {
+                    (content)
+                }
                 (footer())
             }
         }
@@ -100,55 +164,57 @@ pub fn page(content: Markup, text: &str) -> Markup {
 
 impl Page {
     pub fn to_html(&self) -> Markup {
-        let charts = html! {
+        let content = html! {
+            h1 { (self.title) }
+            p class="description" { (self.description) }
             @if let Some(content) = &self.content {
                 (content)
             }
             @for (i, chart) in self.charts.iter().enumerate() {
                 (chart.to_html(&format!("chart{}", i)))
-                p { (NBSP) }
+            }
+            @if !self.text.is_empty() {
+                p { (self.text) }
             }
         };
-        page(charts, &self.text)
+        page(
+            &format!("{} · OP_RETURN", self.title),
+            &self.description,
+            content,
+        )
     }
 }
 
 pub fn create_index(pages: &[Page]) -> Markup {
+    let description = "Charts and statistics about the Bitcoin blockchain";
     let links = html! {
-        ul {
+        h1 { "Charts" }
+        p class="description" { (description) ", updated daily." }
+        ul class="pages" {
             @for page in pages {
-                li  {
-                    p {
-                        a href=(page.permalink) { (page.title) }
-                        " - "
-                        (page.description)
-                    }
+                li {
+                    a href=(page.permalink) { (page.title) }
+                    span { (page.description) }
                 }
             }
         }
     };
-    page(links, "")
+    page("OP_RETURN", description, links)
 }
 
 pub fn create_about() -> Markup {
-    let blocks_iterator = html! {
-        a href="https://github.com/RCasatta/blocks_iterator" { "blocks iterator" }
-    };
-
-    let source = html! {
-        a href="https://github.com/RCasatta/rustat/" { "source" }
-    };
-
     let content = html! {
-        h2 { "About" }
-
-        p { "OP_RETURN shows charts about Bitcoin." }
-        p { "The site is built once a day." }
-        p { "Show me the " (source) "." }
-        p { "Built with " (blocks_iterator) "." }
+        h1 { "About" }
+        p { "OP_RETURN shows charts about the Bitcoin blockchain, it's built once a day." }
+        p {
+            "Blocks are read with "
+            a href="https://github.com/RCasatta/blocks_iterator" { "blocks_iterator" }
+            ", the "
+            a href="https://github.com/RCasatta/opreturn_org" { "source" }
+            " of the site is on GitHub."
+        }
     };
-
-    page(content, "")
+    page("About · OP_RETURN", "About the OP_RETURN site", content)
 }
 
 fn to_label_map(values: &[u64], mul: usize) -> BTreeMap<String, u64> {
@@ -216,7 +282,7 @@ mod test {
     #[test]
     fn test_pie_page() {
         let chart = mock_pie_chart();
-        let page = page(chart.to_html("chart0"), "").into_string();
+        let page = page("test", "", chart.to_html("chart0")).into_string();
         assert_eq!("", to_data_url(page, "text/html"));
     }
 
@@ -224,7 +290,7 @@ mod test {
     #[test]
     fn test_lines_page() {
         let chart = mock_lines_chart();
-        let page = page(chart.to_html("chart0"), "").into_string();
+        let page = page("test", "", chart.to_html("chart0")).into_string();
         assert_eq!("", to_data_url(page, "text/html"));
     }
 

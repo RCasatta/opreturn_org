@@ -4,7 +4,7 @@ use crate::pages::{to_label_map, Page};
 use crate::process::{Bip158Stats, Stats, TxStats};
 
 pub fn blockchain_sizes(stats: &Stats, bip158: &Bip158Stats, tx_stats: &TxStats) -> Page {
-    let title = "Blockhain sizes".to_string();
+    let title = "Blockchain sizes".to_string();
 
     let (vec, mul) = stats.block_size_per_period.finish();
     let blockchain = to_label_map(&cumulative(&vec), mul);
