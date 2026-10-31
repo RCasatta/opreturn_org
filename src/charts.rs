@@ -1,6 +1,5 @@
 use maud::Markup;
 use maud::{html, PreEscaped};
-use regex::Regex;
 use serde::{Serialize, Serializer};
 use std::fmt::{Display, Formatter};
 
@@ -149,10 +148,7 @@ impl Chart {
     }
 
     pub fn to_json_dict(&self) -> String {
-        let s = serde_json::to_string(&self).unwrap();
-        let re = Regex::new("\"#([^#]+)#\"").unwrap();
-        let result = re.replace_all(&s, "$1");
-        result.to_string()
+        serde_json::to_string(&self).unwrap()
     }
 
     /// `id` must be unique in the page, it's used both as canvas id and js variable name
@@ -173,86 +169,5 @@ impl Chart {
                 (PreEscaped(script))
             }
         }
-    }
-}
-
-#[cfg(test)]
-pub mod test {
-    use crate::charts::{Chart, Color, Dataset, Kind};
-    use regex::Regex;
-    use std::collections::BTreeMap;
-
-    pub fn mock_pie_chart() -> Chart {
-        let mut serie = BTreeMap::new();
-        serie.insert("with".to_string(), 100u64);
-        serie.insert("without".to_string(), 200);
-        let labels: Vec<_> = serie.keys().cloned().collect();
-        let mut chart = Chart::new(
-            "Inputs with or without elements in witness".to_string(),
-            Kind::Pie,
-            labels,
-        );
-        let data: Vec<_> = serie.values().cloned().collect();
-        chart.add_dataset(
-            Dataset {
-                data,
-                label: "aaa".to_string(),
-                background_color: vec![Color::Yellow],
-                border_color: vec![],
-                fill: true,
-                hidden: false,
-                border_dash: None,
-                y_axis_id: None,
-            },
-            None,
-        );
-
-        chart
-    }
-
-    pub fn mock_lines_chart() -> Chart {
-        let mut serie = BTreeMap::new();
-        serie.insert("2019".to_string(), 50u64);
-        serie.insert("2020".to_string(), 100u64);
-        serie.insert("2021".to_string(), 200);
-        let labels: Vec<_> = serie.keys().cloned().collect();
-        let mut chart = Chart::new(
-            "Inputs with or without elements in witness".to_string(),
-            Kind::Line,
-            labels,
-        );
-        let data: Vec<_> = serie.values().cloned().collect();
-        chart.add_dataset(
-            Dataset {
-                data,
-                label: "aaa".to_string(),
-                background_color: vec![Color::Blue],
-                border_color: vec![],
-                fill: true,
-                hidden: false,
-                border_dash: None,
-                y_axis_id: None,
-            },
-            None,
-        );
-
-        chart
-    }
-
-    #[test]
-    fn test_regex() {
-        let re = Regex::new("\"#(.+)#\"").unwrap();
-        let text = "\"#azzo#\"";
-        let result = re.replace_all(text, "$1");
-        assert_eq!(result, "azzo");
-    }
-
-    #[ignore]
-    #[test]
-    fn test_chart() {
-        let chart = mock_pie_chart();
-
-        //chart.add(serie);
-        assert_eq!("", chart.to_html("chart0").into_string());
     }
 }

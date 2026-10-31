@@ -391,98 +391,23 @@ impl Decodable for SignatureHash {
     }
 }
 
-/*
 #[cfg(test)]
-mod test {
-    use crate::process::cumulative;
-    use crate::process::decompress_amount;
-    use crate::process::index_month;
-    use crate::process::parse_multisig;
-    use crate::process::{compress_amount, SignatureHash};
-    use crate::process::{date_index, encoded_length_7bit_varint, month_date};
-    use bitcoin::consensus::{deserialize, Decodable};
-    use bitcoin::SigHashType;
-    use chrono::offset::TimeZone;
-    use chrono::Utc;
-    use std::collections::HashMap;
-
-    #[test]
-    fn test0() {
-        let date = Utc.timestamp(1230768000i64, 0);
-        assert_eq!(0, date_index(date));
-        assert_eq!("200901", index_month(0));
-        let date = Utc.timestamp(1262304000i64, 0);
-        assert_eq!(12, date_index(date));
-        assert_eq!("200912", index_month(11));
-        assert_eq!("201001", index_month(12));
-        for i in 0..2000 {
-            assert_eq!(i, date_index(month_date(index_month(i))));
-        }
-    }
-
-    #[test]
-    fn test1() {
-        assert_eq!(encoded_length_7bit_varint(127), 1);
-        assert_eq!(encoded_length_7bit_varint(128), 2);
-        assert_eq!(encoded_length_7bit_varint(1_270), 2);
-        assert_eq!(encoded_length_7bit_varint(111_270), 3);
-        assert_eq!(encoded_length_7bit_varint(2_097_151), 3);
-        assert_eq!(encoded_length_7bit_varint(2_097_152), 4);
-    }
-
-    #[test]
-    fn test2() {
-        let tuples = vec![("one", 1), ("two", 2), ("three", 3)];
-        let m: HashMap<_, _> = tuples.into_iter().collect();
-        println!("{:?}", m);
-    }
-
-    #[test]
-    fn test3() {
-        let mut b: bool = true;
-        let u = b as u32;
-        assert_eq!(u, 1u32);
-        b = false;
-        let u = b as u32;
-        assert_eq!(u, 0u32);
-    }
-
-    #[test]
-    fn test4() {
-        let i = 10_000_000_000;
-        let compressed = compress_amount(i);
-        println!("compressed: {}", compressed);
-        assert_eq!(i, decompress_amount(compressed));
-
-        for i in 0..std::u64::MAX {
-            assert_eq!(i, decompress_amount(compress_amount(i)));
-        }
-    }
-
-    #[test]
-    fn test5() {
-        let vec = vec![1, 1, 1];
-        assert_eq!(cumulative(&vec), vec![1, 2, 3]);
-    }
-
-    #[test]
-    fn test_parse_multisig() {
-        let script = hex::decode("52210293de2378b245e0c4a8325d2beb2e537041a3b9b12c96052a9f30954700e56ef3210230d013baf38205252c298625a7c7799e1f11a016d3738198410bcf8bcc1fecab52ae").unwrap();
-        assert_eq!(Some("02of02".to_string()), parse_multisig(&script));
-    }
+mod tests {
+    use super::SignatureHash;
+    use blocks_iterator::bitcoin::consensus::deserialize;
+    use blocks_iterator::bitcoin::EcdsaSighashType;
 
     #[test]
     fn test_decode_signature() {
-        let der_signature = hex::decode("3045022100bd3688bbeefe67dbaf34b7e7d250bcbcf99c8a5cf7cb680393f5025b03dac912022057dbf2317c3413b57eeaf712f1599b74213f1a4ea4e3f5091db6f7fe8d02465a01").unwrap();
+        let der = "3045022100bd3688bbeefe67dbaf34b7e7d250bcbcf99c8a5cf7cb680393f5025b03dac912022057dbf2317c3413b57eeaf712f1599b74213f1a4ea4e3f5091db6f7fe8d02465a";
+        let signature = hex::decode(format!("{}01", der)).unwrap();
+        let sighash: SignatureHash = deserialize(&signature).unwrap();
+        assert_eq!(sighash.0, EcdsaSighashType::All);
 
-        let signatureHash: SignatureHash = deserialize(&der_signature).unwrap();
-        assert_eq!(signatureHash.0, SigHashType::All);
+        let signature = hex::decode(format!("{}83", der)).unwrap();
+        let sighash: SignatureHash = deserialize(&signature).unwrap();
+        assert_eq!(sighash.0, EcdsaSighashType::SinglePlusAnyoneCanPay);
 
-        let der_signature = hex::decode("3045022100bd3688bbeefe67dbaf34b7e7d250bcbcf99c8a5cf7cb680393f5025b03dac912022057dbf2317c3413b57eeaf712f1599b74213f1a4ea4e3f5091db6f7fe8d02465a83").unwrap();
-
-        let signatureHash: SignatureHash = deserialize(&der_signature).unwrap();
-        assert_eq!(signatureHash.0, SigHashType::SinglePlusAnyoneCanPay);
+        assert!(deserialize::<SignatureHash>(&signature[1..]).is_err());
     }
 }
-
- */

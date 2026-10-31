@@ -101,3 +101,36 @@ pub fn compress_amount(n: u64) -> u64 {
 pub fn block_index(height: u32) -> usize {
     height as usize / 1000
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{compress_amount, encoded_length_7bit_varint, parse_multisig};
+
+    #[test]
+    fn test_encoded_length_7bit_varint() {
+        assert_eq!(encoded_length_7bit_varint(127), 1);
+        assert_eq!(encoded_length_7bit_varint(128), 2);
+        assert_eq!(encoded_length_7bit_varint(1_270), 2);
+        assert_eq!(encoded_length_7bit_varint(111_270), 3);
+        assert_eq!(encoded_length_7bit_varint(2_097_151), 3);
+        assert_eq!(encoded_length_7bit_varint(2_097_152), 4);
+    }
+
+    #[test]
+    fn test_compress_amount() {
+        // vectors from bitcoin core src/test/compress_tests.cpp
+        assert_eq!(compress_amount(0), 0x0);
+        assert_eq!(compress_amount(1), 0x1);
+        assert_eq!(compress_amount(1_000_000), 0x7);
+        assert_eq!(compress_amount(100_000_000), 0x9);
+        assert_eq!(compress_amount(5_000_000_000), 0x32);
+        assert_eq!(compress_amount(2_100_000_000_000_000), 0x1406f40);
+    }
+
+    #[test]
+    fn test_parse_multisig() {
+        let script = hex::decode("52210293de2378b245e0c4a8325d2beb2e537041a3b9b12c96052a9f30954700e56ef3210230d013baf38205252c298625a7c7799e1f11a016d3738198410bcf8bcc1fecab52ae").unwrap();
+        assert_eq!(Some("02of02".to_string()), parse_multisig(&script));
+        assert_eq!(None, parse_multisig(&script[..script.len() - 1]));
+    }
+}
