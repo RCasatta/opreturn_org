@@ -6,7 +6,6 @@ use blocks_iterator::BlockExtra;
 use blocks_iterator::PeriodCounter;
 use log::{debug, info};
 use std::collections::HashSet;
-use std::convert::TryInto;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};

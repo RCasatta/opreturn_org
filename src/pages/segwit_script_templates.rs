@@ -186,7 +186,6 @@ mod tests {
     use bitcoin::opcodes::all::*;
     use bitcoin::script::{Builder, PushBytesBuf};
     use bitcoin::{ScriptBuf, Txid};
-    use std::convert::TryFrom;
     use std::io::Write;
     use std::process::{Command, Stdio};
 
