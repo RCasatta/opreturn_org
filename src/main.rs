@@ -1,11 +1,11 @@
 use crate::process::{ProcessBip158Stats, ProcessOpRet, ProcessStats, ProcessTxStats};
-use blocks_iterator::log::info;
 use blocks_iterator::{PeriodCounter, PipeIterator};
 use bloom::{parse_false_positive_rate, parse_positive_u64, BloomConfig};
 use chrono::format::StrftimeItems;
 use chrono::{DateTime, Utc};
 use clap::Parser;
 use env_logger::Env;
+use log::info;
 use sample::Sampler;
 use std::io::Write;
 use std::path::PathBuf;

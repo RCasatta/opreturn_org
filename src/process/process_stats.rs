@@ -1,11 +1,11 @@
 use crate::counter::Counter;
 use crate::process::block_index;
+use bitcoin::blockdata::script::Instruction;
+use bitcoin::consensus::{deserialize, encode, Decodable};
 use bitcoin::hashes::Hash;
-use blocks_iterator::bitcoin::blockdata::script::Instruction;
-use blocks_iterator::bitcoin::consensus::{deserialize, encode, Decodable};
-use blocks_iterator::bitcoin::{BlockHash, EcdsaSighashType, VarInt};
-use blocks_iterator::log::info;
+use bitcoin::{BlockHash, EcdsaSighashType, VarInt};
 use blocks_iterator::{BlockExtra, PeriodCounter};
+use log::info;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
@@ -394,8 +394,8 @@ impl Decodable for SignatureHash {
 #[cfg(test)]
 mod tests {
     use super::SignatureHash;
-    use blocks_iterator::bitcoin::consensus::deserialize;
-    use blocks_iterator::bitcoin::EcdsaSighashType;
+    use bitcoin::consensus::deserialize;
+    use bitcoin::EcdsaSighashType;
 
     #[test]
     fn test_decode_signature() {

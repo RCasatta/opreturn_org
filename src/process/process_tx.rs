@@ -3,10 +3,10 @@ use crate::counter::Counter;
 use crate::pages::bip69::{has_more_than_one_input_output, is_bip69};
 use crate::process::{block_index, compress_amount, encoded_length_7bit_varint};
 use bitcoin::Address;
-use blocks_iterator::bitcoin::{Script, Transaction, Txid, VarInt};
-use blocks_iterator::log::info;
+use bitcoin::{Script, Transaction, Txid, VarInt};
 use blocks_iterator::BlockExtra;
 use blocks_iterator::PeriodCounter;
+use log::info;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
@@ -266,7 +266,7 @@ mod tests {
     use super::{is_known_script_pubkey, TxStats};
     use bitcoin::absolute::LockTime;
     use bitcoin::transaction::Version;
-    use blocks_iterator::bitcoin::{ScriptBuf, Transaction, TxIn};
+    use bitcoin::{ScriptBuf, Transaction, TxIn};
 
     fn script_with_payload(prefix: &[u8], payload_len: usize, suffix: &[u8]) -> ScriptBuf {
         let mut bytes = Vec::with_capacity(prefix.len() + payload_len + suffix.len());

@@ -6,10 +6,10 @@
 //! different keys produces the same template. Counting how many distinct scripts share a template
 //! gives an idea of the anonymity set of that script type.
 
-use blocks_iterator::bitcoin::blockdata::opcodes::all::*;
-use blocks_iterator::bitcoin::blockdata::opcodes::Opcode;
-use blocks_iterator::bitcoin::blockdata::script::Instruction;
-use blocks_iterator::bitcoin::{Script, TxIn, Txid};
+use bitcoin::blockdata::opcodes::all::*;
+use bitcoin::blockdata::opcodes::Opcode;
+use bitcoin::blockdata::script::Instruction;
+use bitcoin::{Script, TxIn, Txid};
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
@@ -502,9 +502,9 @@ impl SegwitTemplates {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use blocks_iterator::bitcoin::blockdata::script::Builder;
-    use blocks_iterator::bitcoin::hashes::Hash;
-    use blocks_iterator::bitcoin::{ScriptBuf, Sequence, Witness};
+    use bitcoin::blockdata::script::Builder;
+    use bitcoin::hashes::Hash;
+    use bitcoin::{ScriptBuf, Sequence, Witness};
 
     fn pk(i: u8) -> [u8; 33] {
         let mut k = [i; 33];
@@ -742,7 +742,7 @@ mod tests {
         // p2wpkh
         let i = input(ScriptBuf::new(), vec![vec![1; 71], pk(1).to_vec()]);
         assert_eq!(revealed_script(&i, None), None);
-        let p2wpkh = ScriptBuf::new_p2wpkh(&blocks_iterator::bitcoin::WPubkeyHash::all_zeros());
+        let p2wpkh = ScriptBuf::new_p2wpkh(&bitcoin::WPubkeyHash::all_zeros());
         assert_eq!(revealed_script(&i, Some(&p2wpkh)), None);
     }
 

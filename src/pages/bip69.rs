@@ -6,7 +6,7 @@ use crate::process::TxStats;
 use core::cmp::Ordering;
 
 use bitcoin::hashes::Hash;
-use blocks_iterator::bitcoin::{Transaction, TxIn, TxOut};
+use bitcoin::{Transaction, TxIn, TxOut};
 
 pub fn bip69(tx_stats: &TxStats) -> Page {
     let title = "BIP69 adoption".to_string();
@@ -122,10 +122,10 @@ mod tests {
     use std::str::FromStr;
 
     use crate::pages::bip69::{cmp_inputs, cmp_outputs, has_more_than_one_input_output, is_bip69};
+    use bitcoin::consensus::deserialize;
+    use bitcoin::hashes::hex::FromHex;
     use bitcoin::ScriptBuf;
-    use blocks_iterator::bitcoin::consensus::deserialize;
-    use blocks_iterator::bitcoin::hashes::hex::FromHex;
-    use blocks_iterator::bitcoin::{OutPoint, Transaction, TxIn, TxOut};
+    use bitcoin::{OutPoint, Transaction, TxIn, TxOut};
 
     // tx 28204cad1d7fc1d199e8ef4fa22f182de6258a3eaafe1bbe56ebdcacd3069a5f 2-inputs/2-outputs
     const TX: &str = "010000000255605dc6f5c3dc148b6da58442b0b2cd422be385eab2ebea4119ee9c268d28350000000049483045022100aa46504baa86df8a33b1192b1b9367b4d729dc41e389f2c04f3e5c7f0559aae702205e82253a54bf5c4f65b7428551554b2045167d6d206dfe6a2e198127d3f7df1501ffffffff55605dc6f5c3dc148b6da58442b0b2cd422be385eab2ebea4119ee9c268d2835010000004847304402202329484c35fa9d6bb32a55a70c0982f606ce0e3634b69006138683bcd12cbb6602200c28feb1e2555c3210f1dddb299738b4ff8bbe9667b68cb8764b5ac17b7adf0001ffffffff0200e1f505000000004341046a0765b5865641ce08dd39690aade26dfbf5511430ca428a3089261361cef170e3929a68aee3d8d4848b0c5111b0a37b82b86ad559fd2a745b44d8e8d9dfdc0cac00180d8f000000004341044a656f065871a353f216ca26cef8dde2f03e8c16202d2e8ad769f02032cb86a5eb5e56842e92e19141d60a01928f8dd2c875a390f67c1f6c94cfc617c0ea45afac00000000";

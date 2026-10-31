@@ -1,7 +1,7 @@
 //! Runs the binary on `tests/fixtures/testnet.bin` and compares the generated site with the
 //! snapshot in `tests/snapshots/site`. Run with `UPDATE_SNAPSHOTS=1` to accept the new output.
 
-use blocks_iterator::bitcoin::consensus::Decodable;
+use bitcoin::consensus::Decodable;
 use blocks_iterator::BlockExtra;
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};

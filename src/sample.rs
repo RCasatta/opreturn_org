@@ -1,4 +1,4 @@
-use blocks_iterator::bitcoin::consensus::serialize;
+use bitcoin::consensus::serialize;
 use blocks_iterator::BlockExtra;
 use std::fs::{self, File};
 use std::io::{self, BufWriter, Write};

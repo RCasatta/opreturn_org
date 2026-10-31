@@ -182,10 +182,10 @@ pub fn segwit_script_templates(script_type: &ScriptType) -> Page {
 mod tests {
     use super::*;
     use crate::process::segwit_templates::{template, SpendKind};
-    use blocks_iterator::bitcoin::hashes::Hash;
-    use blocks_iterator::bitcoin::opcodes::all::*;
-    use blocks_iterator::bitcoin::script::{Builder, PushBytesBuf};
-    use blocks_iterator::bitcoin::{ScriptBuf, Txid};
+    use bitcoin::hashes::Hash;
+    use bitcoin::opcodes::all::*;
+    use bitcoin::script::{Builder, PushBytesBuf};
+    use bitcoin::{ScriptBuf, Txid};
     use std::convert::TryFrom;
     use std::io::Write;
     use std::process::{Command, Stdio};

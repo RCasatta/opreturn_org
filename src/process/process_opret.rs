@@ -1,12 +1,12 @@
 use crate::counter::Counter;
 use crate::process::{block_index, parse_multisig, parse_pubkeys_in_tx, SegwitTemplates};
-use blocks_iterator::bitcoin::opcodes::all::OP_PUSHNUM_13;
-use blocks_iterator::bitcoin::script::Instruction;
-use blocks_iterator::bitcoin::Script;
-use blocks_iterator::log::{debug, info};
+use bitcoin::opcodes::all::OP_PUSHNUM_13;
+use bitcoin::script::Instruction;
+use bitcoin::Script;
 use blocks_iterator::BlockExtra;
 use blocks_iterator::PeriodCounter;
 use chrono::Duration;
+use log::{debug, info};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -387,7 +387,7 @@ impl OpReturnData {
 #[cfg(test)]
 mod proto_tests {
     use super::ProtoKey;
-    use blocks_iterator::bitcoin::ScriptBuf;
+    use bitcoin::ScriptBuf;
     use std::collections::HashMap;
     use std::str::FromStr;
 
