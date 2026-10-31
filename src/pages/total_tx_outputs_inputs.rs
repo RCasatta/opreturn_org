@@ -36,13 +36,15 @@ pub fn total_tx_outputs_inputs(tx_stats: &TxStats) -> Page {
             .to_string(),
         permalink: "total-tx-outputs-inputs".to_string(),
         charts: vec![chart],
-        text: format!(
-            "total tx: {}, total inputs: {}, total outputs: {}, total_spendable_outputs: {}",
-            tx_stats.total_tx,
-            tx_stats.total_inputs,
-            tx_stats.total_outputs,
-            tx_stats.total_spendable_outputs
-        ),
+        stats: vec![
+            ("total tx".to_string(), tx_stats.total_tx),
+            ("total inputs".to_string(), tx_stats.total_inputs),
+            ("total outputs".to_string(), tx_stats.total_outputs),
+            (
+                "total spendable outputs".to_string(),
+                tx_stats.total_spendable_outputs,
+            ),
+        ],
         ..Default::default()
     }
 }

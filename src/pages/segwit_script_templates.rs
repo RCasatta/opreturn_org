@@ -1,5 +1,5 @@
 use crate::charts::{Chart, Color, Dataset, Kind};
-use crate::pages::Page;
+use crate::pages::{thousands, Page};
 use crate::process::segwit_templates::{is_envelope, TemplateRow, OTHER};
 use crate::process::ScriptType;
 use maud::{html, Markup, PreEscaped};
@@ -38,19 +38,6 @@ fn csv(rows: &[TemplateRow]) -> String {
         ));
     }
     csv
-}
-
-/// `n` with comma separated thousands, as `toLocaleString('en-US')` does in javascript
-fn thousands(n: u64) -> String {
-    let digits = n.to_string();
-    let mut result = String::new();
-    for (i, c) in digits.chars().enumerate() {
-        if i > 0 && (digits.len() - i) % 3 == 0 {
-            result.push(',');
-        }
-        result.push(c);
-    }
-    result
 }
 
 /// The first [`TABLE_ROWS`] of `rows`, percentages are relative to the spends of all `rows`
@@ -295,14 +282,6 @@ mod tests {
         for ((script, asm), js_template) in scripts.iter().zip(asms.iter()).zip(js_templates) {
             assert_eq!(template(script.as_bytes()), js_template, "asm: {}", asm);
         }
-    }
-
-    #[test]
-    fn test_thousands() {
-        assert_eq!(thousands(0), "0");
-        assert_eq!(thousands(999), "999");
-        assert_eq!(thousands(1000), "1,000");
-        assert_eq!(thousands(32714282), "32,714,282");
     }
 
     #[test]

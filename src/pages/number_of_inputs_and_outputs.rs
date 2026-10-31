@@ -9,10 +9,10 @@ pub fn number_of_inputs_and_outputs(stats: &TxStats) -> Page {
         description: "Show how many txs have A input and B output".to_string(),
         permalink: "number-of-inputs-and-outputs".to_string(),
         charts: vec![Chart::pie(title, &stats.in_out)],
-        text: format!(
-            "tx with more than 10 inputs: {}",
-            stats.total_tx_with_more_than_10_inputs
-        ),
+        stats: vec![(
+            "tx with more than 10 inputs".to_string(),
+            stats.total_tx_with_more_than_10_inputs,
+        )],
         ..Default::default()
     }
 }

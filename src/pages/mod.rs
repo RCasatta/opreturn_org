@@ -43,7 +43,8 @@ pub struct Page {
     pub description: String,
     pub permalink: String,
     pub charts: Vec<Chart>,
-    pub text: String,
+    /// Totals shown in a table after the charts, as (label, value)
+    pub stats: Vec<(String, u64)>,
     /// Html shown before the charts
     pub content: Option<Markup>,
     /// Additional files written in the page directory, as (file name, content)
@@ -80,6 +81,7 @@ th, td { padding: 4px 8px; border-bottom: 1px solid var(--border); text-align: l
          vertical-align: top; }
 tbody tr:nth-child(even) { background: var(--stripe); }
 .num { text-align: right; white-space: nowrap; }
+.stats { width: auto; min-width: 280px; }
 .nowrap { white-space: nowrap; }
 textarea { width: 100%; padding: 8px; color: var(--fg); background: var(--bg);
            border: 1px solid var(--border); border-radius: 6px; }
@@ -177,8 +179,14 @@ impl Page {
             @for (i, chart) in self.charts.iter().enumerate() {
                 (chart.to_html(&format!("chart{}", i)))
             }
-            @if !self.text.is_empty() {
-                p { (self.text) }
+            @if !self.stats.is_empty() {
+                table class="stats" {
+                    tbody {
+                        @for (label, value) in self.stats.iter() {
+                            tr { th { (label) } td class="num" { (thousands(*value)) } }
+                        }
+                    }
+                }
             }
         };
         page(
@@ -219,6 +227,19 @@ fn create_about() -> Markup {
         }
     };
     page("About · OP_RETURN", "About the OP_RETURN site", content)
+}
+
+/// `n` with comma separated thousands, as `toLocaleString('en-US')` does in javascript
+pub fn thousands(n: u64) -> String {
+    let digits = n.to_string();
+    let mut result = String::new();
+    for (i, c) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i) % 3 == 0 {
+            result.push(',');
+        }
+        result.push(c);
+    }
+    result
 }
 
 /// Writes the pages, each in its own directory, the index, the about page and the favicon in
@@ -264,4 +285,17 @@ pub fn get_pages(
         bip69(tx_stats),
         locktime(tx_stats),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::thousands;
+
+    #[test]
+    fn test_thousands() {
+        assert_eq!(thousands(0), "0");
+        assert_eq!(thousands(999), "999");
+        assert_eq!(thousands(1000), "1,000");
+        assert_eq!(thousands(32714282), "32,714,282");
+    }
 }

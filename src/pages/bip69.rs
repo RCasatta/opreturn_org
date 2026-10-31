@@ -26,7 +26,6 @@ pub fn bip69(tx_stats: &TxStats) -> Page {
         description: "BIP69 compliance, ordered transaction inputs and outputs".to_string(),
         permalink: "bip69".to_string(),
         charts: vec![chart],
-        text: "".to_string(),
         ..Default::default()
     }
 }

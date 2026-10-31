@@ -80,7 +80,6 @@ pub fn op_return_protocols(opret: &OpReturnData) -> Page {
         description: "Protocols are guessed from the first 3 bytes of the data pushed after OP_RETURN (OP_RETURN OP_13 for Runes), which can indicate the protocol but it's not an enforced rule by the Bitcoin consensus. Known prefixes are labelled, unknown ones are shown as hex.".to_string(),
         permalink: "op-return-protocols".to_string(),
         charts: vec![chart1, chart2, chart3],
-        text: "".to_string(),
         ..Default::default()
     }
 }
