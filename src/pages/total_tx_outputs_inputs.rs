@@ -39,11 +39,11 @@ pub fn total_tx_outputs_inputs(tx_stats: &TxStats) -> Page {
     chart.add_dataset(dataset, None);
 
     let perc_outputs = perc_1000(
-        &tx_stats.total_inputs_per_period.finish().0,
+        &tx_stats.total_outputs_per_period.finish().0,
         &tx_stats.total_tx_per_period.finish().0,
     );
     let dataset = Dataset {
-        label: "Average Outputs *1000".to_string(),
+        label: "Average outputs *1000".to_string(),
         data: perc_outputs,
         background_color: vec![Color::Purple],
         border_color: vec![Color::Purple],
@@ -53,7 +53,7 @@ pub fn total_tx_outputs_inputs(tx_stats: &TxStats) -> Page {
     chart.add_dataset(dataset, Some("y2".to_string()));
 
     let perc_inputs = perc_1000(
-        &tx_stats.total_outputs_per_period.finish().0,
+        &tx_stats.total_inputs_per_period.finish().0,
         &tx_stats.total_tx_per_period.finish().0,
     );
     let dataset = Dataset {

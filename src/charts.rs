@@ -76,6 +76,8 @@ pub struct Chart {
 #[serde(rename_all = "camelCase")]
 struct Options {
     plugins: Plugins,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    scales: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize)]
@@ -138,11 +140,18 @@ impl Chart {
                         text: title,
                     },
                 },
+                scales: None,
             },
         }
     }
 
+    /// A dataset with `y_axis_id` is plotted against a second y axis on the right
     pub fn add_dataset(&mut self, mut dataset: Dataset, y_axis_id: Option<String>) {
+        if let Some(id) = y_axis_id.as_ref() {
+            self.options.scales = Some(serde_json::json!({
+                id: { "position": "right", "grid": { "drawOnChartArea": false } }
+            }));
+        }
         dataset.y_axis_id = y_axis_id;
         self.data.datasets.push(dataset)
     }

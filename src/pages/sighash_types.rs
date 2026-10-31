@@ -10,7 +10,7 @@ pub fn sighash_types(stats: &Stats) -> Page {
         map.keys().cloned().collect(),
     );
     let dataset = Dataset {
-        label: "chart1".to_string(),
+        label: "Number of sighash type used".to_string(),
         data: map.values().cloned().collect(),
         background_color: Color::rainbow(),
         border_color: vec![],

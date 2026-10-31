@@ -66,11 +66,11 @@ pub fn group_by_label(map: &HashMap<ProtoKey, u64>) -> HashMap<String, u64> {
     grouped
 }
 
-fn pie(title: &str, dataset_label: &str, map: &HashMap<ProtoKey, u64>) -> Chart {
+fn pie(title: &str, map: &HashMap<ProtoKey, u64>) -> Chart {
     let map = map_by_value(&group_by_label(map));
     let mut chart = Chart::new(title.to_string(), Kind::Pie, map.keys().cloned().collect());
     let dataset = Dataset {
-        label: dataset_label.to_string(),
+        label: title.to_string(),
         data: map.values().cloned().collect(),
         background_color: Color::rainbow(),
         border_color: vec![],
@@ -82,9 +82,9 @@ fn pie(title: &str, dataset_label: &str, map: &HashMap<ProtoKey, u64>) -> Chart 
 }
 
 pub fn op_return_protocols(opret: &OpReturnData) -> Page {
-    let chart1 = pie("Last month", "chart1", &opret.op_ret_per_proto_last_month);
-    let chart2 = pie("Last year", "chart2", &opret.op_ret_per_proto_last_year);
-    let chart3 = pie("Ever", "chart3", &opret.op_ret_per_proto);
+    let chart1 = pie("Last month", &opret.op_ret_per_proto_last_month);
+    let chart2 = pie("Last year", &opret.op_ret_per_proto_last_year);
+    let chart3 = pie("Ever", &opret.op_ret_per_proto);
 
     Page {
         title: "OP_RETURN protocols".to_string(),

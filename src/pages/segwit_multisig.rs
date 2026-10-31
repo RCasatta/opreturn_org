@@ -10,7 +10,7 @@ pub fn segwit_multisig(script_type: &ScriptType) -> Page {
         map.keys().cloned().collect(),
     );
     let dataset = Dataset {
-        label: "chart1".to_string(),
+        label: "Analyze segwit input scripts counting the occurence of the NofM".to_string(),
         data: map.values().cloned().collect(),
         background_color: Color::rainbow(),
         border_color: vec![],

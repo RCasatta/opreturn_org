@@ -10,7 +10,7 @@ pub fn witness_stats(stats: &Stats) -> Page {
         has_witness.keys().cloned().collect(),
     );
     let dataset = Dataset {
-        label: "chart1".to_string(),
+        label: "Inputs with or without elements in witness".to_string(),
         data: has_witness.values().cloned().collect(),
         background_color: Color::rainbow(),
         border_color: vec![],
@@ -26,7 +26,7 @@ pub fn witness_stats(stats: &Stats) -> Page {
         witness_elements.keys().cloned().collect(),
     );
     let dataset = Dataset {
-        label: "chart2".to_string(),
+        label: "Number of elements in non-empty witness".to_string(),
         data: witness_elements.values().cloned().collect(),
         background_color: Color::rainbow(),
         border_color: vec![],
@@ -42,7 +42,7 @@ pub fn witness_stats(stats: &Stats) -> Page {
         witness_byte_size.keys().cloned().collect(),
     );
     let dataset = Dataset {
-        label: "chart3".to_string(),
+        label: "Bytes in non-empty witness".to_string(),
         data: witness_byte_size.values().cloned().collect(),
         background_color: Color::rainbow(),
         border_color: vec![],
