@@ -76,6 +76,8 @@
         # artifacts from above.
         my-crate = craneLib.buildPackage (commonArgs // {
           inherit cargoArtifacts;
+          # the tests run during the build, and one runs the page javascript
+          nativeBuildInputs = [ pkgs.nodejs ];
         });
       in
       {
